@@ -148,6 +148,11 @@ vendor/etc/acdbdata/QRD/sdm439-sku1-snd-card/SDM439_SKU1_Headset_cal.acdb
 vendor/etc/acdbdata/QRD/sdm439-sku1-snd-card/SDM439_SKU1_Speaker_cal.acdb
 vendor/etc/acdbdata/QRD/sdm439-sku1-snd-card/SDM439_SKU1_workspaceFile.qwsp
 
+# General Mobile stock OEM media
+product/media/audio/ringtones/GeneralMobile.mp3|d74ce13ebaa2769d5bcf843dac33e623d62cda5e
+product/media/audio/notifications/hangouts_message.ogg|eac5588070105c33e3fd28cafa94cdc63126112c
+product/media/audio/alarms/Oxygen.ogg|61e8cfccef6330a4786fe19e7ba9d994eadef1a4
+
 # Bluetooth
 vendor/bin/btnvtool
 vendor/bin/hci_qcomm_init
@@ -723,7 +728,6 @@ vendor/bin/hw/android.hardware.drm@1.2-service.widevine|924f17c49a87a4c209f8b44b
 vendor/etc/init/android.hardware.drm@1.2-service.widevine.rc|e3cb732c0bd519988100675edf385d947abf5f6c
 vendor/lib/mediadrm/libwvdrmengine.so|1a6df8eb1c56fc99b57318983fcdc42a2a661bc3
 vendor/lib64/mediadrm/libwvdrmengine.so|a721168a94e58420928c197067479ee2a74dd08b
-vendor/lib64/libcpion.so|1420ffb62d598b83507bf615f707c060649a4267
 vendor/lib64/libhdcpsrm.so|e391eba82e82b4ce4ca24d015278e87de6a0d6c1
 vendor/lib64/liboemcrypto.so|d48b320505a2fd0864a7bf8add38c18e54f8a6bd
 vendor/lib64/libwvhidl.so|f9f9f8fcb735aed73d280d033158a9a793e6c911
@@ -1793,7 +1797,6 @@ vendor/etc/mixer_paths_qrd_skum.xml
 vendor/bin/init.qcom.crashdata.sh
 vendor/etc/mixer_paths_qrd_skuhf.xml
 vendor/lib/libqsap_sdk.so
-vendor/framework/com.fingerprints.extension.jar
 vendor/lib/libnbaio_mono.so
 vendor/bin/logwrapper
 vendor/lib/libwpa_client.so
