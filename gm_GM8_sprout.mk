@@ -29,4 +29,7 @@ PRODUCT_BUILD_PROP_OVERRIDES += \
 
 # General Mobile / Android One client id used by the stock software family.
 PRODUCT_SYSTEM_PROPERTIES += \
-    ro.com.google.clientidbase=android-a1-gm-rev2
+    ro.com.google.clientidbase=android-a1-gm-rev2 \
+    ro.config.ringtone=GeneralMobile.mp3 \
+    ro.config.notification_sound=hangouts_message.ogg \
+    ro.config.alarm_alert=Oxygen.ogg
