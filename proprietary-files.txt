@@ -168,7 +168,9 @@ vendor/lib/libfastrpc_utf_stub.so
 vendor/lib64/libcdsprpc.so
 vendor/lib64/libfastrpc_utf_stub.so
 
-# CNE - from Daisy QKQ1.191002.002 V11.0.5.0.QDLMIXM
+# CNE userspace compatibility - from daisy Android 10
+# Stock GM8 Pie lacks much of the newer product-side QTI data/CNE HIDL stack.
+# Keep this set version-aligned for the initial Android 11 bring-up.
 -product/framework/com.quicinc.cne.api-V1.1-java.jar|207b66fb9d79b4f06e0a67a0e82c19c1f3b2d210
 -product/framework/com.quicinc.cne.constants-V1.0-java.jar|96476b6df625fcd79d546faa097a20eb6360d858
 -product/framework/com.quicinc.cne.constants-V2.0-java.jar|847d4c453e6192da9374f0b01f72f28a297a65d1
@@ -841,7 +843,9 @@ vendor/firmware/wlan/prima/WCNSS_qcom_cfg.ini
 vendor/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin
 vendor/firmware/wlan/prima/WCNSS_wlan_dictionary.dat
 
-# GPS - from daisy-user 10 QKQ1.191002.002.V11.0.5.0.QDLMIXM
+# GNSS userspace compatibility - from daisy Android 10
+# Stock GM8 Pie lacks the GNSS 2.0 / QTI GNSS 3.0 service and interface layer.
+# Keep the newer userspace stack while retaining GM8-specific GNSS configuration below.
 -framework/com.qti.location.sdk.jar|5dcbf27bd7709a111985e9660b5b61b5fb7a22b1
 -framework/izat.xt.srv.jar|98ffd12c789af16d186a4a04c0703a23dc27e347
 -vendor/etc/vintf/manifest/android.hardware.gnss@2.0-service-qti.xml|8d7eafd68db9bbe7ec7a5c4d547f026869766081
@@ -927,7 +931,8 @@ vendor/lib64/vendor.qti.gnss@2.1.so|7f69b6098f779f6ed396bbf366b496b0b228c743
 vendor/lib64/vendor.qti.gnss@3.0-service.so|6b3c387f31f4cb91c8907362af4daa3f0cad7911
 vendor/lib64/vendor.qti.gnss@3.0.so|c5ed668d324e7c898ca026fc12dad8829cd8a944
 
-# GPS-Conf - from daisy-user 10 QKQ1.191002.002.V11.0.5.0.QDLMIXM
+# GNSS configuration - validated against GM8 stock P.GM8.2102.B-s
+# Keep GM8 hardware/carrier configuration independent from the newer userspace HAL.
 vendor/etc/apdr.conf|b43b3d32d442436945c36fddcf2259021d98c324
 vendor/etc/flp.conf|8c8642685c225fa0b715c284481018a527dae451
 vendor/etc/gps.conf|590941e5a918790d84fb37948ea4eae7ec80a811
@@ -936,7 +941,8 @@ vendor/etc/lowi.conf|1e47a73803542661b9a4c42cc8dfa576ae03a9a2
 vendor/etc/sap.conf|afbcbacb367b2fcc05efcad76ef096d794e768ba
 vendor/etc/xtwifi.conf|ac2189707c0016c31846ccec73e8857d7f566605
 
-# GPS-Hardware - from daisy-user 10 QKQ1.191002.002.V11.0.5.0.QDLMIXM
+# GNSS hardware support - Android 10 compatibility set
+# Most paths exist on GM8 stock, but keep this version-aligned with the GNSS userspace stack.
 vendor/lib/libaoa.so|d71bdb2f8eb9c51e443c4168564afbd052a239ff
 vendor/lib/libgarden.so|b07a6b4cc9887fa343dbdc5af1d2b66e2e96c99b
 vendor/lib/libgnss.so|e3ba23d44a0fb66e4c6c0db818842a4cbcffdaa8
@@ -1137,7 +1143,9 @@ vendor/lib64/vendor.display.color@1.1.so
 vendor/lib64/vendor.display.color@1.2.so
 vendor/lib64/vendor.display.postproc@1.0.so
 
-# QMI - from Daisy QKQ1.191002.002 V11.0.5.0.QDLMIXM
+# QMI userspace compatibility - from daisy Android 10
+# QMI, RIL, data and IMS are tightly coupled. Do not mix stock Pie QMI libraries into
+# this set until their ELF dependencies and the complete radio/IMS chain are validated.
 etc/permissions/qti_libpermissions.xml|593bcb72cce68ceb0a70f50bcae7d460114e7c62
 etc/permissions/qti_permissions.xml|e6ff4572352b1a4f91b6b9d7cbb1cad9924410a0
 product/etc/permissions/qti_telephony_hidl_wrapper.xml|43bf0862c10ab8dce768ebeb40f32427d9368cb2
@@ -1180,7 +1188,9 @@ vendor/etc/init/vendor.qti.hardware.qdutils_disp@1.0-service-qti.rc
 vendor/lib/vendor.qti.hardware.qdutils_disp@1.0.so
 vendor/lib64/vendor.qti.hardware.qdutils_disp@1.0.so
 
-# Radio - from Daisy QKQ1.191002.002 V11.0.5.0.QDLMIXM
+# Radio userspace compatibility - from daisy Android 10
+# Stock GM8 Pie lacks newer product-side radio interfaces including QTI Radio 2.1-2.3
+# and UIM 1.2 components required by this Android 11 userspace stack.
 -product/app/QtiTelephonyService/QtiTelephonyService.apk|db60b6fe27b3033f6468b3170b23af18dd0bcdaf
 -product/app/datastatusnotification/datastatusnotification.apk|272156d88ac5a05f76fcea7f1a31087e1acbcd85
 -product/app/embms/embms.apk|e364de916ae2dd9a69aee6a9766c3783457a6d75
@@ -1335,7 +1345,9 @@ vendor/radio/qcril_database/upgrade/4_version_update_ecc_table.sql|0734c6a2863ed
 vendor/radio/qcril_database/upgrade/5_version_update_ecc_table.sql|fcb2cba3bfd718ecdc8d3cfac3a0b2b2c7e8c506
 vendor/radio/qcril_database/upgrade/6_version_update_ecc_table.sql|5e32c752c9d5dbb1e244b3b7edcbaf2e7bbfb877
 
-# Radio-IMS - from Daisy QKQ1.191002.002 V11.0.5.0.QDLMIXM
+# IMS userspace compatibility - from daisy Android 10
+# Stock GM8 Pie lacks newer IMS 1.5/1.6 and IMS RTP 2.x layers. Keep the complete
+# versioned IMS set together for Android 11; modem firmware remains GM8 stock.
 -product/app/imssettings/imssettings.apk|6b59b9e517b9e288576616a4799690b8a4c6e76e
 -product/app/uceShimService/uceShimService.apk|a4f64644c7c7f4340745df98d9da5e3243134b21
 -product/framework/com.qualcomm.qti.imscmservice-V2.0-java.jar|ffd8d94c2b41fef4e422f7247ee164d7ed70ff5d
