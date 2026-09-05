@@ -47,46 +47,48 @@ vendor/lib64/hw/vendor.qti.hardware.alarm@1.0-impl.so
 vendor/lib64/libalarmservice_jni.so
 vendor/lib64/vendor.qti.hardware.alarm@1.0.so
 
-# Audio - from GM8 stock P.GM8.2102.B-s
-vendor/bin/audioflacapp|a9d3c3ad23c3720f79eaf7f1463c2629c69150ea
-vendor/lib/libacdb-fts.so|6a9d13a41695f8bdd1506346c7cf2716ff5522bb
-vendor/lib/libacdbloader.so|4266c67cc96c5db42a9357fd615aa8de8c93ea54
-vendor/lib/libacdbrtac.so|ba3441cea526298956541fd58aeaf2c2681b582a
-vendor/lib/libadiertac.so|a180e677d3f40f9da22660dec7353a3905378aeb
-vendor/lib/libadm.so|01e2316dfa1afcb000984e9f68903ba6a1220159
-vendor/lib/libaudcal.so|34e9b447f8fe1076a3bc924a1b0b3dcfb454dfca
-vendor/lib/libaudio_log_utils.so|c0187996e4aa81683518645d1e1931afea5491de
-vendor/lib/libaudioalsa.so|61d75736da88920ec71bcc721f34ed04127aac3a
-vendor/lib/libaudioparsers.so|4d074631277ad63092d4f0f6995c827351f89690
-vendor/lib/libdrc.so|7db89c6858c928457a8731d90ba874420972ec9b
-vendor/lib/libqtigef.so|b0c3969acd7af258a095e161859de49c9d0d0ef4
-vendor/lib/libsurround_3mic_proc.so|832adfad9f3d414234f1b4cfd32b196fe4082bb9
-vendor/lib/libtinycompress_vendor.so|53e875124623396979346905c8b9a3dc66c48330
-vendor/lib/soundfx/libasphere.so|72c4e50e1e0058721e213387975f3dde5372d610
-vendor/lib/soundfx/libaudiopreprocessing.so|28e351eb592099f2f56849483647222d19649af9
-vendor/lib/soundfx/libqcbassboost.so|1a557b2961ae57e5e1f5a740212c54be1eb8a302
-vendor/lib/soundfx/libqcreverb.so|49bb8d7c71648a7eb527d7c895f926319dd34b35
-vendor/lib/soundfx/libqcvirt.so|a291018a808806c4a25fdf05d3bc74900798faf1
-vendor/lib64/libacdb-fts.so|30d4ca75d322b5739c8da300c18177a34a822c09
-vendor/lib64/libacdbloader.so|d99ae1ed96b97f5f44b1d822360c01472fa97ea2
-vendor/lib64/libacdbrtac.so|b4fd692689c8f3214395d8669fed9a945cb3ca99
-vendor/lib64/libadiertac.so|69bba966cf9219f69185d05aaa6ab56fd0f7e197
-vendor/lib64/libaudcal.so|5bd34f002de6d77a2cb94867b657842bd2730a0a
-vendor/lib64/libaudio_log_utils.so|7200b1d05406530ef20fb8ac1bfd2b2e1845d0dd
-vendor/lib64/libaudioalsa.so|4a27694b5a6842609a2f2572476b7af032ec7201
-vendor/lib64/libaudioparsers.so|e5ccc12cdab3906225b2e0c91c56dd726100d9e1
-vendor/lib64/libqtigef.so|4ad481ef3f901295d2f9b5d37e93ead61b23848d
-vendor/lib64/libtinycompress.so|b8a367ef6ca11dbf1300ded0bb779cdffcf1a34b
-vendor/lib64/libtinycompress_vendor.so|12d795f8cb7ffcf39b50a6796073ed6673fbabbf
-vendor/lib64/soundfx/libasphere.so|314e269df0372fbe84ca71f262f8c0a3602d17ce
-vendor/lib64/soundfx/libaudiopreprocessing.so|b4e3c2735dc85ae4dbbbdf66f5376330bd10c9f5
-vendor/lib64/soundfx/libqcbassboost.so|ab16cf4acda62ae7e5e00c488c766d57efe4dce2
-vendor/lib64/soundfx/libqcvirt.so|8743e8bdc482fdbb1355dc45d8e6dbc8042f6713
-
-# Audio compatibility - absent from GM8 stock, retained from daisy Android 10
+# Audio compatibility - from daisy Android 10
+# GM8 stock Pie variants exist for most of these blobs, but the stock
+# binaries import legacy/private Bionic symbols removed from the Android 10
+# builds. Keep the newer userspace blobs for the initial LineageOS 18.1
+# bring-up; retain the GM8 stock ACDB/mixer/policy data below.
+vendor/bin/audioflacapp|a8ae278497715aa53f6fb86d5f5af225da0fc5b0
+vendor/lib/libacdb-fts.so|9fb9fe8f1e22e38e41f1517b8f206a50bbb24419
+vendor/lib/libacdbloader.so|f33941720463b3c8215fc644b7d638c6d8ab74c7
+vendor/lib/libacdbrtac.so|f997dfef5413873af88bd8636a501401e9ea9631
+vendor/lib/libadiertac.so|6cfa3c70f01617a944ed2d8512189400ccdec21e
+vendor/lib/libadm.so|b373d5cb6e4c6e081f1d206f6d9538339f330fda
+vendor/lib/libaudcal.so|8c4d9a610c5cce20dee9721feb4864ea2470caf2
+vendor/lib/libaudio_log_utils.so|7fb2bb0abd10ca763ae5d079a8070e9d3d493bf9
+vendor/lib/libaudioalsa.so|1455df26b622c518c04d7f54746683ed96aaa74f
 vendor/lib/libaudioconfigstore.so|5b4d7d4f6840f65c1c630578fb3611d9ce47e268
+vendor/lib/libaudioparsers.so|4b980c4392b6e800fb23213a0daaa83b35c04051
+vendor/lib/libdrc.so|55fc13d205ce3199de2cf1f9c1dab479909c15be
+vendor/lib/libqtigef.so|fbedb509c61ff1a7d6e9c4a099af346ca781430a
+vendor/lib/libsurround_3mic_proc.so|d8c1d2cb7d598eee79ccfe5b7ec83a185c8fef6c
+vendor/lib/libtinycompress_vendor.so|4991b78d9ed12b828ceeaf61e5cde6328eb944b9
+vendor/lib/soundfx/libasphere.so|4d0ccf1c282bb70619d20bf7d79021dc3815a579
+vendor/lib/soundfx/libaudiopreprocessing.so|948f18c576254144f48e9051be28e7d23f8562cc
+vendor/lib/soundfx/libqcbassboost.so|bc8ae80ff1ade557ff494631494c2f8261028acb
+vendor/lib/soundfx/libqcreverb.so|1b3cef3c4c9145662fddb03c5e1e7dd3a4f25e1e
+vendor/lib/soundfx/libqcvirt.so|41bf71787ffae3f511d9cb3e32b9e721a0a2e385
+vendor/lib64/libacdb-fts.so|662467af62f9607abfd5acb532dfbf69240bcc70
+vendor/lib64/libacdbloader.so|7c49e7d95090e20f6198f03959323359e4b2ed19
+vendor/lib64/libacdbrtac.so|54d114f280eb99f4aa73890c5e9cfbb5b55eb813
+vendor/lib64/libadiertac.so|5b511a0312721e9e6ff27fae9a3f035cf66ac6f7
+vendor/lib64/libaudcal.so|a2788d71d00be193e9704edefc1b363cbc847942
+vendor/lib64/libaudio_log_utils.so|3670ed70e68b209f67852cad81b74d2dda2de3cd
+vendor/lib64/libaudioalsa.so|0a8f0746cc8fd381d001f52c7eb4460951802ac4
 vendor/lib64/libaudioconfigstore.so|a862e94f4fc75ce3c3274f219be8c128fe58a822
+vendor/lib64/libaudioparsers.so|67f6836de4391c33cc030faa5c885ab250324291
+vendor/lib64/libqtigef.so|70df5848c061154e4c33b147e06d4979e2391b5e
+vendor/lib64/libtinycompress.so|8d670f7c3079e96b5a36945e95082104876dd64a
+vendor/lib64/libtinycompress_vendor.so|74909f72ee8ebb01c2f4ef717e902055272a5917
+vendor/lib64/soundfx/libasphere.so|f552a053f935299b3fd9be03a596eb4c40dee50e
+vendor/lib64/soundfx/libaudiopreprocessing.so|28e2f7f8ab01a6cc8bc60a278e93704755121f49
+vendor/lib64/soundfx/libqcbassboost.so|0d2afd6f2c5b9aa2397f3e1cb3287bf906cf8fb6
 vendor/lib64/soundfx/libqcreverb.so|fbda7d0189603bb8c0c3e9d92563d75b8ab2dbc8
+vendor/lib64/soundfx/libqcvirt.so|bb046694512d412d6a04bd95ccb2b573454d9717
 
 # Audio-ACDB
 vendor/etc/acdbdata/MTP/msm8952-tasha-snd-card/MTP_WCD9335_Bluetooth_cal.acdb
