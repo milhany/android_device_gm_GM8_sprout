@@ -659,7 +659,9 @@ vendor/lib/libdpmqmihal.so|f618b7d9387d35b757377f47452f503d8b405ed9
 vendor/lib64/com.qualcomm.qti.dpm.api@1.0.so|a70cfc1be3e06cde6318d6969e114429fe1950bb
 vendor/lib64/libdpmqmihal.so|25d74c0e867f023b71a7c599ab6d213c7de2725d
 
-# DRM - from daisy-user 10 QKQ1.191002.002.V11.0.5.0.QDLMIXM
+# TEE / DRM userspace
+# Keep Android 10 compatibility components where required, but use GM8 stock
+# QSEECom/RPMB primitives after ABI/caller validation against qseecomd.
 vendor/bin/qseecomd|98e59e53f6bf2e585120f07f93d1265acfa80e7b
 vendor/lib/libGPQTEEC_vendor.so|ff57cecc96e32f96564a3b1bb113546eeda045d2
 vendor/lib/libGPTEE_vendor.so|5e817e8ea584fbc02b0098e37f76ccb9d0d2d066
@@ -676,7 +678,7 @@ vendor/lib/libdrmfs.so|974fef011aa942d51b4830ca3347c7f8468739ee
 vendor/lib/libdrmtime.so|f632d13447e43ef694f7d078d5aebe54c60e90dd
 vendor/lib/libqisl.so|3cd2941f5e4e3cf2a7a148d37fac97ed64d9cedb
 vendor/lib/librmp.so|12d966066b6acc0fa3b094036ee2556312c04b0b
-vendor/lib/librpmb.so|60de8b607124be6de32703210d7427366073b47a
+vendor/lib/librpmb.so|e936491429e4c81b155fa7decdb891437ff34de3
 vendor/lib/libsdedrm.so|f56cbdcd2e0f3cf06e2e72219a7b37d197119e93
 vendor/lib/libsecureui.so|2234d1c200640ec5c9460a710ba9e23993c03aa7
 vendor/lib/libsecureui_svcsock.so|9c3640c5f0429b458892b9d1643a0dd6e58c9d45
@@ -695,7 +697,7 @@ vendor/lib64/libdrmfs.so|bcae118bb9d2b07a2dae7fdcb30196293217e9ae
 vendor/lib64/libdrmtime.so|a8b04641f437e6235b3d708fe9ba486526f91ab2
 vendor/lib64/libqisl.so|491ac949ab488299c7a1ae4fe8257ec0a6f994b1
 vendor/lib64/librmp.so|275cec951c309213be5b68ecd46593b251c33b04
-vendor/lib64/librpmb.so|b74dce3afd27fee2caf7604032dad696211dd050
+vendor/lib64/librpmb.so|4f867f18c72ad823c26d4d96237983084f1bd349
 vendor/lib64/libsdedrm.so|efae2af1bcf18752db446f4b10e665f23cb1edaa
 vendor/lib64/libsecureui.so|dc3ccde15c3bdbc14da9fdc63dbf30973c5fe1b1
 vendor/lib64/libsecureui_svcsock.so|a7fdcd8001d4cdd9a30eb1ccc129324c398cc203
