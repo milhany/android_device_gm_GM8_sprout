@@ -943,9 +943,9 @@ vendor/lib64/libgps.utils.so|3c59a467e02e34e1b2f9d9b3fedc879b62e434c6
 vendor/bin/hw/android.hardware.gatekeeper@1.0-service-qti|eeb4ba9eacb57c958051a47d307968254ee081d0
 vendor/etc/init/android.hardware.gatekeeper@1.0-service-qti.rc|1b8d5f58fe0a57906acf72b862c16a2521daa97b
 vendor/lib/hw/android.hardware.gatekeeper@1.0-impl-qti.so|d678b9e70958020335e05212076f3f77b9609565
-vendor/lib/hw/gatekeeper.msm8937.so|5e5c4d7208cb8909de0aee346a326d0588f5b05e
+vendor/lib/hw/gatekeeper.msm8937.so|99c0edc92c074d6e4278032b55425be5d32c8f48
 vendor/lib64/hw/android.hardware.gatekeeper@1.0-impl-qti.so|f532980d91e5cdfc10a3c32a4a86eea31191ff73
-vendor/lib64/hw/gatekeeper.msm8937.so|c9380374c921e28bef8b11b414614531bf465410
+vendor/lib64/hw/gatekeeper.msm8937.so|964f53fa236bd0e36f0aa12ebf25633bb9ad1b47
 
 # Graphics
 vendor/lib/egl/eglSubDriverAndroid.so
