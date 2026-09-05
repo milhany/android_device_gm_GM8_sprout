@@ -1,9 +1,5 @@
 DEVICE_PATH := device/gm/GM8_sprout
 
-# Keep this temporarily for first LineageOS 18.1 bring-up.
-# Remove after the first clean build identifies the duplicate rule(s).
-BUILD_BROKEN_DUP_RULES := true
-
 # Architecture
 TARGET_ARCH := arm64
 TARGET_ARCH_VARIANT := armv8-a
