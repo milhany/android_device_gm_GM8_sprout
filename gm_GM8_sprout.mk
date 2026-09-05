@@ -19,6 +19,7 @@ PRODUCT_DEVICE := GM8_sprout
 PRODUCT_BRAND := GM
 PRODUCT_MODEL := GM 8
 PRODUCT_MANUFACTURER := General Mobile
+PRODUCT_CHARACTERISTICS := nosdcard
 
 # Preserve the public product/device identity used by the stock firmware while
 # allowing the internal lunch target to stay distinct.
