@@ -658,7 +658,8 @@ vendor/lib/libGPQTEEC_vendor.so|ff57cecc96e32f96564a3b1bb113546eeda045d2
 vendor/lib/libGPTEE_vendor.so|5e817e8ea584fbc02b0098e37f76ccb9d0d2d066
 vendor/lib/libGPreqcancel.so|83aead93481d3136737c6d720be8ded0700d8b2a
 vendor/lib/libGPreqcancel_svc.so|5c7c3eb2aeeec3ad27b322d3cca2cec1516bad95
-vendor/lib/libQSEEComAPI.so|199f80aa6b940204fe1119aa196a3f939a2d499e
+# QSEECom API - from GM8 stock P.GM8.2102.B-s; ABI checked against donor
+vendor/lib/libQSEEComAPI.so|0b9b169711ddc96273e3ce453f62d00c1a9772e7
 vendor/lib/libSecureUILib.so|c640f3240fd8a54d9125514409c8db4256e2d4d8
 vendor/lib/libStDrvInt.so|24e0097f0940e3ca5d3fa0b155070a29396b8ec4
 vendor/lib/libbase64.so|c540d7b99f2ce5a2d55a124088f0431280ddc209
@@ -678,7 +679,7 @@ vendor/lib64/libGPQTEEC_vendor.so|f378e4434df01922c9829406121d77bb3c6afd2c
 vendor/lib64/libGPTEE_vendor.so|0bc88c8e6bbe3b38e5c2229f5dfedf38c0e320d8
 vendor/lib64/libGPreqcancel.so|a5f7f9679fdd081c9b9ea8f5c4a3714761ca997c
 vendor/lib64/libGPreqcancel_svc.so|82ee3c978563896569468fdc006455b3f28f35e9
-vendor/lib64/libQSEEComAPI.so|597926ec6d1fca95a76f65f52659920c441d84c2
+vendor/lib64/libQSEEComAPI.so|80f6384b34230efc357364b702c7649a7d7ae7f7
 vendor/lib64/libSecureUILib.so|b48ed2e7cdb41d08c238a1fd171d9e7f8032516a
 vendor/lib64/libStDrvInt.so|2947474aad631d5345283e57a38003b6373b2d11
 vendor/lib64/libbase64.so|2f0f564f0253b7ee1a5e2a4635dee3fa974ee835
