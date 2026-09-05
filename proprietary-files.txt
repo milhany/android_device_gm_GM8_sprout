@@ -662,7 +662,7 @@ vendor/lib64/libdpmqmihal.so|25d74c0e867f023b71a7c599ab6d213c7de2725d
 # TEE / DRM userspace
 # Keep Android 10 compatibility components where required, but use GM8 stock
 # QSEECom/RPMB primitives after ABI/caller validation against qseecomd.
-vendor/bin/qseecomd|98e59e53f6bf2e585120f07f93d1265acfa80e7b
+vendor/bin/qseecomd|a1c4198e470c0e90a3be4b923918bb0fd674df70
 vendor/lib/libGPQTEEC_vendor.so|ff57cecc96e32f96564a3b1bb113546eeda045d2
 vendor/lib/libGPTEE_vendor.so|5e817e8ea584fbc02b0098e37f76ccb9d0d2d066
 vendor/lib/libGPreqcancel.so|83aead93481d3136737c6d720be8ded0700d8b2a
@@ -674,12 +674,12 @@ vendor/lib/libStDrvInt.so|24e0097f0940e3ca5d3fa0b155070a29396b8ec4
 vendor/lib/libbase64.so|c540d7b99f2ce5a2d55a124088f0431280ddc209
 vendor/lib/libcpion.so|f11c9f3adb9d216203fc2b027e7000611b5314fc
 vendor/lib/libcppf.so|80a6431cc5302e0e61a89f840bd5e12d0f22b04d
-vendor/lib/libdrmfs.so|974fef011aa942d51b4830ca3347c7f8468739ee
+vendor/lib/libdrmfs.so|256df5e59a7d10b2f92ef96cc074d7bcf2cf548c
 vendor/lib/libdrmtime.so|f632d13447e43ef694f7d078d5aebe54c60e90dd
 vendor/lib/libqisl.so|3cd2941f5e4e3cf2a7a148d37fac97ed64d9cedb
-vendor/lib/librmp.so|12d966066b6acc0fa3b094036ee2556312c04b0b
+vendor/lib/librmp.so|4b0870d4fcecc4fc329d7edc12da2531a1814f8c
 vendor/lib/librpmb.so|e936491429e4c81b155fa7decdb891437ff34de3
-vendor/lib/libsdedrm.so|f56cbdcd2e0f3cf06e2e72219a7b37d197119e93
+vendor/lib/libsdedrm.so|da48b960ae9bc89de41eda0d757aa492fefe2eba
 vendor/lib/libsecureui.so|2234d1c200640ec5c9460a710ba9e23993c03aa7
 vendor/lib/libsecureui_svcsock.so|9c3640c5f0429b458892b9d1643a0dd6e58c9d45
 vendor/lib/libsi.so|4f8339095572dcca5d40d9eacc5536418393566b
@@ -693,12 +693,12 @@ vendor/lib64/libSecureUILib.so|b48ed2e7cdb41d08c238a1fd171d9e7f8032516a
 vendor/lib64/libStDrvInt.so|2947474aad631d5345283e57a38003b6373b2d11
 vendor/lib64/libbase64.so|2f0f564f0253b7ee1a5e2a4635dee3fa974ee835
 vendor/lib64/libcpion.so|1420ffb62d598b83507bf615f707c060649a4267
-vendor/lib64/libdrmfs.so|bcae118bb9d2b07a2dae7fdcb30196293217e9ae
+vendor/lib64/libdrmfs.so|040642e82d238413e55bafa9dc4c4ca11c1e506b
 vendor/lib64/libdrmtime.so|a8b04641f437e6235b3d708fe9ba486526f91ab2
 vendor/lib64/libqisl.so|491ac949ab488299c7a1ae4fe8257ec0a6f994b1
-vendor/lib64/librmp.so|275cec951c309213be5b68ecd46593b251c33b04
+vendor/lib64/librmp.so|eeb3fbc14f4485fbd45a7be56b7a71be1762f738
 vendor/lib64/librpmb.so|4f867f18c72ad823c26d4d96237983084f1bd349
-vendor/lib64/libsdedrm.so|efae2af1bcf18752db446f4b10e665f23cb1edaa
+vendor/lib64/libsdedrm.so|c2c6551d9df62fef2cc7e13bbc4f453fd35f7f80
 vendor/lib64/libsecureui.so|dc3ccde15c3bdbc14da9fdc63dbf30973c5fe1b1
 vendor/lib64/libsecureui_svcsock.so|a7fdcd8001d4cdd9a30eb1ccc129324c398cc203
 vendor/lib64/libsi.so|a25e798e1b251256f036bc3a76f66e2b26870924
