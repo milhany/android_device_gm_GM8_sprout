@@ -63,7 +63,6 @@ PRODUCT_COPY_FILES += \
 # Android 11 wrappers for legacy proprietary HALs
 PRODUCT_PACKAGES += \
     android.hardware.biometrics.fingerprint@2.1-service \
-    android.hardware.cas@1.0-service \
     android.hardware.renderscript@1.0-impl \
     android.hardware.sensors@1.0-impl \
     android.hardware.sensors@1.0-service \
