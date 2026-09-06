@@ -70,7 +70,12 @@ PRODUCT_BUILD_PROP_OVERRIDES += \
 
 # General Mobile / Android One client id used by the stock software family.
 PRODUCT_SYSTEM_PROPERTIES += \
-    ro.com.google.clientidbase=android-a1-gm-rev2 \
+    ro.com.google.clientidbase=android-a1-gm-rev2
+
+# full_base.mk defines the AOSP ringtone through PRODUCT_PROPERTY_OVERRIDES.
+# Override it in the same property bucket so GeneralMobile wins deterministically
+# on a clean first boot.
+PRODUCT_PROPERTY_OVERRIDES += \
     ro.config.ringtone=GeneralMobile.mp3 \
     ro.config.notification_sound=hangouts_message.ogg \
     ro.config.alarm_alert=Oxygen.ogg
