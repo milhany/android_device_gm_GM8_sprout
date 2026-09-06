@@ -252,8 +252,7 @@ PRODUCT_PACKAGES += \
 
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
-    $(LOCAL_PATH) \
-    vendor/gm/GM8_sprout
+    $(LOCAL_PATH)
 
 # Soundtrigger
 PRODUCT_PACKAGES += \
