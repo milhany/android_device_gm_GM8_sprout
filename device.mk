@@ -156,6 +156,12 @@ PRODUCT_PACKAGES += \
     libprotobuf-cpp-lite-vendorcompat
 
 
+# Wi-Fi Display compatibility
+# The legacy 32-bit vendor service cannot resolve the system namespace copy
+# of this HIDL interface on Android 11.
+PRODUCT_COPY_FILES += \
+    vendor/gm/GM8_sprout/proprietary/lib/com.qualcomm.qti.wifidisplayhal@1.0.so:$(TARGET_COPY_OUT_VENDOR)/lib/com.qualcomm.qti.wifidisplayhal@1.0.so
+
 # HIDL
 PRODUCT_PACKAGES += \
     android.hidl.base@1.0 \
