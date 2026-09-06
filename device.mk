@@ -226,7 +226,7 @@ PRODUCT_PACKAGES += \
     init.recovery.qcom.rc
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/telephony_product_privapp-permissions-qti.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/telephony_product_privapp-permissions-qti.xml \
+    $(LOCAL_PATH)/configs/telephony_product_privapp-permissions-qti.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/telephony_product_privapp-permissions-qti.xml
 
 # RIL
 PRODUCT_PACKAGES += \
@@ -241,7 +241,7 @@ PRODUCT_PACKAGES += \
     qti-telephony-hidl-wrapper \
     qti_telephony_hidl_wrapper.xml \
     qti-telephony-utils \
-    qti_telephony_utils.xml \
+    qti_telephony_utils.xml
 
 # RCS
 PRODUCT_PACKAGES += \
@@ -287,7 +287,7 @@ PRODUCT_PACKAGES += \
     libwifi-hal-qcom \
     dhcpcd.conf \
     wificond \
-    libQWiFiSoftApCfg \
+    libQWiFiSoftApCfg
 
 PRODUCT_PACKAGES += \
     hostapd \
