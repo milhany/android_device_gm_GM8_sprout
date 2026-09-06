@@ -24,6 +24,15 @@ PRODUCT_PACKAGES += \
     android.hardware.boot@1.0-service \
     bootctrl.msm8937
 
+# Boot animation
+# Keep the binary optional at make-parse time so this branch stays buildable
+# while the asset itself can be updated independently. Android 11 checks the
+# product partition before /system/media for bootanimation.zip.
+ifneq ($(wildcard $(LOCAL_PATH)/bootanimation.zip),)
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/bootanimation.zip:$(TARGET_COPY_OUT_PRODUCT)/media/bootanimation.zip
+endif
+
 # Audio
 PRODUCT_PACKAGES += \
     audiod \
