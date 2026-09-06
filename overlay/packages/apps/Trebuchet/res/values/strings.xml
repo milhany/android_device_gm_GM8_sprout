@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep the Launcher3 implementation while exposing an AOSP/GM-facing label. -->
+    <string name="lineageos_app_name" translatable="false">Launcher</string>
+</resources>

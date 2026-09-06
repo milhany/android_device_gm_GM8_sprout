@@ -24,6 +24,30 @@ PRODUCT_PACKAGES += \
     org.lineageos.platform \
     LineageSettingsProvider
 
+# General Mobile / AOSP-facing application profile.
+# Lineage common_mobile is intentionally not inherited, so explicitly keep
+# the stock Android application counterparts and the Launcher3-based QuickStep
+# implementation that is present in this Android 11 source checkout.
+PRODUCT_PACKAGES += \
+    Browser2 \
+    Calendar \
+    Camera2 \
+    Contacts \
+    DeskClock \
+    Dialer \
+    Email \
+    ExactCalculator \
+    Exchange2 \
+    Gallery2 \
+    LatinIME \
+    Messaging \
+    Music \
+    TrebuchetQuickStep
+
+# Keep the home process pre-optimized like the normal mobile product profile.
+PRODUCT_DEXPREOPT_SPEED_APPS += \
+    TrebuchetQuickStep
+
 # Device identity
 PRODUCT_NAME := gm_GM8_sprout
 PRODUCT_DEVICE := GM8_sprout
