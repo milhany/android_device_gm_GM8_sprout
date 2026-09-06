@@ -1635,7 +1635,6 @@ vendor/lib64/vendor.qti.hardware.wigig.supptunnel@1.0.so
 # Misc
 vendor/bin/adpl
 vendor/bin/athdiag
-vendor/bin/cplay
 vendor/bin/diag_callback_sample
 vendor/bin/diag_dci_sample
 vendor/bin/diag_klog
@@ -1759,9 +1758,7 @@ vendor/etc/seccomp_policy/mediacodec.policy
 vendor/lib/hw/local_time.default.so
 vendor/bin/qmi-framework-tests/qmi_test_mt_client_init_instance
 vendor/etc/seccomp_policy/configstore@1.1.policy
-vendor/bin/grep
 vendor/etc/media_codecs_vendor_audio.xml
-vendor/lib64/libwpa_client.so
 vendor/package/CTA/.preloadspec
 vendor/etc/media_profiles.xml
 vendor/lib64/libjson.so
@@ -1799,5 +1796,4 @@ vendor/etc/mixer_paths_qrd_skuhf.xml
 vendor/lib/libqsap_sdk.so
 vendor/lib/libnbaio_mono.so
 vendor/bin/logwrapper
-vendor/lib/libwpa_client.so
 vendor/etc/sensors/hals.conf
