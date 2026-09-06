@@ -71,7 +71,6 @@ vendor/lib/libqtigef.so|fbedb509c61ff1a7d6e9c4a099af346ca781430a
 vendor/lib/libsurround_3mic_proc.so|d8c1d2cb7d598eee79ccfe5b7ec83a185c8fef6c
 vendor/lib/libtinycompress_vendor.so|4991b78d9ed12b828ceeaf61e5cde6328eb944b9
 vendor/lib/soundfx/libasphere.so|4d0ccf1c282bb70619d20bf7d79021dc3815a579
-vendor/lib/soundfx/libaudiopreprocessing.so|948f18c576254144f48e9051be28e7d23f8562cc
 vendor/lib/soundfx/libqcbassboost.so|bc8ae80ff1ade557ff494631494c2f8261028acb
 vendor/lib/soundfx/libqcreverb.so|1b3cef3c4c9145662fddb03c5e1e7dd3a4f25e1e
 vendor/lib/soundfx/libqcvirt.so|41bf71787ffae3f511d9cb3e32b9e721a0a2e385
@@ -85,10 +84,8 @@ vendor/lib64/libaudioalsa.so|0a8f0746cc8fd381d001f52c7eb4460951802ac4
 vendor/lib64/libaudioconfigstore.so|a862e94f4fc75ce3c3274f219be8c128fe58a822
 vendor/lib64/libaudioparsers.so|67f6836de4391c33cc030faa5c885ab250324291
 vendor/lib64/libqtigef.so|70df5848c061154e4c33b147e06d4979e2391b5e
-vendor/lib64/libtinycompress.so|8d670f7c3079e96b5a36945e95082104876dd64a
 vendor/lib64/libtinycompress_vendor.so|74909f72ee8ebb01c2f4ef717e902055272a5917
 vendor/lib64/soundfx/libasphere.so|f552a053f935299b3fd9be03a596eb4c40dee50e
-vendor/lib64/soundfx/libaudiopreprocessing.so|28e2f7f8ab01a6cc8bc60a278e93704755121f49
 vendor/lib64/soundfx/libqcbassboost.so|0d2afd6f2c5b9aa2397f3e1cb3287bf906cf8fb6
 vendor/lib64/soundfx/libqcreverb.so|fbda7d0189603bb8c0c3e9d92563d75b8ab2dbc8
 vendor/lib64/soundfx/libqcvirt.so|bb046694512d412d6a04bd95ccb2b573454d9717
@@ -733,14 +730,8 @@ vendor/lib64/liboemcrypto.so|d48b320505a2fd0864a7bf8add38c18e54f8a6bd
 vendor/lib64/libwvhidl.so|f9f9f8fcb735aed73d280d033158a9a793e6c911
 
 # Display-Hardware
-vendor/lib/libqservice.so
-vendor/lib/libsdmcore.so
 vendor/lib/libsdmextension.so
-vendor/lib/libsdmutils.so
-vendor/lib64/libqservice.so
-vendor/lib64/libsdmcore.so
 vendor/lib64/libsdmextension.so
-vendor/lib64/libsdmutils.so
 
 # Dolby
 vendor/bin/hw/vendor.dolby.hardware.dms@1.0-service
@@ -798,12 +789,12 @@ vendor/firmware/fpctzappfingerprint.b05
 vendor/firmware/fpctzappfingerprint.b06
 vendor/firmware/fpctzappfingerprint.mdt
 -vendor/framework/com.fingerprints.extension.jar
-vendor/lib/hw/fingerprint.default.so
+vendor/lib/hw/fingerprint.default.so:vendor/lib/hw/fingerprint.msm8937.so
 vendor/lib/hw/vendor.sw.swfingerprint@1.0-impl.so
 vendor/lib/vendor.qti.hardware.fingerprint@1.0.so
 vendor/lib/vendor.sw.swfingerprint@1.0.so
 vendor/lib64/com.fingerprints.extension@1.0.so
-vendor/lib64/hw/fingerprint.default.so
+vendor/lib64/hw/fingerprint.default.so:vendor/lib64/hw/fingerprint.msm8937.so
 vendor/lib64/vendor.qti.hardware.fingerprint@1.0.so
 vendor/lib64/vendor.sw.swfingerprint@1.0.so
 
@@ -1271,7 +1262,6 @@ vendor/lib/libqcmaputils.so|ec12799324de8d1186c70915fc360e1def9514cd
 vendor/lib/libqcrilFramework.so|4feb09089e2bfa267eb05509761ff2792a5620ef
 vendor/lib/libqrtr.so|604fb64ba9f38cd13177800000513f1c98aadfc4
 vendor/lib/libqsocket.so|37dad80324b2c61b153a7b7240dcb4cfae4e9d44
-vendor/lib/libqti_vndfwk_detect.so|d7ef9f818556d68471f3127136b4a9d8ef2561f5
 vendor/lib/libril-qc-hal-qmi.so|2885d8b12e6b2c4df609c4530ced34478478e309
 vendor/lib/libril-qc-ltedirectdisc.so|1c5869fcbb0aeadf99bf60b373563e6341ed4be1
 vendor/lib/libril-qc-qmi-1.so|e4cee0294d56d4271bda6f265318d79e346a4cdd
@@ -1315,7 +1305,6 @@ vendor/lib64/libqcmaputils.so|bc02f3f2cf2036c823e465f2bfbe7690201188bd
 vendor/lib64/libqcrilFramework.so|3d8f25d13533f6fa45a36b23feb250291b663370
 vendor/lib64/libqrtr.so|f4349657cad3dc73b6264b8e56c4978f145ef088
 vendor/lib64/libqsocket.so|8a1927456c480d66583cd1551bbe3f71d2bac42d
-vendor/lib64/libqti_vndfwk_detect.so|9ef89fe17de93abe2f28a7adc48dd5b4e3950e8b
 vendor/lib64/libril-qc-hal-qmi.so|9f58de2abe6a3d67a341692c5870929a66f0b8b2
 vendor/lib64/libril-qc-ltedirectdisc.so|0c1aafc35d913980ace095e1225ff5d7a95325dc
 vendor/lib64/libril-qc-qmi-1.so|5436da6c6ee67d3a9c3f74178da9c0a4d8bd61fe
@@ -1540,7 +1529,6 @@ vendor/lib/sensor_calibrate.so
 vendor/lib64/hw/activity_recognition.msm8937.so
 vendor/lib64/hw/sensors.msm8937_64.so
 vendor/lib64/libsensor1.so
-vendor/lib64/libsensorndkbridge.so
 vendor/lib64/libsensor_reg.so
 vendor/lib64/sensors.ssc.so
 vendor/lib64/sensor_calibrate.so
@@ -1604,8 +1592,8 @@ vendor/lib64/libstreamparser.so
 vendor/lib64/libUBWC.so
 
 # Vibrator
-vendor/lib/hw/vibrator.default.so
-vendor/lib64/hw/vibrator.default.so
+vendor/lib/hw/vibrator.default.so:vendor/lib/hw/vibrator.msm8937.so
+vendor/lib64/hw/vibrator.default.so:vendor/lib64/hw/vibrator.msm8937.so
 
 # Voice
 vendor/lib/vendor.qti.voiceprint@1.0.so
@@ -1685,8 +1673,6 @@ vendor/etc/wifi/wpa_supplicant_overlay.conf
 vendor/etc/audio_output_policy.conf
 vendor/etc/mixer_paths_sdm439_pm8953.xml
 -vendor/app/SSGTelemetryService/SSGTelemetryService.apk
-vendor/etc/fs_config_dirs
-vendor/lib/libhypv_intercept.so
 vendor/etc/init/hw/init.qcom.usb.rc
 vendor/bin/qca6234-service.sh
 vendor/etc/mixer_paths_wcd9326.xml
@@ -1695,10 +1681,8 @@ vendor/lib/libbthost_if.so
 vendor/bin/init.qcom.sdio.sh
 vendor/etc/media_codecs_8937_v1.xml
 vendor/etc/media_codecs_8956.xml
-vendor/lib64/libhwminijail.so
 vendor/etc/mixer_paths_wcd9335.xml
 vendor/bin/init.qcom.syspart_fixup.sh
-vendor/lib/libwebrtc_audio_preprocessing.so
 vendor/etc/init/hw/init.qcom.factory.rc
 vendor/etc/mixer_paths_qrd_sku2.xml
 vendor/etc/mixer_paths_skuk.xml
@@ -1710,24 +1694,16 @@ vendor/bin/init.qcom.sh
 vendor/bin/init.qti.qseecomd.sh
 vendor/lib64/libqsap_sdk.so
 vendor/etc/msm_irqbalance.conf
-vendor/lib64/libhwc2on1adapter.so
-vendor/lib/libhwc2on1adapter.so
 vendor/bin/init.lct.bootcheck.sh
-vendor/lib/mediacas/libclearkeycasplugin.so
 vendor/etc/mixer_paths_qrd_skun.xml
 -vendor/app/ConnectionSecurityService/ConnectionSecurityService.apk
-vendor/lib/libavservices_minijail_vendor.so
 vendor/bin/init.lct.bootcheckend.sh
 vendor/etc/mixer_paths_qrd_skui.xml
 vendor/bin/init.crda.sh
 vendor/etc/sound_trigger_mixer_paths_wcd9335.xml
 vendor/etc/mixer_paths_qrd_sku1.xml
-vendor/lib64/android.hardware.automotive.vehicle@2.0-manager-lib.so
-vendor/etc/group
 vendor/etc/sound_trigger_mixer_paths_wcd9306.xml
-vendor/lib64/libnfnetlink.so
 vendor/etc/media_profiles_8956.xml
-vendor/lib64/libnbaio_mono.so
 vendor/package/ChinaTelecom/.preloadspec
 vendor/bin/init.qcom.post_boot.sh
 vendor/etc/seccomp_policy/mediaextractor.policy
@@ -1739,44 +1715,29 @@ vendor/etc/mixer_paths_qrd_skuh.xml
 vendor/etc/wifi/WCNSS_qcom_cfg.ini
 vendor/etc/audio_effects.conf
 vendor/etc/seccomp_policy/mediacodec.policy
-vendor/lib/hw/local_time.default.so
 vendor/bin/qmi-framework-tests/qmi_test_mt_client_init_instance
-vendor/etc/seccomp_policy/configstore@1.1.policy
 vendor/etc/media_codecs_vendor_audio.xml
 vendor/package/CTA/.preloadspec
 vendor/etc/media_profiles.xml
-vendor/lib64/libjson.so
-vendor/lib/android.hardware.automotive.vehicle@2.0-manager-lib.so
 vendor/lib64/libbthost_if.so
-vendor/lib64/libnetfilter_conntrack.so
-vendor/lib64/libwebrtc_audio_preprocessing.so
 vendor/bin/init.qcom.class_core.sh
 vendor/etc/sound_trigger_platform_info.xml
-vendor/lib64/hw/local_time.default.so
 vendor/etc/sound_trigger_mixer_paths_wcd9330.xml
-vendor/lib/libhwc2onfbadapter.so
 vendor/etc/sound_trigger_mixer_paths.xml
-vendor/lib64/libhwc2onfbadapter.so
 -vendor/app/TrustZoneAccessService/TrustZoneAccessService.apk
 vendor/package/ChinaUnicom/.preloadspec
 vendor/etc/sec_config
-vendor/lib64/libhypv_intercept.so
 vendor/bin/init.class_main.sh
-vendor/lib64/mediacas/libclearkeycasplugin.so
 vendor/bin/init.mdm.sh
 vendor/bin/init.qcom.usb.sh
-vendor/etc/fs_config_files
 vendor/bin/init.qcom.coex.sh
 vendor/etc/audio_tuning_mixer.txt
 vendor/etc/init/hw/init.msm.usb.configfs.rc
 vendor/etc/media_profiles_vendor.xml
 vendor/etc/wifi/p2p_supplicant_overlay.conf
-vendor/lib/libjson.so
 vendor/etc/public.libraries.txt
 vendor/etc/mixer_paths_qrd_skum.xml
 vendor/bin/init.qcom.crashdata.sh
 vendor/etc/mixer_paths_qrd_skuhf.xml
 vendor/lib/libqsap_sdk.so
-vendor/lib/libnbaio_mono.so
-vendor/bin/logwrapper
 vendor/etc/sensors/hals.conf
