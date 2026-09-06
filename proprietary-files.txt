@@ -787,7 +787,6 @@ vendor/lib64/libFidoCrypto_vendor.so
 
 # Fingerprint
 -vendor/app/FingerprintExtensionService/FingerprintExtensionService.apk
-vendor/bin/hw/android.hardware.biometrics.fingerprint@2.1-service
 vendor/bin/hw/vendor.sw.swfingerprint@1.0-service
 vendor/etc/permissions/com.fingerprints.extension.xml
 vendor/firmware/fpctzappfingerprint.b00
@@ -1531,18 +1530,14 @@ vendor/lib64/vendor.qti.hardware.sensorscalibrate@1.0.so
 vendor/etc/sensors/sensor_def_qcomdev.conf
 
 # Sensors
-vendor/bin/hw/android.hardware.sensors@1.0-service
 vendor/bin/sensors.qti
-vendor/etc/init/android.hardware.sensors@1.0-service.rc
 vendor/lib/hw/activity_recognition.msm8937.so
-vendor/lib/hw/android.hardware.sensors@1.0-impl.so
 vendor/lib/hw/sensors.msm8937_64.so
 vendor/lib/libsensor1.so
 vendor/lib/libsensor_reg.so
 vendor/lib/sensors.ssc.so
 vendor/lib/sensor_calibrate.so
 vendor/lib64/hw/activity_recognition.msm8937.so
-vendor/lib64/hw/android.hardware.sensors@1.0-impl.so
 vendor/lib64/hw/sensors.msm8937_64.so
 vendor/lib64/libsensor1.so
 vendor/lib64/libsensorndkbridge.so
@@ -1567,13 +1562,9 @@ vendor/lib/vendor.qti.hardware.tui_comm@1.0.so
 vendor/lib64/vendor.qti.hardware.tui_comm@1.0.so
 
 # Thermal
-vendor/bin/hw/android.hardware.thermal@1.0-service
 vendor/bin/thermal-engine
-vendor/etc/init/android.hardware.thermal@1.0-service.rc
 vendor/etc/thermal-engine.conf
-vendor/lib/hw/android.hardware.thermal@1.0-impl.so
 vendor/lib/libthermalclient.so
-vendor/lib64/hw/android.hardware.thermal@1.0-impl.so
 vendor/lib64/libthermalclient.so
 
 # Thermal-Hardware
@@ -1613,11 +1604,7 @@ vendor/lib64/libstreamparser.so
 vendor/lib64/libUBWC.so
 
 # Vibrator
-vendor/bin/hw/android.hardware.vibrator@1.0-service
-vendor/etc/init/android.hardware.vibrator@1.0-service.rc
-vendor/lib/hw/android.hardware.vibrator@1.0-impl.so
 vendor/lib/hw/vibrator.default.so
-vendor/lib64/hw/android.hardware.vibrator@1.0-impl.so
 vendor/lib64/hw/vibrator.default.so
 
 # Voice
@@ -1705,7 +1692,6 @@ vendor/bin/qca6234-service.sh
 vendor/etc/mixer_paths_wcd9326.xml
 vendor/etc/permissions/android.hardware.light.xml
 vendor/lib/libbthost_if.so
-vendor/etc/init/android.hardware.cas@1.0-service.rc
 vendor/bin/init.qcom.sdio.sh
 vendor/etc/media_codecs_8937_v1.xml
 vendor/etc/media_codecs_8956.xml
@@ -1750,10 +1736,8 @@ vendor/ueventd.rc
 vendor/bin/init.qcom.efs.sync.sh
 vendor/etc/ftm_test_config
 vendor/etc/mixer_paths_qrd_skuh.xml
-vendor/lib64/hw/android.hardware.renderscript@1.0-impl.so
 vendor/etc/wifi/WCNSS_qcom_cfg.ini
 vendor/etc/audio_effects.conf
-vendor/bin/hw/android.hardware.cas@1.0-service
 vendor/etc/seccomp_policy/mediacodec.policy
 vendor/lib/hw/local_time.default.so
 vendor/bin/qmi-framework-tests/qmi_test_mt_client_init_instance
@@ -1783,7 +1767,6 @@ vendor/bin/init.mdm.sh
 vendor/bin/init.qcom.usb.sh
 vendor/etc/fs_config_files
 vendor/bin/init.qcom.coex.sh
-vendor/lib/hw/android.hardware.renderscript@1.0-impl.so
 vendor/etc/audio_tuning_mixer.txt
 vendor/etc/init/hw/init.msm.usb.configfs.rc
 vendor/etc/media_profiles_vendor.xml
