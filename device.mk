@@ -118,8 +118,7 @@ PRODUCT_PACKAGES += \
 # DRM
 PRODUCT_PACKAGES += \
     android.hardware.drm@1.0-impl \
-    android.hardware.drm@1.0-service \
-    android.hardware.drm@1.3-service.clearkey
+    android.hardware.drm@1.0-service
 
 # FM
 PRODUCT_PACKAGES += \
@@ -134,6 +133,10 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PACKAGES += \
     android.hardware.health@2.0-impl \
     android.hardware.health@2.0-service
+
+# GNSS VINTF
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/configs/vintf/manifest/gm8_gnss.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/manifest/gm8_gnss.xml
 
 # HIDL
 PRODUCT_PACKAGES += \
