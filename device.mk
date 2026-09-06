@@ -135,9 +135,9 @@ PRODUCT_PACKAGES += \
     android.hardware.health@2.0-impl \
     android.hardware.health@2.0-service
 
-# GNSS VINTF
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/vintf/manifest/gm8_gnss.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/manifest/gm8_gnss.xml
+# GNSS
+PRODUCT_PACKAGES += \
+    gm8_gnss_service
 
 # HIDL
 PRODUCT_PACKAGES += \
