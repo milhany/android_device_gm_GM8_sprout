@@ -33,6 +33,14 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/bootanimation.zip:$(TARGET_COPY_OUT_PRODUCT)/media/bootanimation.zip
 endif
 
+# General Mobile default wallpaper.
+# Keep the asset optional so the tree remains buildable until the binary is
+# placed at wallpaper/default_wallpaper.jpg.
+ifneq ($(wildcard $(LOCAL_PATH)/wallpaper/default_wallpaper.jpg),)
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/wallpaper/default_wallpaper.jpg:$(TARGET_COPY_OUT_PRODUCT)/media/wallpaper/default_wallpaper.jpg
+endif
+
 # Audio
 PRODUCT_PACKAGES += \
     audiod \

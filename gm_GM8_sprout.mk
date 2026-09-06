@@ -70,7 +70,8 @@ PRODUCT_BUILD_PROP_OVERRIDES += \
 
 # General Mobile / Android One client id used by the stock software family.
 PRODUCT_SYSTEM_PROPERTIES += \
-    ro.com.google.clientidbase=android-a1-gm-rev2
+    ro.com.google.clientidbase=android-a1-gm-rev2 \
+    ro.config.wallpaper=/product/media/wallpaper/default_wallpaper.jpg
 
 # full_base.mk defines the AOSP ringtone through PRODUCT_PROPERTY_OVERRIDES.
 # Override it in the same property bucket so GeneralMobile wins deterministically
