@@ -139,6 +139,14 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     gm8_gnss_service
 
+# Qualcomm vendor compatibility
+PRODUCT_PACKAGES += \
+    libqti_vndfwk_detect \
+    libqti_vndfwk_detect.vendor \
+    libprotobuf-cpp-full-vendorcompat \
+    libprotobuf-cpp-lite-vendorcompat
+
+
 # HIDL
 PRODUCT_PACKAGES += \
     android.hidl.base@1.0 \
