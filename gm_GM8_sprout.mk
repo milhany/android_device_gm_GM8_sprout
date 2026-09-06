@@ -13,6 +13,13 @@ $(call inherit-product, device/gm/GM8_sprout/device.mk)
 # Keep Lineage-specific framework additions out of this GM product profile.
 TARGET_DISABLE_LINEAGE_SDK := true
 
+# LineageOS frameworks_base still treats org.lineageos.platform-res as a
+# system resource asset even when the Lineage SDK/product profile is disabled.
+# Keep only this runtime resource APK so Zygote can create the system
+# AssetManager without pulling Lineage apps, branding, updater or SDK services.
+PRODUCT_PACKAGES += \
+    org.lineageos.platform-res
+
 # Device identity
 PRODUCT_NAME := gm_GM8_sprout
 PRODUCT_DEVICE := GM8_sprout
