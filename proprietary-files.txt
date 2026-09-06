@@ -1739,3 +1739,8 @@ vendor/bin/init.qcom.crashdata.sh
 vendor/etc/mixer_paths_qrd_skuhf.xml
 vendor/lib/libqsap_sdk.so
 vendor/etc/sensors/hals.conf
+
+
+# Runtime dependencies restored from GM8 stock Android 9
+lib/com.qualcomm.qti.wifidisplayhal@1.0.so
+vendor/lib64/vendor.qti.hardware.perf@1.0.so
