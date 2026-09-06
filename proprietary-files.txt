@@ -1255,6 +1255,7 @@ vendor/lib/libnetmgr_rmnet_ext.so|826aa30fe513f02d70cd27b38ec4ed45b39d0b04
 vendor/lib/libnlnetmgr.so|a82bea5b4cdd566e7dabaffb7a2b09a80e2df6d0
 vendor/lib/liboemaids_vendor.so|4b6dd38a09ab791e6446fb83e3f6dd031ed5f4ff
 vendor/lib/libpdmapper.so|39fecb52d748ed95e9e747ff911cd8a370d67e50
+vendor/lib/libjson.so
 vendor/lib/libpdnotifier.so|28cf34102badfd8007450d31338359f280bc1a02
 vendor/lib/libqcmaputils.so|ec12799324de8d1186c70915fc360e1def9514cd
 vendor/lib/libqcrilFramework.so|4feb09089e2bfa267eb05509761ff2792a5620ef
@@ -1298,6 +1299,7 @@ vendor/lib64/libnetmgr_rmnet_ext.so|a4a495a7d2f3d2c9400bd0f689e318cf37995628
 vendor/lib64/libnlnetmgr.so|54adfd21e03c05946007618150be6fc1eea5f8fd
 vendor/lib64/liboemaids_vendor.so|ccca070ef0ce13033883accb832a56dae8e80c40
 vendor/lib64/libpdmapper.so|cdc5b101e8f6a4e0cc18be02e1a4d95527ba9d9c
+vendor/lib64/libjson.so
 vendor/lib64/libpdnotifier.so|1acdef1d90be28dc2f4b0fb14a91d42988bc0643
 vendor/lib64/libqcmaputils.so|bc02f3f2cf2036c823e465f2bfbe7690201188bd
 vendor/lib64/libqcrilFramework.so|3d8f25d13533f6fa45a36b23feb250291b663370

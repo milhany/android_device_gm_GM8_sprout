@@ -2,6 +2,7 @@ qemu.hw.mainkeys=0
 vendor.vidc.disable.split.mode=1
 ro.hardware.nfc_nci=nqx.default
 vendor.hw.fm.init=0
+persist.vendor.camera.HAL3.enabled=1
 persist.vendor.qcomsysd.enabled=1
 keyguard.no_require_sim=true
 ro.com.android.dataroaming=true

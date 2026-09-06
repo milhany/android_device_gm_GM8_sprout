@@ -10,19 +10,25 @@
 # Android 11 AOSP full-base telephony product and the 64/32-bit architecture.
 $(call inherit-product, device/gm/GM8_sprout/device.mk)
 
-# Keep the normal Lineage product profile disabled so the user-facing
-# Lineage application, updater, setup wizard and branding stack stay out.
-TARGET_DISABLE_LINEAGE_SDK := true
+# Keep the user-facing Lineage product profile out, but retain the Lineage
+# framework runtime used by the LineageOS 18.1 framework and SystemUI.
+# In particular this installs the feature declarations for global actions,
+# settings and hardware services.  We intentionally do not inherit
+# vendor/lineage/config/common.mk, so LineageParts, Updater, LineageSetupWizard
+# and Lineage branding are still excluded.
+include vendor/lineage/config/lineage_sdk_common.mk
 
-# Minimal Lineage framework runtime required by the LineageOS 18.1
-# frameworks_base we are building on top of.  Do not advertise the optional
-# Lineage SDK feature XMLs here; that keeps LineageSystemServer from starting
-# optional Lineage services while still providing the resource package,
-# framework jar and direct-boot settings provider used by framework/SystemUI.
 PRODUCT_PACKAGES += \
-    org.lineageos.platform-res \
-    org.lineageos.platform \
     LineageSettingsProvider
+
+# Optional build-time Google services.  Proprietary Google binaries stay out
+# of this public device tree; if a compatible GApps vendor tree is present in
+# the source checkout it is baked into the ROM automatically.
+ifneq ($(wildcard vendor/gapps/arm64/arm64-vendor.mk),)
+$(call inherit-product, vendor/gapps/arm64/arm64-vendor.mk)
+else
+$(call inherit-product-if-exists, vendor/partner_gms/products/gms.mk)
+endif
 
 # General Mobile / AOSP-facing application profile.
 # Lineage common_mobile is intentionally not inherited, so explicitly keep
