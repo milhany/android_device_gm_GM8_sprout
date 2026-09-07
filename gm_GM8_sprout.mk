@@ -19,7 +19,8 @@ $(call inherit-product, device/gm/GM8_sprout/device.mk)
 include vendor/lineage/config/lineage_sdk_common.mk
 
 PRODUCT_PACKAGES += \
-    LineageSettingsProvider
+    LineageSettingsProvider \
+    LineageBlackTheme
 
 # Android One-style builds are expected to include Google Mobile Services.
 # Do not silently produce a vanilla image when the proprietary GApps checkout

@@ -48,11 +48,11 @@
 
     <!-- Battery light -->
 <!-- Custom perf profiles settings -->
-<SwitchPreference
-        android:key="battery_percentage"
+<lineageos.preference.LineageSystemSettingSwitchPreference
+        android:key="status_bar_show_battery_percent"
         android:title="@string/battery_percentage"
         android:summary="@string/battery_percentage_description"
-        settings:controller="com.android.settings.display.BatteryPercentagePreferenceController" />
+        android:defaultValue="false" />
 
     <SwitchPreference
         android:key="fast_charging"
