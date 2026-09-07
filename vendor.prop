@@ -2,7 +2,15 @@ qemu.hw.mainkeys=0
 vendor.vidc.disable.split.mode=1
 ro.hardware.nfc_nci=nqx.default
 vendor.hw.fm.init=0
+# Qualcomm camera HAL3 compatibility (the stock GM8 stack checks both names)
+persist.camera.HAL3.enabled=1
+persist.camera.eis.enable=1
+persist.camera.is_mode=4
+persist.camera.stats.test=5
 persist.vendor.camera.HAL3.enabled=1
+persist.vendor.camera.eis.enable=1
+persist.vendor.camera.is_mode=4
+persist.vendor.camera.stats.test=5
 persist.vendor.qcomsysd.enabled=1
 keyguard.no_require_sim=true
 ro.com.android.dataroaming=true
@@ -66,3 +74,7 @@ ro.telephony.iwlan_operation_mode=legacy
 # Select GM8 stock legacy HAL implementations renamed away from AOSP defaults
 ro.hardware.fingerprint=msm8937
 ro.hardware.vibrator=msm8937
+
+# Keep explicit HAL1 compatibility only for legacy video-call clients.
+vendor.camera.hal1.packagelist=com.skype.raider,com.google.android.talk
+vendor.camera.aux.packagelist=org.codeaurora.snapcam,com.android.camera,com.android.camera2

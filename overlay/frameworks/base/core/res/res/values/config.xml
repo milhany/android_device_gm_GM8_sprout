@@ -85,6 +85,15 @@
          to false.
     -->
      <bool name="config_enableNetworkLocationOverlay">false</bool>
+     <string name="config_networkLocationProviderPackageName" translatable="false">com.google.android.gms</string>
+
+     <!-- GMS is the network/geocoder provider on this Android One-style build.
+          Listing it here lets the framework grant the provider privileges/app-ops
+          instead of repeatedly denying GoogleLocationService. -->
+     <string-array name="config_locationProviderPackageNames" translatable="false">
+         <item>com.android.location.fused</item>
+         <item>com.google.android.gms</item>
+     </string-array>
 
     <!-- Whether WiFi display is supported by this device.
          There are many prerequisites for this feature to work correctly.

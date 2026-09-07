@@ -34,11 +34,16 @@ PRODUCT_COPY_FILES += \
 endif
 
 # General Mobile default wallpaper.
-# Keep the asset optional so the tree remains buildable until the binary is
-# placed at wallpaper/default_wallpaper.jpg.
-ifneq ($(wildcard $(LOCAL_PATH)/wallpaper/default_wallpaper.jpg),)
+# Accept the historical root-level asset as well as the organized wallpaper/
+# location.  The first existing file is installed to the path referenced by
+# ro.config.wallpaper.
+GM8_DEFAULT_WALLPAPER := $(firstword \
+    $(wildcard $(LOCAL_PATH)/default_wallpaper.jpg) \
+    $(wildcard $(LOCAL_PATH)/wallpaper.jpg) \
+    $(wildcard $(LOCAL_PATH)/wallpaper/default_wallpaper.jpg))
+ifneq ($(GM8_DEFAULT_WALLPAPER),)
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/wallpaper/default_wallpaper.jpg:$(TARGET_COPY_OUT_PRODUCT)/media/wallpaper/default_wallpaper.jpg
+    $(GM8_DEFAULT_WALLPAPER):$(TARGET_COPY_OUT_PRODUCT)/media/wallpaper/default_wallpaper.jpg
 endif
 
 # Audio
