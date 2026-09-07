@@ -37,7 +37,7 @@ endif
 # the stock Android application counterparts and the Launcher3-based QuickStep
 # implementation that is present in this Android 11 source checkout.
 PRODUCT_PACKAGES += \
-    Camera2 \
+    Snap \
     Contacts \
     DeskClock \
     Dialer \
