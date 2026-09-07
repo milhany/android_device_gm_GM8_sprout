@@ -1,3 +1,9 @@
+# Persist the firmware-detected SIM topology after /data/property is ready.
+# init.qcom.class_core.sh performs the early detection and stores the result in
+# vendor.gm8.multisim.config.
+on property:vold.post_fs_data_done=1
+    setprop persist.radio.multisim.config ${vendor.gm8.multisim.config}
+
 # Copyright (c) 2014-2015,2018, The Linux Foundation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
