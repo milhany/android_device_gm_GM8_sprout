@@ -109,3 +109,8 @@ ro.vendor.display.sensortype=2
 
 # set cutoff voltage to 3200mV
 ro.cutoff_voltage_mv=3200
+
+# GM8 front sensor tuning is applied by the Qualcomm HAL. Disable app-side
+# ZSL/reprocess capture so Snap requests a fresh HAL-backed still frame instead
+# of re-encoding a cached YUV preview frame.
+persist.sys.camera.zsl.disabled=true

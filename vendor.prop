@@ -2,15 +2,16 @@ qemu.hw.mainkeys=0
 vendor.vidc.disable.split.mode=1
 ro.hardware.nfc_nci=nqx.default
 vendor.hw.fm.init=0
-# Qualcomm camera HAL3 compatibility (the stock GM8 stack checks both names)
+# Qualcomm camera HAL3 compatibility.
+# Keep the two HAL3 switches, but otherwise follow the stock GM8 camera
+# properties. The previous forced EIS/is_mode/stats properties were not part
+# of the stock product configuration and could perturb front-camera tuning.
 persist.camera.HAL3.enabled=1
-persist.camera.eis.enable=1
-persist.camera.is_mode=4
-persist.camera.stats.test=5
 persist.vendor.camera.HAL3.enabled=1
-persist.vendor.camera.eis.enable=1
-persist.vendor.camera.is_mode=4
-persist.vendor.camera.stats.test=5
+persist.vendor.camera.display.umax=1920x1080
+persist.vendor.camera.display.lmax=1280x720
+persist.vendor.camera.isp.clock.optmz=0
+persist.camera.depth.focus.cb=0
 persist.vendor.qcomsysd.enabled=1
 keyguard.no_require_sim=true
 ro.com.android.dataroaming=true
