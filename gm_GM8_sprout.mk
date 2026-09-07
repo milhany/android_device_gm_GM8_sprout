@@ -21,13 +21,15 @@ include vendor/lineage/config/lineage_sdk_common.mk
 PRODUCT_PACKAGES += \
     LineageSettingsProvider
 
-# Optional build-time Google services.  Proprietary Google binaries stay out
-# of this public device tree; if a compatible GApps vendor tree is present in
-# the source checkout it is baked into the ROM automatically.
+# Android One-style builds are expected to include Google Mobile Services.
+# Do not silently produce a vanilla image when the proprietary GApps checkout
+# is missing; that made previous test builds boot without GmsCore/Play Store.
 ifneq ($(wildcard vendor/gapps/arm64/arm64-vendor.mk),)
 $(call inherit-product, vendor/gapps/arm64/arm64-vendor.mk)
+else ifneq ($(wildcard vendor/partner_gms/products/gms.mk),)
+$(call inherit-product, vendor/partner_gms/products/gms.mk)
 else
-$(call inherit-product-if-exists, vendor/partner_gms/products/gms.mk)
+$(error GM8_sprout: GApps tree missing. Run device/gm/GM8_sprout/setup-gapps.sh from the Android source root before building)
 endif
 
 # General Mobile / AOSP-facing application profile.
@@ -35,19 +37,17 @@ endif
 # the stock Android application counterparts and the Launcher3-based QuickStep
 # implementation that is present in this Android 11 source checkout.
 PRODUCT_PACKAGES += \
-    Browser2 \
-    Calendar \
     Camera2 \
     Contacts \
     DeskClock \
     Dialer \
-    Email \
+    Eleven \
+    Etar \
     ExactCalculator \
-    Exchange2 \
     Gallery2 \
+    Jelly \
     LatinIME \
-    Messaging \
-    Music \
+    messaging \
     TrebuchetQuickStep
 
 # Keep the home process pre-optimized like the normal mobile product profile.

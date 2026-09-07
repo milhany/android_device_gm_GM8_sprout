@@ -73,6 +73,10 @@ TARGET_USES_ION := true
 
 OVERRIDE_RS_DRIVER := libRSDriver_adreno.so
 
+# CNE
+# Required by the stock Qualcomm connectivity/location stack used on GM8.
+BOARD_USES_QCNE := true
+
 # Encryption
 TARGET_HW_DISK_ENCRYPTION := true
 

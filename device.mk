@@ -197,6 +197,14 @@ PRODUCT_PACKAGES += \
     ims-ext-common \
     ims_ext_common.xml
 
+# IPA manager
+# The stock init script explicitly starts vendor.ipacm. The original GM8
+# Lineage device tree shipped these source-built modules; without them init
+# repeatedly tries to start a binary that is absent from /vendor.
+PRODUCT_PACKAGES += \
+    ipacm \
+    IPACM_cfg.xml
+
 # Init scripts
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/etc/init.gm.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.gm.rc \
