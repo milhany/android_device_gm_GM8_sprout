@@ -153,8 +153,12 @@ PRODUCT_PACKAGES += \
     android.hardware.health@2.0-service
 
 # GNSS
+# libjson is provided by LineageOS external/json-c as a vendor shared library.
+# Do not copy the stock libjson blob to /vendor: that collides with the
+# source-built module and causes duplicate install-rule failures in ckati.
 PRODUCT_PACKAGES += \
-    gm8_gnss_service
+    gm8_gnss_service \
+    libjson
 
 # Qualcomm vendor compatibility
 PRODUCT_PACKAGES += \
