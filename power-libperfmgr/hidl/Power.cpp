@@ -21,12 +21,14 @@
 
 #include "Power.h"
 
+#include <fcntl.h>
 #include <mutex>
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <android-base/strings.h>
+#include <android-base/unique_fd.h>
 
 #include <utils/Log.h>
 #include <utils/Trace.h>
@@ -148,13 +150,19 @@ Return<void> Power::powerHint(PowerHint_1_0 hint, int32_t data) {
 }
 
 Return<void> Power::setFeature(Feature feature, bool activate) {
-    if (feature == Feature::POWER_FEATURE_DOUBLE_TAP_TO_WAKE){
-        char value = activate ? '1' : '0';
-        int fd = open(TAP_TO_WAKE_FTS, O_WRONLY);
-        if (fd < 0){
-            fd = open(TAP_TO_WAKE_HIMAX, O_WRONLY);
+    if (feature == Feature::POWER_FEATURE_DOUBLE_TAP_TO_WAKE) {
+        const char value = activate ? '1' : '0';
+        android::base::unique_fd fd(open(TAP_TO_WAKE_FTS, O_WRONLY | O_CLOEXEC));
+        if (fd.get() < 0) {
+            fd.reset(open(TAP_TO_WAKE_HIMAX, O_WRONLY | O_CLOEXEC));
         }
-        write(fd, &value, sizeof(value));
+        if (fd.get() < 0) {
+            PLOG(ERROR) << "Unable to open a double-tap-to-wake control node";
+            return Void();
+        }
+        if (!android::base::WriteFully(fd.get(), &value, sizeof(value))) {
+            PLOG(ERROR) << "Unable to update double-tap-to-wake";
+        }
     }
     return Void();
 }

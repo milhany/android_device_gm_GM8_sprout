@@ -44,6 +44,8 @@ GM8_DEFAULT_WALLPAPER := $(firstword \
 ifneq ($(GM8_DEFAULT_WALLPAPER),)
 PRODUCT_COPY_FILES += \
     $(GM8_DEFAULT_WALLPAPER):$(TARGET_COPY_OUT_PRODUCT)/media/wallpaper/default_wallpaper.jpg
+PRODUCT_SYSTEM_PROPERTIES += \
+    ro.config.wallpaper=/product/media/wallpaper/default_wallpaper.jpg
 endif
 
 # Audio
@@ -165,6 +167,8 @@ PRODUCT_PACKAGES += \
     libjson
 
 # Qualcomm vendor compatibility
+# libqti_vndfwk_detect and its vendor variant are provided by
+# hardware/qcom-caf/common/fwk-detect in the LineageOS 18.1 source base.
 PRODUCT_PACKAGES += \
     libqti_vndfwk_detect \
     libqti_vndfwk_detect.vendor \
@@ -172,11 +176,7 @@ PRODUCT_PACKAGES += \
     libprotobuf-cpp-lite-vendorcompat
 
 
-# Wi-Fi Display compatibility
-# The legacy 32-bit vendor service cannot resolve the system namespace copy
-# of this HIDL interface on Android 11.
-PRODUCT_COPY_FILES += \
-    vendor/gm/GM8_sprout/proprietary/lib/com.qualcomm.qti.wifidisplayhal@1.0.so:$(TARGET_COPY_OUT_VENDOR)/lib/com.qualcomm.qti.wifidisplayhal@1.0.so
+# Wi-Fi Display's vendor namespace copy is installed by the vendor tree.
 
 # HIDL
 PRODUCT_PACKAGES += \
