@@ -1,0 +1,9 @@
+android_app {
+    name: "GM8SettingsBridge",
+    srcs: ["src/**/*.java"],
+    manifest: "AndroidManifest.xml",
+    certificate: "platform",
+    privileged: true,
+    platform_apis: true,
+    system_ext_specific: true,
+}

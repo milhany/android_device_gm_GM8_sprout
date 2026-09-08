@@ -233,6 +233,12 @@ PRODUCT_COPY_FILES += \
 DEVICE_PACKAGE_OVERLAYS += \
     $(LOCAL_PATH)/overlay
 
+# Runtime overlays/services still used by the LineageOS 18.1 framework.
+# These are internal plumbing only; they do not add LineageParts or branding.
+PRODUCT_PACKAGES += \
+    LineageBlackTheme \
+    GM8SettingsBridge
+
 # OMX
 PRODUCT_PACKAGES += \
     libc2dcolorconvert \

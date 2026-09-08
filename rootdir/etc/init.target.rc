@@ -49,6 +49,13 @@ on fs
     write /proc/sys/vm/swappiness 100
 
     mount_all /vendor/etc/fstab.qcom
+
+    # Legacy GM8 Qualcomm blobs still use /persist while Android 11 mounts the
+    # partition at /mnt/vendor/persist.  Bind the modern mount to the legacy
+    # path so calibration/regionalization (including SIM topology) is visible.
+    mkdir /persist 0771 root system
+    mount none /mnt/vendor/persist /persist bind
+
     chown root system /mnt/vendor/persist
     chmod 0771 /mnt/vendor/persist
     mkdir /mnt/vendor/persist/data 0700 system system
