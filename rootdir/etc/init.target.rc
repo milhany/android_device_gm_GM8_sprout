@@ -172,8 +172,13 @@ service audiod /system/vendor/bin/audiod
    group system
 
 on boot
-    start rmt_storage
-    insmod /system/lib/modules/adsprpc.ko
+    # The service is named vendor.rmt_storage in init.qcom.rc.  It is a core
+    # service, but starting the correct name here also preserves the stock
+    # ordering without the noisy "service rmt_storage not found" failure.
+    start vendor.rmt_storage
+
+    # adsprpc is built into the GM8 kernel (CONFIG_MSM_ADSPRPC=y); do not try
+    # to insert a non-existent /system/lib/modules/adsprpc.ko.
 # access permission for secure touch
     chmod 0660 /sys/devices/soc.0/78b7000.i2c/i2c-3/3-0020/input/input0/secure_touch_enable
     chmod 0440 /sys/devices/soc.0/78b7000.i2c/i2c-3/3-0020/input/input0/secure_touch
