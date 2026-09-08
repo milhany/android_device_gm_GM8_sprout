@@ -19,6 +19,9 @@
 
 #include "perfmgr/FileNode.h"
 
+#include <cerrno>
+#include <cstring>
+
 #include <android-base/chrono_utils.h>
 #include <android-base/file.h>
 #include <android-base/logging.h>
@@ -60,13 +63,20 @@ std::chrono::milliseconds FileNode::Update(bool log_error) {
             req_sorted_[value_index].GetRequestValue();
 
         android::base::Timer t;
-        fd_.reset(TEMP_FAILURE_RETRY(
-            open(node_path_.c_str(), O_WRONLY | O_CLOEXEC | O_TRUNC)));
+        const int new_fd = TEMP_FAILURE_RETRY(
+            open(node_path_.c_str(), O_WRONLY | O_CLOEXEC | O_TRUNC));
+        // Preserve open's errno before reset closes the previous descriptor.
+        const int open_error = new_fd == -1 ? errno : 0;
+        fd_.reset(new_fd);
 
         if (fd_ == -1 || !android::base::WriteStringToFd(req_value, fd_)) {
+            const int io_error = fd_ == -1 ? open_error : errno;
             if (log_error) {
-                LOG(WARNING) << "Failed to write to node: " << node_path_
-                             << " with value: " << req_value << ", fd: " << fd_;
+                LOG(WARNING) << "Failed to " << (fd_ == -1 ? "open" : "write")
+                             << " node: " << node_path_
+                             << " with value: " << req_value << ", fd: " << fd_
+                             << ", errno: " << io_error
+                             << " (" << std::strerror(io_error) << ")";
             }
             // Retry in 500ms or sooner
             expire_time = std::min(expire_time, std::chrono::milliseconds(500));

@@ -7,13 +7,15 @@ adb get-state >/dev/null
 
 echo "Build, boot, encryption and SIM state:"
 for prop in \
+    ro.build.display.id ro.build.date \
     ro.build.type ro.build.tags ro.build.version.sdk ro.build.version.security_patch \
     ro.product.first_api_level ro.vndk.version ro.secure ro.adb.secure ro.debuggable \
     ro.boot.mode ro.boot.verifiedbootstate ro.boot.flash.locked ro.boot.vbmeta.device_state \
     ro.crypto.state ro.crypto.type \
     persist.radio.multisim.config vendor.gm8.multisim.config persist.vendor.gm8.multisim_override \
     persist.sys.usb.config persist.vendor.usb.config \
-    init.svc.qcrild init.svc.qcrild2 init.svc.vendor.keymaster-3-0; do
+    init.svc.vendor.qcrild init.svc.vendor.qcrild2 init.svc.keymaster-3-0 \
+    init.svc.vendor.qseecomd init.svc.qteeconnector-hal-1-0; do
     value="$(adb shell getprop "$prop" | tr -d '\r')"
     printf '%s=%s\n' "$prop" "$value"
 done
