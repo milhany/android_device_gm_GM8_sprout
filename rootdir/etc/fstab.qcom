@@ -2,8 +2,9 @@
 # The filesystem that contains the filesystem checker binary (typically /system) cannot
 # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
 
-#TODO: Add 'check' as fs_mgr_flags with data partition.
-# Currently we dont have e2fsck compiled. So fs check would failed.
+# /data currently requires F2FS. This entry does not convert an existing ext4
+# filesystem. encryptable=footer permits unencrypted data; it does not force
+# encryption. See docs/PREBUILD.md before changing the installation policy.
 
 #<src>                                      <mnt_point>        <type>  <mnt_flags and options>                     <fs_mgr_flags>
 /dev/block/by-name/system         /                  ext4    ro,barrier=1,discard                        wait,slotselect,verify

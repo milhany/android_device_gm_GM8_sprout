@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Initial checkout example. Record a revision-pinned repo manifest for every build. -->
+<manifest>
+    <remote name="gm8-github" fetch="https://github.com/" />
+    <project name="milhany/android_device_gm_GM8_sprout" path="device/gm/GM8_sprout" remote="gm8-github" revision="lineage-18.1-rework" />
+    <project name="milhany/proprietary_vendor_gm_GM8_sprout" path="vendor/gm/GM8_sprout" remote="gm8-github" revision="lineage-18.1-rework" />
+    <project name="milhany/android_kernel_gm_msm8937" path="kernel/gm/msm8937" remote="gm8-github" revision="lineage-18.1-rework" />
+</manifest>
