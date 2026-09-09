@@ -1,8 +1,12 @@
 # Persist the firmware-detected SIM topology after /data/property is ready.
 # init.qcom.class_core.sh performs the early detection and stores the result in
-# vendor.gm8.multisim.config.
-on property:vold.post_fs_data_done=1
-    setprop persist.radio.multisim.config ${vendor.gm8.multisim.config}
+# vendor.gm8.multisim.config. Either property may become ready first. Only copy
+# a supported, non-empty value; an unknown variant keeps the existing setting.
+on property:vold.post_fs_data_done=1 && property:vendor.gm8.multisim.config=dsds
+    setprop persist.radio.multisim.config dsds
+
+on property:vold.post_fs_data_done=1 && property:vendor.gm8.multisim.config=ssss
+    setprop persist.radio.multisim.config ssss
 
 # Copyright (c) 2014-2015,2018, The Linux Foundation. All rights reserved.
 #
@@ -87,6 +91,12 @@ on post-fs-data
     mkdir /data/misc/dts 0770 media audio
     mkdir /data/vendor/tloc 0700 system drmrpc
     mkdir /data/fpc 0700 system system
+    # The Sunwave HAL uses this fixed vendor DE path. Its system UID cannot
+    # create it under the root-owned /data/vendor_de parent.
+    mkdir /data/vendor_de/sunwave 0700 system system
+    mkdir /data/vendor_de/sunwave/dump 0700 system system
+    mkdir /data/vendor_de/sunwave/badpoint 0700 system system
+    restorecon_recursive /data/vendor_de/sunwave
     mkdir /data/vendor/dolby 0770 media media
 
 

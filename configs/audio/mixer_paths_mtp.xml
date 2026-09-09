@@ -937,7 +937,7 @@
 
     <path name="voice2-call speaker">
         <ctl name="QUIN_MI2S_RX_Voice Mixer Voice2" value="1" />
-        <ctl name="Voice2_Tx Mixer TERT_MI2S_TX_Voice" value="1" />
+        <ctl name="Voice2_Tx Mixer TERT_MI2S_TX_Voice2" value="1" />
     </path>
 
     <path name="voice2-call bt-sco">

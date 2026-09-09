@@ -103,6 +103,23 @@ generated diff and retain those adjustments when re-extracting stock blobs.
 - [ ] Test both GM8 single-SIM and GM8_d dual-SIM hardware. Check detected
       `vendor.gm8.multisim.config`, persisted `persist.radio.multisim.config`,
       modem startup, calls/SMS/data and IMS on each supported SIM.
+- [ ] On dual-SIM firmware, verify `vendor.qcrild2` and second-slot QTI HAL
+      registrations. The manifest declares the companion audio, OEM hook,
+      IMS, QtiRadio and UIM services for both slots, using the existing versions.
+      `IQcRilAudio/slot2` and `IQtiOemHook/oemhook1` must be available: basic
+      `IRadio/slot2` call setup alone does not prove voice audio or data control
+      works. A shell `lshal` query denied by SELinux is not proof of absence;
+      inspect early service registration/client errors as well.
+- [ ] Test incoming/outgoing SIM2 calls with earpiece and speaker, checking
+      both audio directions. Repeat on SIM1. During an active SIM2 call, QTI
+      voice parameters must activate the matching VSID session; audio mode 2
+      with all sessions inactive is not success. The `voice2-call speaker`
+      microphone route uses the kernel's `TERT_MI2S_TX_Voice2` control.
+- [ ] With Wi-Fi off and no call active, select SIM2 for mobile data and verify
+      actual Internet access, then switch to SIM1 and back. Capture radio logs
+      for OEM-hook availability, DDS selection and data-call errors if it fails.
+      Test IMS/VoLTE only where the SIM, carrier and modem firmware support it;
+      these declarations do not provision IMS or enable dual active calls/data.
 - [ ] The framework's configured physical slot count is 1, but Android 11's
       UiccController raises it to at least the active phone count. Therefore this
       overlay alone does not establish a SIM2 failure. Confirm early detection
@@ -110,6 +127,10 @@ generated diff and retain those adjustments when re-extracting stock blobs.
 - [ ] The two `vendor.gm8` variant properties use `vendor_radio_prop`, which the
       matching Qualcomm init policy permits. Check enforcing-mode AVCs and
       access to the firmware/persist identity sources on actual hardware.
+      The persist action now waits for both a recognized `dsds`/`ssss` result
+      and post-fs-data completion, whichever arrives last. This prevents an
+      empty or late result from being missed; it does not supply a missing
+      firmware identity or guarantee that the detector actually runs.
 
 ## Stock appearance and functional checks
 
@@ -133,6 +154,11 @@ runtime required by this source base when removing visible branding.
       and repeated double-tap-to-wake toggles without HAL failures.
 - [ ] Front/rear camera, video audio, fingerprint, sensors, Wi-Fi, Bluetooth,
       GNSS cold/warm starts, cellular data and VoLTE where provisioned.
+- [ ] Sunwave's fixed `/data/vendor_de/sunwave` cache and its dump/badpoint
+      directories are created as system:system 0700 and labeled
+      `fingerprint_vendor_data_file`. Verify `/dev/sunwave_fp`, HAL startup,
+      enrollment, unlock and persistence after reboot. Storage setup alone does
+      not prove the sensor or TEE initialization succeeds.
 - [ ] Charging at rest/load, deep sleep, battery saver and thermal behavior.
 - [ ] Charging LED with the screen off, at low/medium/full charge and after
       unplugging. The Lineage SDK overlay advertises RGB notification and
@@ -143,6 +169,53 @@ runtime required by this source base when removing visible branding.
 - [ ] USB charging, file transfer and user-enabled ADB. On a clean `user` build,
       the vendor script defaults to `none` instead of a diagnostic/ADB
       composition. An existing explicit persistent USB selection is preserved.
+
+## Hardware logs from Windows
+
+`tools/collect-hardware-state.sh` runs on Android and keeps stderr in the report.
+It records caller identity, installed configuration hashes, SIM firmware hints,
+radio/audio state, Sunwave paths, CPU nodes, active GNSS requests and network
+state. It does not request root or change the device configuration. Permission
+errors are useful evidence; a missing stdout line alone is not proof that a
+device node is absent.
+
+From a Windows platform-tools directory, copy this script beside `adb.exe`:
+
+```powershell
+.\adb.exe push .\collect-hardware-state.sh /data/local/tmp/gm8-hardware-state.sh
+.\adb.exe shell sh /data/local/tmp/gm8-hardware-state.sh > gm8-hardware-state.txt
+```
+
+Capture early HAL and variant failures immediately after a reboot: start
+`adb logcat -b all -v threadtime` as soon as adb reconnects and save it on the
+host while exercising the device. A later `logcat -d` can retain early system
+messages while the main buffer containing HAL initialization has already wrapped.
+
+For a SIM2 reproduction, start this in one PowerShell window before placing the
+call or selecting SIM2 data, then stop with Ctrl+C after the failure:
+
+```powershell
+.\adb.exe logcat -b main -b system -b radio -v threadtime > gm8-sim2-live.txt
+```
+
+Run the hardware collector from another window while the call is active. Note
+which slot, audio route and data SIM were selected. Do not clear the log buffers
+first; startup registration errors may be needed. Logs may contain phone numbers,
+subscriber/network details and location; redact them before public sharing.
+
+Keep a GNSS test app open in the foreground with location permission during the
+hardware capture. Verify an active GPS request, satellite-status/CN0 reports and
+satellites used in a fix. A coarse position with hundreds of kilometres of
+uncertainty is not a valid satellite fix, even if a report/TTFF counter increases.
+If XTRA or NTP fails, compare with the current default network and DNS state;
+an app-wide DNS failure is not proof of a GNSS-specific configuration fault.
+Use working SIM1 data or validated Wi-Fi to isolate this from the SIM2 data
+failure, then repeat outdoors with a clear sky view. Record per-satellite C/N0,
+satellites used, fix accuracy and elapsed time. A different phone's faster fix
+does not distinguish GM8 antenna/RF, firmware and aiding failures by itself.
+Changing NTP servers or reported accuracy thresholds does not increase receiver
+sensitivity; keep RF/antenna diagnosis open if useful satellite signals remain
+absent with a working network and an active GNSS request.
 
 ## Release signing and Play Integrity
 
@@ -183,3 +256,5 @@ References:
 - [Play Integrity verdict meanings](https://developer.android.com/google/play/integrity/verdicts)
 - [Android 11 UiccController](https://github.com/LineageOS/android_frameworks_opt_telephony/blob/lineage-18.1/src/java/com/android/internal/telephony/uicc/UiccController.java)
 - [Qualcomm framework detection library](https://github.com/LineageOS/android_hardware_qcom-caf_common/blob/lineage-18.1/fwk-detect/Android.bp)
+- [Qualcomm companion HAL instances on LineageOS 18.1](https://github.com/LineageOS/android_device_xiaomi_msm8953-common/blob/lineage-18.1/manifest.xml)
+- [GM8 Voice2 kernel mixer controls](https://github.com/milhany/android_kernel_gm_msm8937/blob/lineage-18.1-rework/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c)
