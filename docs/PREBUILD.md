@@ -134,6 +134,12 @@ runtime required by this source base when removing visible branding.
 - [ ] Front/rear camera, video audio, fingerprint, sensors, Wi-Fi, Bluetooth,
       GNSS cold/warm starts, cellular data and VoLTE where provisioned.
 - [ ] Charging at rest/load, deep sleep, battery saver and thermal behavior.
+- [ ] Charging LED with the screen off, at low/medium/full charge and after
+      unplugging. The Lineage SDK overlay advertises RGB notification and
+      battery support (67); timed pulsing is not implemented by this light HAL.
+      An active notification/attention request takes priority over the battery
+      state. Dismissing it must restore the charging color, and subsequent
+      battery updates must not erase an active notification.
 - [ ] USB charging, file transfer and user-enabled ADB. On a clean `user` build,
       the vendor script defaults to `none` instead of a diagnostic/ADB
       composition. An existing explicit persistent USB selection is preserved.

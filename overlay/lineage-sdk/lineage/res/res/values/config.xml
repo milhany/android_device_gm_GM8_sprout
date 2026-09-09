@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RGB notification (1), RGB battery (2), battery LED (64).
+         The current light HAL does not implement timed pulsing. -->
+    <integer name="config_deviceLightCapabilities">67</integer>
+</resources>

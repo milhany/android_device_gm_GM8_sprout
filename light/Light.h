@@ -19,7 +19,6 @@
 #include <android/hardware/light/2.0/ILight.h>
 #include <hardware/lights.h>
 #include <hidl/Status.h>
-#include <map>
 #include <mutex>
 #include <log/log.h>
 #include <android-base/logging.h>
@@ -47,6 +46,9 @@ class Light : public ILight {
 
    private:
     std::mutex globalLock;
+    LightState batteryState{};
+    LightState notificationState{};
+    LightState attentionState{};
 };
 
 }  // namespace implementation

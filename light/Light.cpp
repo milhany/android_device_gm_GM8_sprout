@@ -89,36 +89,51 @@ static void handleNotification(const LightState& state) {
     set(BLUE_LED BRIGHTNESS, blueBrightness);
 }
 
-static std::map<Type, std::function<void(const LightState&)>> lights = {
-    {Type::BACKLIGHT, handleBacklight},
-    {Type::BATTERY, handleNotification},
-    {Type::NOTIFICATIONS, handleNotification},
-    {Type::ATTENTION, handleNotification},
-};
+static bool isLit(const LightState& state) {
+    return (state.color & 0x00FFFFFF) != 0;
+}
 
 Light::Light() {}
 
 Return<Status> Light::setLight(Type type, const LightState& state) {
-    auto it = lights.find(type);
-
-    if (it == lights.end()) {
-        return Status::LIGHT_NOT_SUPPORTED;
-    }
-
     /*
      * Lock global mutex until light state is updated.
      */
     std::lock_guard<std::mutex> lock(globalLock);
 
-    it->second(state);
+    switch (type) {
+        case Type::BACKLIGHT:
+            handleBacklight(state);
+            return Status::SUCCESS;
+        case Type::BATTERY:
+            batteryState = state;
+            break;
+        case Type::NOTIFICATIONS:
+            notificationState = state;
+            break;
+        case Type::ATTENTION:
+            attentionState = state;
+            break;
+        default:
+            return Status::LIGHT_NOT_SUPPORTED;
+    }
+
+    // Battery, notifications and attention share one physical RGB LED.
+    // Clearing a notification must restore charging indication, and a battery
+    // update must not overwrite an active notification or attention request.
+    handleNotification(isLit(attentionState) ? attentionState :
+                       isLit(notificationState) ? notificationState : batteryState);
 
     return Status::SUCCESS;
 }
 
 Return<void> Light::getSupportedTypes(getSupportedTypes_cb _hidl_cb) {
-    std::vector<Type> types;
-
-    for (auto const& light : lights) types.push_back(light.first);
+    std::vector<Type> types = {
+        Type::BACKLIGHT,
+        Type::BATTERY,
+        Type::NOTIFICATIONS,
+        Type::ATTENTION,
+    };
 
     _hidl_cb(types);
 
