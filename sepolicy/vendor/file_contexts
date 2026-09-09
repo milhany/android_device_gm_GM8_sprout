@@ -6,6 +6,8 @@
 /(vendor|system/vendor)/bin/hw/vendor\.sw\.swfingerprint@1\.0-service                       u:object_r:hal_fingerprint_default_exec:s0
 /dev/sunwave_fp                                                                             u:object_r:sunwave_fp:s0
 /data/vendor_de/sunwave(/.*)?                                                               u:object_r:fingerprint_vendor_data_file:s0
+/data/fpc(/.*)?                                                                            u:object_r:fingerprint_vendor_data_file:s0
+/(vendor|system/vendor)/bin/init\.gm8\.fingerprint\.sh                                       u:object_r:qti_init_shell_exec:s0
 
 # Health
 /sys/devices/soc/soc:qcom,bcl/power_supply/bcl/type                   u:object_r:sysfs_healthd:s0

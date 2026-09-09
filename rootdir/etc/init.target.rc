@@ -91,6 +91,7 @@ on post-fs-data
     mkdir /data/misc/dts 0770 media audio
     mkdir /data/vendor/tloc 0700 system drmrpc
     mkdir /data/fpc 0700 system system
+    restorecon_recursive /data/fpc
     # The Sunwave HAL uses this fixed vendor DE path. Its system UID cannot
     # create it under the root-owned /data/vendor_de parent.
     mkdir /data/vendor_de/sunwave 0700 system system
@@ -394,3 +395,4 @@ service swfingerprint-hal-1.0 /vendor/bin/hw/vendor.sw.swfingerprint@1.0-service
     class late_start
     user system
     group system
+    disabled

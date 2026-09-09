@@ -212,6 +212,7 @@ PRODUCT_PACKAGES += \
 # Init scripts
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/etc/init.gm.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.gm.rc \
+    $(LOCAL_PATH)/rootdir/bin/init.gm8.fingerprint.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.gm8.fingerprint.sh \
     $(LOCAL_PATH)/rootdir/etc/init.qcom.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/hw/init.qcom.rc \
     $(LOCAL_PATH)/rootdir/etc/init.target.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/hw/init.target.rc
 

@@ -5,3 +5,6 @@ vendor.powerhal.                        u:object_r:vendor_power_prop:s0
 # SIM variant. Use the existing radio property type allowed by legacy-um policy.
 persist.vendor.gm8.multisim_override     u:object_r:vendor_radio_prop:s0 exact string
 vendor.gm8.multisim.config               u:object_r:vendor_radio_prop:s0 exact string
+
+# Volatile result of the initialized-driver fingerprint selector.
+vendor.gm8.fingerprint.sensor            u:object_r:vendor_gm8_fingerprint_prop:s0 exact string

@@ -21,7 +21,8 @@ for prop in ro.build.display.id ro.build.date ro.vendor.build.date \
     persist.radio.multisim.config vendor.gm8.multisim.config \
     persist.vendor.gm8.multisim_override vold.post_fs_data_done \
     init.svc.qcom-c_core-sh init.svc.vendor.qcrild init.svc.vendor.qcrild2 \
-    init.svc.vendor.fps_hal init.svc.fps_hal \
+    vendor.gm8.fingerprint.sensor init.svc.vendor.gm8-fingerprint-init \
+    init.svc.vendor.fps_hal init.svc.fpc_fps_hal \
     init.svc.swfingerprint-hal-1.0 init.svc.gnss_service init.svc.loc_launcher; do
     printf '%s=%s\n' "$prop" "$(getprop "$prop")"
 done
@@ -53,7 +54,10 @@ for path in /vendor/firmware_mnt/verinfo/ver_info.txt \
 done
 
 section 'Fingerprint device, storage and services'
+show_file /proc/fp_info
 ls -lZ /dev/sunwave_fp /dev/fpc*
+ls -lZ /sys/bus/platform/drivers/fpc1020
+ls -lZ /sys/bus/platform/drivers/fpc1020/*/irq
 ls -ldZ /data/vendor_de /data/vendor_de/sunwave /data/vendor_de/0/fpdata /data/fpc
 dumpsys fingerprint
 ps -AZ | grep -E 'finger|fps|qcom|gnss|loc_launcher|xtra'
@@ -67,6 +71,7 @@ for cpu in 0 4; do
 done
 
 section 'GNSS configuration and active request'
+printf '%s\n' 'Keep the GNSS test app active during capture; a position fix is not required.'
 show_file /vendor/etc/gps.conf
 dumpsys location
 

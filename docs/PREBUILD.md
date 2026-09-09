@@ -154,6 +154,20 @@ runtime required by this source base when removing visible branding.
       and repeated double-tap-to-wake toggles without HAL failures.
 - [ ] Front/rear camera, video audio, fingerprint, sensors, Wi-Fi, Bluetooth,
       GNSS cold/warm starts, cellular data and VoLTE where provisioned.
+- [ ] Check `vendor.gm8.fingerprint.sensor` and the `GM8Fingerprint` startup
+      message. A bound FPC driver with an IRQ node selects `fpc_fps_hal`; a
+      Sunwave character device selects `vendor.fps_hal` plus its extension.
+      Neither or both markers leave the HALs disabled with an explicit error.
+      This follows the kernel's selection; it does not validate or override the
+      physical GPIO ID. Check `/proc/fp_info` and kernel probe logs if selection
+      disagrees with known stock behavior.
+- [ ] The device rc overrides the AOSP `vendor.fps_hal` definition so the
+      generic Sunwave module cannot start unconditionally and claim the default
+      fingerprint service on an FPC device. Confirm only the selected default
+      HAL registers. On FPC, `/data/fpc` must be system:system 0700 with
+      `fingerprint_vendor_data_file`, and the existing ueventd rules must give
+      system access to the driver's IRQ, reset and wakeup nodes. Test enrollment,
+      unlock and template persistence after reboot on both sensor variants.
 - [ ] Sunwave's fixed `/data/vendor_de/sunwave` cache and its dump/badpoint
       directories are created as system:system 0700 and labeled
       `fingerprint_vendor_data_file`. Verify `/dev/sunwave_fp`, HAL startup,
@@ -204,9 +218,10 @@ first; startup registration errors may be needed. Logs may contain phone numbers
 subscriber/network details and location; redact them before public sharing.
 
 Keep a GNSS test app open in the foreground with location permission during the
-hardware capture. Verify an active GPS request, satellite-status/CN0 reports and
-satellites used in a fix. A coarse position with hundreds of kilometres of
-uncertainty is not a valid satellite fix, even if a report/TTFF counter increases.
+hardware capture, even if it never gets a fix. Verify an active GPS request,
+satellite-status/CN0 reports and satellites used in a fix. A coarse position with
+hundreds of kilometres of uncertainty is not a valid satellite fix, even if a
+report/TTFF counter increases.
 If XTRA or NTP fails, compare with the current default network and DNS state;
 an app-wide DNS failure is not proof of a GNSS-specific configuration fault.
 Use working SIM1 data or validated Wi-Fi to isolate this from the SIM2 data
@@ -216,6 +231,15 @@ does not distinguish GM8 antenna/RF, firmware and aiding failures by itself.
 Changing NTP servers or reported accuracy thresholds does not increase receiver
 sensitivity; keep RF/antenna diagnosis open if useful satellite signals remain
 absent with a working network and an active GNSS request.
+
+A boot-only log does not exercise satellite acquisition. Android trying GNSS
+2.1 and then connecting to the installed 2.0 service is normal version fallback.
+An old modem can reject optional clock-estimator/blacklist/constellation commands;
+those messages alone do not prove that basic positioning has failed. Capture
+the actual no-fix attempt: start `adb logcat -b main -b system -v threadtime`
+before opening the GNSS app, leave the request active for two minutes, then run
+the hardware collector while the app is still open. Record zero satellites or
+zero C/N0 too; a successful fix is not a prerequisite for a useful capture.
 
 ## Release signing and Play Integrity
 

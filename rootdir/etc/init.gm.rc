@@ -1,7 +1,8 @@
 service vendor.fps_hal /vendor/bin/hw/android.hardware.biometrics.fingerprint@2.1-service
-    # "class hal" causes a race condition on some devices due to files created
-    # in /data. As a workaround, postpone startup until later in boot once
-    # /data is mounted.
+    # Override the rc installed by the AOSP module, which is parsed first.
+    # The generic module loads Sunwave; start it only on a Sunwave kernel path.
+    override
+    disabled
     class late_start
     user system
     group system input uhid
@@ -15,6 +16,21 @@ service fpc_fps_hal /vendor/bin/hw/android.hardware.biometrics.fingerprint.fpc@2
     user system
     group system input uhid
     disabled
+
+service vendor.gm8-fingerprint-init /vendor/bin/init.gm8.fingerprint.sh
+    class late_start
+    user root
+    oneshot
+
+on property:vendor.gm8.fingerprint.sensor=fpc
+    stop vendor.fps_hal
+    stop swfingerprint-hal-1.0
+    start fpc_fps_hal
+
+on property:vendor.gm8.fingerprint.sensor=sunwave
+    stop fpc_fps_hal
+    start vendor.fps_hal
+    start swfingerprint-hal-1.0
 
 on boot
     chmod 0664 /sys/module/wlan/parameters/fwpath

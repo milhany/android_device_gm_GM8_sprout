@@ -1,0 +1,9 @@
+# Only vendor init scripts publish the selected fingerprint driver. The value
+# is non-sensitive and readable from adb for hardware diagnostics.
+vendor_restricted_prop(vendor_gm8_fingerprint_prop)
+set_prop(qti_init_shell, vendor_gm8_fingerprint_prop)
+get_prop(shell, vendor_gm8_fingerprint_prop)
+
+# The selector checks for an initialized Sunwave character device; it never
+# opens the device or changes its ownership/permissions.
+allow qti_init_shell sunwave_fp:chr_file getattr;
