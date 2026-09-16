@@ -22,7 +22,7 @@ def main():
 
     required = [
         "build/envsetup.sh",
-        "build/target/product/product_launched_with_o_mr1.mk",
+        "build/target/product/product_launched_with_o.mk",
         "vendor/lineage/config/lineage_sdk_common.mk",
         "device/lineage/sepolicy/common/sepolicy.mk",
         "device/qcom/sepolicy-legacy-um/SEPolicy.mk",
@@ -37,12 +37,12 @@ def main():
     for path in required:
         if not (top / path).is_file():
             errors.append(f"Missing dependency: {path}")
-    for version in (27, 28, 29):
+    for version in (28, 29, 30, 31):
         if not (top / f"prebuilts/vndk/v{version}").is_dir():
             errors.append(f"Missing VNDK snapshot: prebuilts/vndk/v{version}")
     if not any((top / path).is_file() for path in (
             "vendor/gapps/arm64/arm64-vendor.mk", "vendor/partner_gms/products/gms.mk")):
-        errors.append("GApps are required; run setup-gapps.sh with a recorded Android 11 commit.")
+        errors.append("GApps are required; run setup-gapps.sh with a recorded Android 12.1 commit.")
 
     xml_count = 0
     for path in device.rglob("*.xml"):
@@ -85,7 +85,7 @@ def main():
     props = device / "vendor.prop"
     if props.is_file():
         match = re.search(r"^ro\.product\.first_api_level=(\d+)$", props.read_text(), re.M)
-        launch = top / "build/target/product/product_launched_with_o_mr1.mk"
+        launch = top / "build/target/product/product_launched_with_o.mk"
         if match and launch.is_file():
             shipping = re.search(r"^PRODUCT_SHIPPING_API_LEVEL\s*:?=\s*(\d+)", launch.read_text(), re.M)
             if shipping and match[1] != shipping[1]:

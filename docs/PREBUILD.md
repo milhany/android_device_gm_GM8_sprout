@@ -1,13 +1,13 @@
-# GM8 Android 11 rework: build and device validation
+# GM8 Android 12.1 rework: build and device validation
 
-Use `lineage-18.1-rework` for all three GM8 repositories. The product is
-`gm_GM8_sprout`; it uses the LineageOS 18.1 source base with a GM/AOSP-facing
-application profile. This tree is not an OEM-certified Android 11 release.
+Use `lineage-19.1` for all three GM8 repositories. The product is
+`gm_GM8_sprout`; it uses the LineageOS 19.1 source base with a GM/AOSP-facing
+application profile. This tree is not an OEM-certified Android 12.1 release.
 
 ## Source setup
 
-Start from a complete LineageOS 18.1 checkout, including its Qualcomm projects,
-Lineage SDK, extract-utils and VNDK 27/28/29 snapshots. Add the projects in
+Start from a complete LineageOS 19.1 checkout, including its Qualcomm projects,
+Lineage SDK, extract-utils and VNDK 28/29/30/31 snapshots. Add the projects in
 `docs/local_manifest.xml` to your local manifest, avoiding duplicate project
 paths if they are already present:
 
@@ -19,10 +19,10 @@ paths if they are already present:
 
 `BoardConfig.mk` imports `device/lineage/sepolicy/common/sepolicy.mk` and
 `device/qcom/sepolicy-legacy-um/SEPolicy.mk`. The latter comes from
-`LineageOS/android_device_qcom_sepolicy`, branch `lineage-18.1-legacy-um`.
+`LineageOS/android_device_qcom_sepolicy`, branch `lineage-19.1-legacy-um`.
 The kernel expects the aarch64 Android GCC 4.9 prebuilt path in BoardConfig.
 
-The product requires Android 11 ARM64 GApps before lunch. For the first checkout:
+The product requires Android 12.1 ARM64 GApps before lunch. For the first checkout:
 
 ```sh
 bash device/gm/GM8_sprout/setup-gapps.sh
@@ -32,8 +32,8 @@ git -C vendor/gapps rev-parse HEAD
 Record that full SHA. For a reproducible subsequent checkout, pass the recorded
 40-character MindTheGapps commit as the sole argument to `setup-gapps.sh`.
 The helper refuses dirty or unexpected checkouts and never resets local work.
-Without a SHA it follows `rho` using fast-forward updates; a detached checkout
-requires an explicit SHA. Review local commits if your `rho` is ahead of upstream.
+Without a SHA it follows `sigma` using fast-forward updates; a detached checkout
+requires an explicit SHA. Review local commits if your `sigma` is ahead of upstream.
 
 Before each build, save `repo manifest -r -o <build-record.xml>` outside the
 source repositories. Record the GApps SHA separately if the helper cloned it
@@ -60,21 +60,21 @@ full target-files build is required to verify compilation, linking and images.
 - [ ] All source and GApps revisions recorded; no unexplained local changes.
 - [ ] Correct GCC prebuilt is present and runnable on the build host.
 - [ ] `hardware/qcom-caf/common/fwk-detect/Android.bp` is present from
-      `LineageOS/android_hardware_qcom-caf_common`, branch `lineage-18.1`.
+      `LineageOS/android_hardware_qcom-caf_common`, branch `lineage-19.1`.
       It provides `libqti_vndfwk_detect` with a vendor variant and both ARM and
       ARM64 builds. Use that source provider instead of defining duplicate
       modules for the unused blobs in the GM8 vendor directory.
-- [ ] The VNDK v28 snapshot provides the requested protobuf `vendorcompat`
-      libraries. Check both ARM and ARM64 install paths needed by the old blobs.
+- [ ] The VNDK v29 snapshot provides the protobuf libraries copied as
+      `libprotobuf-cpp-{full,lite}-v29.so`. Check both ARM and ARM64 install
+      paths needed by the old blobs.
 - [ ] No missing HAL/service modules, ELF dependencies, VINTF incompatibilities,
       or SELinux neverallow failures. Do not suppress these build gates.
 - [ ] Final boot/system/vendor image sizes fit BoardConfig partition limits.
       GApps and filesystem overhead must be included; blob file sizes alone
       are not sufficient. Validate A/B slot switching, recovery and OTA.
 - [ ] Inspect the generated target-files properties. `device.mk` inherits the
-      API 27 launch product while `vendor.prop` currently declares first API 26.
-      Resolve this against the original GM8 launch firmware before release,
-      then keep one authoritative launch API definition. Do not change it just
+      Android O launch product and `vendor.prop` declares first API 26. Keep
+      that original GM8 launch metadata authoritative; do not change it just
       to influence an Integrity result.
 
 Do not regenerate the vendor makefiles blindly with `setup-makefiles.sh`: the
@@ -120,7 +120,7 @@ generated diff and retain those adjustments when re-extracting stock blobs.
       for OEM-hook availability, DDS selection and data-call errors if it fails.
       Test IMS/VoLTE only where the SIM, carrier and modem firmware support it;
       these declarations do not provision IMS or enable dual active calls/data.
-- [ ] The framework's configured physical slot count is 1, but Android 11's
+- [ ] The framework's configured physical slot count is 1, but Android 12.1's
       UiccController raises it to at least the active phone count. Therefore this
       overlay alone does not establish a SIM2 failure. Confirm early detection
       and real HAL registrations before changing slot/IMS declarations.
@@ -244,7 +244,7 @@ zero C/N0 too; a successful fix is not a prerequisite for a useful capture.
 ## Release signing and Play Integrity
 
 After debugging, build the actual `gm_GM8_sprout-user` target and sign its
-target-files/OTA with your own protected release keys using the Android 11
+target-files/OTA with your own protected release keys using the Android 12.1
 release tools. Keep platform/shared/media/networkstack/APK and OTA key mappings
 consistent, and preserve the signing requirements of PRESIGNED GApps. Plan key
 rotation and upgrades from earlier test-key installations before distribution.
@@ -278,7 +278,7 @@ References:
 
 - [Android release signing](https://source.android.com/docs/core/ota/sign_builds)
 - [Play Integrity verdict meanings](https://developer.android.com/google/play/integrity/verdicts)
-- [Android 11 UiccController](https://github.com/LineageOS/android_frameworks_opt_telephony/blob/lineage-18.1/src/java/com/android/internal/telephony/uicc/UiccController.java)
-- [Qualcomm framework detection library](https://github.com/LineageOS/android_hardware_qcom-caf_common/blob/lineage-18.1/fwk-detect/Android.bp)
-- [Qualcomm companion HAL instances on LineageOS 18.1](https://github.com/LineageOS/android_device_xiaomi_msm8953-common/blob/lineage-18.1/manifest.xml)
-- [GM8 Voice2 kernel mixer controls](https://github.com/milhany/android_kernel_gm_msm8937/blob/lineage-18.1-rework/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c)
+- [Android 12.1 UiccController](https://github.com/LineageOS/android_frameworks_opt_telephony/blob/lineage-19.1/src/java/com/android/internal/telephony/uicc/UiccController.java)
+- [Qualcomm framework detection library](https://github.com/LineageOS/android_hardware_qcom-caf_common/blob/lineage-19.1/fwk-detect/Android.bp)
+- [Qualcomm companion HAL instances on LineageOS 19.1](https://github.com/LineageOS/android_device_xiaomi_msm8953-common/blob/lineage-19.1/manifest.xml)
+- [GM8 Voice2 kernel mixer controls](https://github.com/milhany/android_kernel_gm_msm8937/blob/lineage-19.1/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c)

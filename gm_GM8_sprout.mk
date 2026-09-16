@@ -1,13 +1,13 @@
 #
-# General Mobile GM 8 - Android 11 product configuration
+# General Mobile GM 8 - Android 12.1 product configuration
 #
-# Built from the LineageOS 18.1 / AOSP Android 11 source base, while keeping
+# Built from the LineageOS 19.1 / AOSP Android 12.1 source base, while keeping
 # the product profile intentionally AOSP/GM-facing instead of inheriting the
 # LineageOS application, SDK, theme, updater, setup wizard and branding stack.
 #
 
 # Inherit the hardware/device configuration. device.mk already pulls the
-# Android 11 AOSP full-base telephony product and the 64/32-bit architecture.
+# Android 12.1 AOSP full-base telephony product and the 64/32-bit architecture.
 $(call inherit-product, device/gm/GM8_sprout/device.mk)
 
 # Keep the user-facing Lineage product profile out, but retain the Lineage
@@ -36,7 +36,7 @@ endif
 # General Mobile / AOSP-facing application profile.
 # Lineage common_mobile is intentionally not inherited, so explicitly keep
 # the stock Android application counterparts and the Launcher3-based QuickStep
-# implementation that is present in this Android 11 source checkout.
+# implementation that is present in this Android 12.1 source checkout.
 PRODUCT_PACKAGES += \
     Snap \
     Contacts \

@@ -77,14 +77,16 @@ TARGET_USES_GRALLOC1 := true
 TARGET_USES_HWC2 := true
 TARGET_USES_ION := true
 
-OVERRIDE_RS_DRIVER := libRSDriver_adreno.so
+# Android 12 flattened APEX compatibility for the legacy partition layout.
+OVERRIDE_TARGET_FLATTEN_APEX := true
+OVERRIDE_PRODUCT_COMPRESSED_APEX := false
 
 # CNE
 # Required by the stock Qualcomm connectivity/location stack used on GM8.
 BOARD_USES_QCNE := true
 
 # Encryption
-TARGET_HW_DISK_ENCRYPTION := true
+TARGET_LEGACY_HW_DISK_ENCRYPTION := true
 
 # Filesystem
 TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/configs/config.fs
@@ -111,8 +113,10 @@ BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
 TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
+TARGET_KERNEL_VERSION := 3.18
 TARGET_HAS_GENERIC_KERNEL_HEADERS := false
 TARGET_COMPILE_WITH_MSM_KERNEL := true
+TARGET_NO_BOOTLOADER := true
 
 # Media
 TARGET_USES_MEDIA_EXTENSIONS := true
@@ -143,6 +147,7 @@ TARGET_TAP_TO_WAKE_NODE := "/proc/android_touch/SMWP"
 
 # Props
 TARGET_SYSTEM_PROP += $(DEVICE_PATH)/system.prop
+TARGET_SYSTEM_EXT_PROP += $(DEVICE_PATH)/system_ext.prop
 TARGET_VENDOR_PROP += $(DEVICE_PATH)/vendor.prop
 
 # Recovery
@@ -170,6 +175,10 @@ DEVICE_MATRIX_FILE := $(DEVICE_PATH)/configs/vintf/compatibility_matrix.xml
 # VNDK
 PRODUCT_TARGET_VNDK_VERSION := current
 BOARD_VNDK_VERSION := current
+
+# Allow legacy vendor prebuilts copied directly from the stock image while
+# Android 12 migration work replaces or wraps them incrementally.
+BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 
 # WiFi
 BOARD_HAS_QCOM_WLAN := true

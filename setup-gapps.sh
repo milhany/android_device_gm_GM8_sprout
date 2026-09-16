@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 GAPPS_DIR="${TOP}/vendor/gapps"
 REMOTE="https://gitlab.com/MindTheGapps/vendor_gapps.git"
-BRANCH="rho"
+BRANCH="sigma"
 
 die() {
     echo "ERROR: $*" >&2
@@ -14,7 +14,7 @@ die() {
 
 if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
     echo "Usage: $0 [full-40-character-MindTheGapps-commit]"
-    echo "Without a commit, only a clean rho checkout can be fast-forwarded."
+    echo "Without a commit, only a clean sigma checkout can be fast-forwarded."
     exit 0
 fi
 [[ $# -le 1 ]] || die "Expected at most one full MindTheGapps commit SHA."
@@ -42,7 +42,7 @@ if [[ -e "${GAPPS_DIR}" ]]; then
             die "vendor/gapps is not on ${BRANCH}; pass an explicit commit to update a pinned checkout."
     fi
 else
-    echo "Cloning MindTheGapps Android 11 branch (${BRANCH})..."
+    echo "Cloning MindTheGapps Android 12.1 branch (${BRANCH})..."
     git clone --depth=1 --branch "${BRANCH}" "${REMOTE}" "${GAPPS_DIR}"
 fi
 

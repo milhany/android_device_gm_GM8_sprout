@@ -54,7 +54,7 @@ on fs
 
     mount_all /vendor/etc/fstab.qcom
 
-    # Legacy GM8 Qualcomm blobs still use /persist while Android 11 mounts the
+    # Legacy GM8 Qualcomm blobs still use /persist while Android 12 mounts the
     # partition at /mnt/vendor/persist.  Bind the modern mount to the legacy
     # path so calibration/regionalization (including SIM topology) is visible.
     mkdir /persist 0771 root system

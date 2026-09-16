@@ -43,7 +43,7 @@ public final class SettingsBridgeService extends Service {
         final int aospValue = Settings.System.getInt(
                 resolver, Settings.System.SHOW_BATTERY_PERCENT, 0);
 
-        // LineageOS 18.1 SystemUI reads its own LineageSettings key while
+        // LineageOS 19.1 SystemUI reads its own LineageSettings key while
         // AOSP Settings writes Settings.System.SHOW_BATTERY_PERCENT.
         // Mirror the switch so the stock Battery screen actually controls
         // the visible SystemUI percentage.
