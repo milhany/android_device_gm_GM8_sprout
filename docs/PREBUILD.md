@@ -241,8 +241,16 @@ certificate does not provide the OEM private key.
 
 Test a clean release environment with enforcing SELinux, working GMS and the
 stock-compatible Keymaster/QSEE stack. The active Keymaster HAL is 3.0; the
-presence of unused 4.0 blobs is not a reason to enable a second service. Retain
-the genuine boot state exposed by the bootloader and `/proc/cmdline`.
+presence of unused 4.0 blobs is not a reason to enable a second service.
+
+The rework kernel restores the legacy `/proc/cmdline` filter from `e9ad82b`:
+`androidboot.verifiedbootstate` is omitted from the userspace-visible copy.
+The implementation bounds the copy and safely handles a final or repeated flag,
+while retaining unrelated parameters and the kernel's original command line.
+This does not lock the bootloader, change AVB enforcement or alter TEE-backed
+attestation. Properties and `/proc/cmdline` may therefore be incomplete evidence
+of the actual boot state. Record the kernel revision when comparing results;
+do not infer a genuine locked bootloader from the filtered view.
 
 Collect a concise read-only report from a connected, authorized device:
 
