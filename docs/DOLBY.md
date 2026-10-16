@@ -91,6 +91,13 @@ resolving `StockDmsClient$Callback`, before DMS registration or effect attachmen
 Soong checks the manifest/uses-lib match for dexpreopt. Linkage errors during
 attach/readback now pause Dolby with a log instead of killing the app process.
 
+Host dexpreopt is disabled only for `GM8Dolby`. Its shared-library class-loader
+context adds the legacy `construct_context.sh` step, which the reported build
+host invokes under `/bin/sh` and fails at `source` before dex2oat runs. Skipping
+this optional preoptimization keeps the standalone APK build usable; Android
+can optimize the installed APK on the device. Manifest/uses-library checking
+and the runtime HIDL dependency remain enabled. Other modules retain dexpreopt.
+
 The client reattaches after an ordinary audioserver restart and requires five
 stable seconds plus native state readback before reporting success. A failed
 attach or audio-server death during this period pauses Dolby until an explicit
