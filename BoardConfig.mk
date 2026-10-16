@@ -156,8 +156,8 @@ ENABLE_VENDOR_RIL_SERVICE := true
 TARGET_PROVIDES_QTI_TELEPHONY_JAR := true
 
 # SELinux
-# Lineage common definitions required by the legacy Qualcomm policy.
-include device/lineage/sepolicy/common/sepolicy.mk
+# Lineage build/core/config.mk includes its common policy after device config.
+# Add only the device-specific Qualcomm and GM8 policy here.
 include device/qcom/sepolicy-legacy-um/SEPolicy.mk
 BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
 
@@ -181,6 +181,3 @@ TARGET_DISABLE_WCNSS_CONFIG_COPY := true
 WIFI_DRIVER_FW_PATH_AP := "ap"
 WIFI_DRIVER_FW_PATH_STA := "sta"
 WPA_SUPPLICANT_VERSION := VER_0_8_X
-
-# Lineage build system / Soong kernel variable exports
-include vendor/lineage/config/BoardConfigLineage.mk

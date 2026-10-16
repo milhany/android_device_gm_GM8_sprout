@@ -18,9 +18,12 @@ paths if they are already present:
 | `milhany/proprietary_vendor_gm_GM8_sprout` | `vendor/gm/GM8_sprout` |
 | `milhany/android_kernel_gm_msm8937` | `kernel/gm/msm8937` |
 
-`BoardConfig.mk` imports `device/lineage/sepolicy/common/sepolicy.mk` and
-`device/qcom/sepolicy-legacy-um/SEPolicy.mk`. The latter comes from
+`BoardConfig.mk` imports `device/qcom/sepolicy-legacy-um/SEPolicy.mk`, from
 `LineageOS/android_device_qcom_sepolicy`, branch `lineage-18.1-legacy-um`.
+For the `lineage_GM8_sprout` target, `build/core/config.mk` automatically includes
+`vendor/lineage/config/BoardConfigLineage.mk` and then the Lineage common SELinux
+policy. Do not include either again in the device BoardConfig: duplicate common
+policy paths cause duplicate attribute declarations during checkpolicy.
 The kernel expects the aarch64 Android GCC 4.9 prebuilt path in BoardConfig.
 
 The product requires Android 11 ARM64 GApps before lunch. For the first checkout:
