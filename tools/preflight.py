@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -20,6 +21,14 @@ def main():
     vendor = top / "vendor/gm/GM8_sprout"
     errors = []
     warnings = []
+
+    # The modem advertises RadioConfig 1.1 but rejects its preferred-data
+    # command. Do not silently build the property without its framework hook.
+    radio_check = subprocess.run(
+        [sys.executable, str(device / "tools/apply-radio-compat.py"),
+         "--top", str(top), "--check"], capture_output=True, text=True)
+    if radio_check.returncode:
+        errors.append(radio_check.stderr.strip() or "GM8 radio framework patch check failed.")
 
     required = [
         "build/envsetup.sh",

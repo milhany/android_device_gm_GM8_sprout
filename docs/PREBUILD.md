@@ -117,6 +117,9 @@ generated diff and retain those adjustments when re-extracting stock blobs.
       and switching mobile data with Wi-Fi off. Check OEM hook, QtiRadio,
       IMS and UIM registrations for both slots. DSDS selection alone does not
       fix missing IMEI2, modem provisioning, SIM2 audio or mobile-data failures.
+- [ ] Apply `python3 device/gm/GM8_sprout/tools/apply-radio-compat.py` after
+      framework sync. Preflight requires the GM8 legacy-data-switch hook;
+      see `docs/TELEPHONY.md` for the observed error 38 and device tests.
 - [ ] A future pair of TWRP builds must explicitly apply a durable mode setting
       that Android consumes. A recovery name, signing key or recovery-only
       property does not itself select the running ROM's SIM mode. Recovery

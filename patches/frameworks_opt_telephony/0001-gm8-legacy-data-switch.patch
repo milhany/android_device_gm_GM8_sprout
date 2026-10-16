@@ -1,0 +1,14 @@
+--- a/src/java/com/android/internal/telephony/RadioConfig.java
++++ b/src/java/com/android/internal/telephony/RadioConfig.java
+@@ -39,2 +39,3 @@
+ import android.os.RemoteException;
++import android.os.SystemProperties;
+ import android.os.WorkSource;
+@@ -357,2 +358,7 @@
+     public boolean isSetPreferredDataCommandSupported() {
++        // Some legacy modems expose RadioConfig 1.1 but reject preferred-data
++        // switching. Let opted-in devices use PhoneSwitcher's ALLOW_DATA path.
++        if (SystemProperties.getBoolean("ro.ril.use_legacy_data_switch", false)) {
++            return false;
++        }
+         IRadioConfig radioConfigProxy = getRadioConfigProxy(null);
