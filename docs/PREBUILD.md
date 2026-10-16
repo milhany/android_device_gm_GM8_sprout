@@ -101,17 +101,24 @@ generated diff and retain those adjustments when re-extracting stock blobs.
       Do not raise these limits further without measurements. The final thermal
       mitigation level must stop charging. Factory BatteryTestStatus must remain
       zero during normal operation; it bypasses the thermal level setter.
-- [ ] This build is single-SIM only. Check `persist.radio.multisim.config=ssss`
-      on a clean install and after upgrading from a build with a saved `dsds`
-      value or old `persist.vendor.gm8.multisim_override=dual`. Variant detection
-      and override handling have been removed. No firmware identity is needed.
-- [ ] The main radio script forces `ssss` before starting the primary RIL;
-      the device init also applies it early and after post-fs-data. Confirm
-      the final property remains `ssss` after reboot in enforcing mode.
-- [ ] Only first-slot radio/QTI instances are declared. The vendor rc defines
-      only `vendor.qcrild`; the second/third RIL startup branches are removed.
-      Check SIM1 incoming/outgoing calls in both audio directions, SMS, mobile
-      data with Wi-Fi off and IMS/VoLTE where provisioned. SIM2 is unsupported.
+- [ ] Single-SIM (`ssss`) is the default in `vendor.prop`. An explicitly
+      persisted `persist.radio.multisim.config=dsds` must survive reboot.
+      No init action or vendor script overwrites the selected mode. Firmware
+      identity detection and the old GM8 multisim override remain removed.
+- [ ] Both radio/QTI slots are declared, and the Qualcomm main script starts
+      the second RIL only when the selected mode requires it. Check `ssss`
+      with only the primary RIL and `dsds` with `vendor.qcrild2` (or the legacy
+      `vendor.ril-daemon2` provider). Existing tertiary startup support is retained.
+- [ ] Test SIM1 calls/SMS/data in single mode. In DSDS mode test both SIMs,
+      incoming/outgoing calls with earpiece and speaker in both directions,
+      and switching mobile data with Wi-Fi off. Check OEM hook, QtiRadio,
+      IMS and UIM registrations for both slots. DSDS selection alone does not
+      fix missing IMEI2, modem provisioning, SIM2 audio or mobile-data failures.
+- [ ] A future pair of TWRP builds must explicitly apply a durable mode setting
+      that Android consumes. A recovery name, signing key or recovery-only
+      property does not itself select the running ROM's SIM mode. Recovery
+      packaging, the durable setting and its Android integration are not
+      implemented in this change; do not overwrite modem NV/calibration data.
 
 ## Lineage appearance and functional checks
 
@@ -167,7 +174,7 @@ verify the new defaults on a clean install as well.
 ## Hardware logs from Windows
 
 `tools/collect-hardware-state.sh` runs on Android and keeps stderr in the report.
-It records caller identity, installed configuration hashes, single-SIM properties,
+It records caller identity, installed configuration hashes, selected SIM-mode properties,
 radio/audio state, Sunwave paths, CPU nodes, active GNSS requests and network
 state. It does not request root or change the device configuration. Permission
 errors are useful evidence; a missing stdout line alone is not proof that a

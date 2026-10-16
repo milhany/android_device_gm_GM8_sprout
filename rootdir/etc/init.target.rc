@@ -1,10 +1,5 @@
-# This build supports one SIM. Apply before radio startup and again after
-# persistent properties are loaded, replacing any saved DSDS configuration.
-on early-init
-    setprop persist.radio.multisim.config ssss
-
-on property:vold.post_fs_data_done=1
-    setprop persist.radio.multisim.config ssss
+# SIM mode defaults to ssss in vendor.prop. Keep an explicitly persisted dsds
+# selection; variant detection and boot-time SIM-mode overrides are disabled.
 
 # Copyright (c) 2014-2015,2018, The Linux Foundation. All rights reserved.
 #

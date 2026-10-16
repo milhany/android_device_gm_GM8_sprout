@@ -20,7 +20,7 @@ for prop in ro.build.display.id ro.build.date ro.vendor.build.date \
     ro.boot.product.device ro.boot.product.name gsm.version.baseband \
     persist.radio.multisim.config \
     vold.post_fs_data_done \
-    init.svc.qcom-c_core-sh init.svc.vendor.qcrild \
+    init.svc.qcom-c_core-sh init.svc.vendor.qcrild init.svc.vendor.qcrild2 \
     vendor.gm8.fingerprint.sensor init.svc.vendor.gm8-fingerprint-init \
     init.svc.vendor.fps_hal init.svc.fpc_fps_hal \
     init.svc.swfingerprint-hal-1.0 init.svc.gnss_service init.svc.loc_launcher; do

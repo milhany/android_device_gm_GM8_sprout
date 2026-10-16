@@ -1245,7 +1245,7 @@ vendor/bin/rmt_storage|4cd57922075ada02799c4ee5fdc2f3eb881d6e52
 vendor/bin/tftp_server|c529f5d24ed0188843e4a227cae8245bd60614d6
 vendor/etc/data/dsi_config.xml|1e1667f631d81a2d3153b5002b9012c4bc7db393
 vendor/etc/data/netmgr_config.xml|a7c0218e8f2304b18576c8d6d659e4890b50d990
-vendor/etc/init/qcrild.rc|2d6442f0ff757999d31431c7457495ab24d0866c
+vendor/etc/init/qcrild.rc|17cf4934bf443cf6469d8b3ff622eeb0e4a0aac6
 vendor/lib/libconfigdb.so|962a1dfea6e8d0f157c2f5276981c5e94420b89f
 vendor/lib/libdsi_netctrl.so|06f33d3eaa956d045c473d777ca5044c170acca8
 vendor/lib/liblqe.so|131dd20ecd0d936b4b15f98dca8f8edea2610abd

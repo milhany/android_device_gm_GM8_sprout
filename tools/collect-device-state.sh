@@ -14,7 +14,7 @@ for prop in \
     ro.crypto.state ro.crypto.type \
     persist.radio.multisim.config \
     persist.sys.usb.config persist.vendor.usb.config \
-    init.svc.vendor.qcrild init.svc.keymaster-3-0 \
+    init.svc.vendor.qcrild init.svc.vendor.qcrild2 init.svc.keymaster-3-0 \
     init.svc.vendor.qseecomd init.svc.qteeconnector-hal-1-0; do
     value="$(adb shell getprop "$prop" | tr -d '\r')"
     printf '%s=%s\n' "$prop" "$value"
