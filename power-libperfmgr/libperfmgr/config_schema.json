@@ -72,6 +72,15 @@
             "id": "/properties/Nodes/items/properties/HoldFd",
             "title": "The Hold Fd Schema.",
             "description": "Flag if node will hold the file descriptor on non-default values; if not present, it will be set to false. This is only honoured for File type node."
+          },
+          "FallbackPaths": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Same-policy File aliases tried only when the primary path is absent."
           }
         }
       }
@@ -87,7 +96,7 @@
         "required": [
           "PowerHint",
           "Node",
-          "ValueIndex",
+          "Value",
           "Duration"
         ],
         "properties": {

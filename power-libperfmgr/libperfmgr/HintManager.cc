@@ -266,6 +266,24 @@ std::vector<std::unique_ptr<Node>> HintManager::ParseNodes(
         LOG(VERBOSE) << "Node[" << i << "]'s ResetOnInit: " << std::boolalpha
                      << reset << std::noboolalpha;
 
+        std::vector<std::string> fallback_paths;
+        const Json::Value& fallbacks = nodes[i]["FallbackPaths"];
+        if (!fallbacks.isNull()) {
+            if (!is_file || !fallbacks.isArray()) {
+                LOG(ERROR) << "FallbackPaths must be an array on a File node";
+                return {};
+            }
+            std::set<std::string> unique_paths{path};
+            for (const auto& fallback : fallbacks) {
+                if (!fallback.isString() || fallback.asString().empty()
+                        || !unique_paths.insert(fallback.asString()).second) {
+                    LOG(ERROR) << "Invalid or duplicate FallbackPaths entry";
+                    return {};
+                }
+                fallback_paths.push_back(fallback.asString());
+            }
+        }
+
         if (is_file) {
             bool hold_fd = false;
             if (nodes[i]["HoldFd"].empty() || !nodes[i]["HoldFd"].isBool()) {
@@ -279,7 +297,7 @@ std::vector<std::unique_ptr<Node>> HintManager::ParseNodes(
 
             nodes_parsed.emplace_back(std::make_unique<FileNode>(
                 name, path, values_parsed,
-                static_cast<std::size_t>(default_index), reset, hold_fd));
+                static_cast<std::size_t>(default_index), reset, hold_fd, fallback_paths));
         } else {
             nodes_parsed.emplace_back(std::make_unique<PropertyNode>(
                 name, path, values_parsed,

@@ -174,12 +174,14 @@ Return<void> Power::getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_c
     uint64_t *values;
     struct PowerStatePlatformSleepState *state;
     int ret;
+    Status status = Status::SUCCESS;
 
     states.resize(PLATFORM_SLEEP_MODES_COUNT);
 
     ret = extract_platform_stats(stats);
     if (ret != 0) {
         states.resize(0);
+        status = Status::FILESYSTEM_ERROR;
         goto done;
     }
 
@@ -212,7 +214,7 @@ Return<void> Power::getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_c
     //Note: No filling of state voters since VMIN_VOTERS = 0
 
 done:
-    _hidl_cb(states, Status::SUCCESS);
+    _hidl_cb(states, status);
     return Void();
 }
 

@@ -8,7 +8,12 @@
         "1248000"
       ],
       "DefaultIndex": 0,
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "FallbackPaths": [
+        "/sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq",
+        "/sys/devices/system/cpu/cpu2/cpufreq/scaling_max_freq",
+        "/sys/devices/system/cpu/cpu3/cpufreq/scaling_max_freq"
+      ]
     },
     {
       "Name": "CPUBigClusterMinCPUs",
@@ -28,7 +33,12 @@
         "1209600",
         "960000"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "FallbackPaths": [
+        "/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq",
+        "/sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq",
+        "/sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq"
+      ]
     },
     {
       "Name": "CPULittleClusterMaxFreq",
@@ -38,7 +48,12 @@
         "1094000"
       ],
       "DefaultIndex": 0,
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "FallbackPaths": [
+        "/sys/devices/system/cpu/cpu5/cpufreq/scaling_max_freq",
+        "/sys/devices/system/cpu/cpu6/cpufreq/scaling_max_freq",
+        "/sys/devices/system/cpu/cpu7/cpufreq/scaling_max_freq"
+      ]
     },
     {
       "Name": "CPULittleClusterMinFreq",
@@ -48,7 +63,12 @@
         "1094400",
         "768000"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "FallbackPaths": [
+        "/sys/devices/system/cpu/cpu5/cpufreq/scaling_min_freq",
+        "/sys/devices/system/cpu/cpu6/cpufreq/scaling_min_freq",
+        "/sys/devices/system/cpu/cpu7/cpufreq/scaling_min_freq"
+      ]
     },
     {
       "Name": "GPUMaxFreq",
@@ -104,7 +124,8 @@
         "1",
         "0"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": false,
+      "DefaultIndex": 1
     },
     {
       "Name": "CPUBWHystTriggerCount",

@@ -80,23 +80,24 @@ does not initialize the profile manager. The client uses stock DMS transactions
 identity/hash responses and synchronous parameter notification acknowledgement.
 The callback hashes match the stock interface library. The platform app's DMS
 client permission is explicit. No mismatched Lenovo HIDL bindings are built.
-The app explicitly links `android.hidl.base-V1.0-java` as a compile-time `libs`
-dependency for `IBase.Stub`; `platform_apis` alone does not export those HIDL
-classes. It also declares the same required shared library in the manifest and
-Soong `uses_libs`. This build installs HIDL base as a shared Java library, so an
-application must request it in its class-loader context. A compile-only `libs`
-entry does not load it into the app. The first compile-dependency fix omitted
-this runtime declaration; `log(8).txt` then showed `NoClassDefFoundError` while
-resolving `StockDmsClient$Callback`, before DMS registration or effect attachment.
-Soong checks the manifest/uses-lib match for dexpreopt. Linkage errors during
-attach/readback now pause Dolby with a log instead of killing the app process.
+The callback now extends the platform's `android.os.HwBinder` directly. The
+shared-library attempt still failed in `log(9).txt`: the installed HIDL Java
+surface does not supply `IBase.Stub`, although the host's combined Android jar
+does. No generated HIDL Java class or shared Java library is needed by the app
+anymore. `StockDmsClient` serves the callback and standard IBase wire methods
+(identity, hashes, debug/ping, debug info and instrumentation) itself. Both Java
+compilation and isolated class resolution are checked with every `android.hidl`
+class removed. Linkage errors during attach/readback pause Dolby with a log
+instead of killing the app process. Real Binder/native attachment still needs
+a device test; host class loading is not a transport or audio validation.
 
 Host dexpreopt is disabled only for `GM8Dolby`. Its shared-library class-loader
 context adds the legacy `construct_context.sh` step, which the reported build
 host invokes under `/bin/sh` and fails at `source` before dex2oat runs. Skipping
 this optional preoptimization keeps the standalone APK build usable; Android
-can optimize the installed APK on the device. Manifest/uses-library checking
-and the runtime HIDL dependency remain enabled. Other modules retain dexpreopt.
+can optimize the installed APK on the device. The app no longer needs that
+shared-library context, but retains standalone APK deployment without host
+preoptimization. Other modules retain dexpreopt.
 
 The client reattaches after an ordinary audioserver restart and requires five
 stable seconds plus native state readback before reporting success. A failed
