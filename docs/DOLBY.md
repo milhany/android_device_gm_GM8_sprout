@@ -80,6 +80,9 @@ does not initialize the profile manager. The client uses stock DMS transactions
 identity/hash responses and synchronous parameter notification acknowledgement.
 The callback hashes match the stock interface library. The platform app's DMS
 client permission is explicit. No mismatched Lenovo HIDL bindings are built.
+The app explicitly links `android.hidl.base-V1.0-java` as a compile-time `libs`
+dependency for `IBase.Stub`; `platform_apis` alone does not export those HIDL
+classes. Android 11's framework already supplies them at runtime.
 
 The client reattaches after an ordinary audioserver restart and requires five
 stable seconds plus native state readback before reporting success. A failed

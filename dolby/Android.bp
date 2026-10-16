@@ -5,6 +5,9 @@ android_app {
     srcs: ["src/**/*.java"],
     resource_dirs: ["res"],
     platform_apis: true,
+    // IBase is provided at runtime by the framework, but needs an explicit
+    // compile dependency: the platform API stubs do not export HIDL bindings.
+    libs: ["android.hidl.base-V1.0-java"],
     certificate: "platform",
     privileged: true,
     optimize: { enabled: false },
