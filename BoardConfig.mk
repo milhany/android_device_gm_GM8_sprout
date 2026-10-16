@@ -156,9 +156,7 @@ ENABLE_VENDOR_RIL_SERVICE := true
 TARGET_PROVIDES_QTI_TELEPHONY_JAR := true
 
 # SELinux
-# Qualcomm's legacy policy imports Lineage QCOM policy hooks. Since this GM/AOSP
-# product intentionally does not inherit the Lineage common product profile,
-# include only the matching common SELinux attribute/policy definitions here.
+# Lineage common definitions required by the legacy Qualcomm policy.
 include device/lineage/sepolicy/common/sepolicy.mk
 include device/qcom/sepolicy-legacy-um/SEPolicy.mk
 BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor

@@ -66,4 +66,4 @@ fi
 
 [[ -f "${GAPPS_DIR}/arm64/arm64-vendor.mk" ]] || die "vendor/gapps/arm64/arm64-vendor.mk was not found."
 echo "MindTheGapps commit: $(git -C "${GAPPS_DIR}" rev-parse HEAD)"
-echo "MindTheGapps is ready. gm_GM8_sprout.mk will include it automatically."
+echo "MindTheGapps is ready. lineage_GM8_sprout.mk will include it automatically."

@@ -1,8 +1,9 @@
 # GM8 Android 11 rework: build and device validation
 
 Use `lineage-18.1-rework` for all three GM8 repositories. The product is
-`gm_GM8_sprout`; it uses the LineageOS 18.1 source base with a GM/AOSP-facing
-application profile. This tree is not an OEM-certified Android 11 release.
+`lineage_GM8_sprout`; it inherits the complete LineageOS 18.1 phone
+profile (LineageParts, SetupWizard, Updater, themes and mobile applications).
+This tree is not an OEM-certified Android 11 release.
 
 ## Source setup
 
@@ -47,7 +48,7 @@ Run from the Android source root:
 ```sh
 python3 device/gm/GM8_sprout/tools/preflight.py
 source build/envsetup.sh
-lunch gm_GM8_sprout-userdebug
+lunch lineage_GM8_sprout-userdebug
 m nothing
 m bootimage
 m target-files-package otatools
@@ -100,56 +101,35 @@ generated diff and retain those adjustments when re-extracting stock blobs.
       Do not raise these limits further without measurements. The final thermal
       mitigation level must stop charging. Factory BatteryTestStatus must remain
       zero during normal operation; it bypasses the thermal level setter.
-- [ ] Test both GM8 single-SIM and GM8_d dual-SIM hardware. Check detected
-      `vendor.gm8.multisim.config`, persisted `persist.radio.multisim.config`,
-      modem startup, calls/SMS/data and IMS on each supported SIM.
-- [ ] On dual-SIM firmware, verify `vendor.qcrild2` and second-slot QTI HAL
-      registrations. The manifest declares the companion audio, OEM hook,
-      IMS, QtiRadio and UIM services for both slots, using the existing versions.
-      `IQcRilAudio/slot2` and `IQtiOemHook/oemhook1` must be available: basic
-      `IRadio/slot2` call setup alone does not prove voice audio or data control
-      works. A shell `lshal` query denied by SELinux is not proof of absence;
-      inspect early service registration/client errors as well.
-- [ ] Test incoming/outgoing SIM2 calls with earpiece and speaker, checking
-      both audio directions. Repeat on SIM1. During an active SIM2 call, QTI
-      voice parameters must activate the matching VSID session; audio mode 2
-      with all sessions inactive is not success. The `voice2-call speaker`
-      microphone route uses the kernel's `TERT_MI2S_TX_Voice2` control.
-- [ ] With Wi-Fi off and no call active, select SIM2 for mobile data and verify
-      actual Internet access, then switch to SIM1 and back. Capture radio logs
-      for OEM-hook availability, DDS selection and data-call errors if it fails.
-      Test IMS/VoLTE only where the SIM, carrier and modem firmware support it;
-      these declarations do not provision IMS or enable dual active calls/data.
-- [ ] The framework's configured physical slot count is 1, but Android 11's
-      UiccController raises it to at least the active phone count. Therefore this
-      overlay alone does not establish a SIM2 failure. Confirm early detection
-      and real HAL registrations before changing slot/IMS declarations.
-- [ ] The two `vendor.gm8` variant properties use `vendor_radio_prop`, which the
-      matching Qualcomm init policy permits. Check enforcing-mode AVCs and
-      access to the firmware/persist identity sources on actual hardware.
-      The persist action now waits for both a recognized `dsds`/`ssss` result
-      and post-fs-data completion, whichever arrives last. This prevents an
-      empty or late result from being missed; it does not supply a missing
-      firmware identity or guarantee that the detector actually runs.
+- [ ] This build is single-SIM only. Check `persist.radio.multisim.config=ssss`
+      on a clean install and after upgrading from a build with a saved `dsds`
+      value or old `persist.vendor.gm8.multisim_override=dual`. Variant detection
+      and override handling have been removed. No firmware identity is needed.
+- [ ] The main radio script forces `ssss` before starting the primary RIL;
+      the device init also applies it early and after post-fs-data. Confirm
+      the final property remains `ssss` after reboot in enforcing mode.
+- [ ] Only first-slot radio/QTI instances are declared. The vendor rc defines
+      only `vendor.qcrild`; the second/third RIL startup branches are removed.
+      Check SIM1 incoming/outgoing calls in both audio directions, SMS, mobile
+      data with Wi-Fi off and IMS/VoLTE where provisioned. SIM2 is unsupported.
 
-## Stock appearance and functional checks
+## Lineage appearance and functional checks
 
-The framework overlay now selects round icon assets and a circular adaptive
-icon mask. Verify after first boot and after an OTA: a previously selected
-launcher/theme overlay may override the default. Check the effective mask
-before clearing launcher data, which would erase the home-screen layout.
+Use the standard Lineage boot animation, wallpaper, icon/theme defaults, sounds
+and Trebuchet name. Device copies and Settings XML overrides that suppressed
+LineageParts and firmware-version entries have been removed. The old AOSP battery
+percentage bridge is removed so LineageParts controls its own settings directly.
+Existing user-selected wallpapers, sounds and themes can remain after an OTA;
+verify the new defaults on a clean install as well.
 
-The stock wallpaper asset is not supplied in these sources. Add an authorized
-stock image as `wallpaper/default_wallpaper.jpg` when available; the build also
-accepts the historical root-level filenames. The wallpaper property is emitted
-only when an asset is actually copied, otherwise Android uses its fallback.
-
-The stock GeneralMobile ringtone and boot animation are already supplied.
-Several applications remain AOSP/Lineage implementations; changing their names
-does not make them the OEM applications. Preserve the Lineage SDK and settings
-runtime required by this source base when removing visible branding.
-
-- [ ] Circular launcher icons, wallpaper, ringtone and setup flow.
+- [ ] LineageParts opens from Display, Sound, Notifications, Battery and Gestures
+      as supported by the hardware. Check status bar/battery percentage, buttons,
+      notification and charging LED controls, themes and About phone's Lineage
+      version entries. Keep the RGB battery LED capability overlay.
+- [ ] Lineage SetupWizard completes with the existing GApps integration. Updater
+      is packaged, but downloadable releases require a separately configured OTA
+      server. Restoring the app does not create an update feed.
+- [ ] Boot animation, Trebuchet, wallpaper, ringtone, theme and accent selection.
 - [ ] Screen brightness, rotation, sleep/wake, both supported touch controllers
       and repeated double-tap-to-wake toggles without HAL failures.
 - [ ] Front/rear camera, video audio, fingerprint, sensors, Wi-Fi, Bluetooth,
@@ -187,7 +167,7 @@ runtime required by this source base when removing visible branding.
 ## Hardware logs from Windows
 
 `tools/collect-hardware-state.sh` runs on Android and keeps stderr in the report.
-It records caller identity, installed configuration hashes, SIM firmware hints,
+It records caller identity, installed configuration hashes, single-SIM properties,
 radio/audio state, Sunwave paths, CPU nodes, active GNSS requests and network
 state. It does not request root or change the device configuration. Permission
 errors are useful evidence; a missing stdout line alone is not proof that a
@@ -200,22 +180,23 @@ From a Windows platform-tools directory, copy this script beside `adb.exe`:
 .\adb.exe shell sh /data/local/tmp/gm8-hardware-state.sh > gm8-hardware-state.txt
 ```
 
-Capture early HAL and variant failures immediately after a reboot: start
+Capture early HAL and radio failures immediately after a reboot: start
 `adb logcat -b all -v threadtime` as soon as adb reconnects and save it on the
 host while exercising the device. A later `logcat -d` can retain early system
 messages while the main buffer containing HAL initialization has already wrapped.
 
-For a SIM2 reproduction, start this in one PowerShell window before placing the
-call or selecting SIM2 data, then stop with Ctrl+C after the failure:
+For a SIM1 call or mobile-data reproduction, capture the radio log before the
+operation and stop with Ctrl+C after the failure:
 
 ```powershell
-.\adb.exe logcat -b main -b system -b radio -v threadtime > gm8-sim2-live.txt
+.\adb.exe logcat -b main -b system -b radio -v threadtime > gm8-radio-live.txt
 ```
 
 Run the hardware collector from another window while the call is active. Note
-which slot, audio route and data SIM were selected. Do not clear the log buffers
-first; startup registration errors may be needed. Logs may contain phone numbers,
-subscriber/network details and location; redact them before public sharing.
+the audio route and whether Wi-Fi was disabled for the mobile-data test. Do not
+clear the log buffers first; startup registration errors may be needed. Logs may
+contain phone numbers, subscriber/network details and location; redact them
+before public sharing.
 
 Keep a GNSS test app open in the foreground with location permission during the
 hardware capture, even if it never gets a fix. Verify an active GPS request,
@@ -243,7 +224,7 @@ zero C/N0 too; a successful fix is not a prerequisite for a useful capture.
 
 ## Release signing and Play Integrity
 
-After debugging, build the actual `gm_GM8_sprout-user` target and sign its
+After debugging, build the actual `lineage_GM8_sprout-user` target and sign its
 target-files/OTA with your own protected release keys using the Android 11
 release tools. Keep platform/shared/media/networkstack/APK and OTA key mappings
 consistent, and preserve the signing requirements of PRESIGNED GApps. Plan key

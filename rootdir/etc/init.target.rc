@@ -1,11 +1,9 @@
-# Persist the firmware-detected SIM topology after /data/property is ready.
-# init.qcom.class_core.sh performs the early detection and stores the result in
-# vendor.gm8.multisim.config. Either property may become ready first. Only copy
-# a supported, non-empty value; an unknown variant keeps the existing setting.
-on property:vold.post_fs_data_done=1 && property:vendor.gm8.multisim.config=dsds
-    setprop persist.radio.multisim.config dsds
+# This build supports one SIM. Apply before radio startup and again after
+# persistent properties are loaded, replacing any saved DSDS configuration.
+on early-init
+    setprop persist.radio.multisim.config ssss
 
-on property:vold.post_fs_data_done=1 && property:vendor.gm8.multisim.config=ssss
+on property:vold.post_fs_data_done=1
     setprop persist.radio.multisim.config ssss
 
 # Copyright (c) 2014-2015,2018, The Linux Foundation. All rights reserved.
@@ -56,7 +54,7 @@ on fs
 
     # Legacy GM8 Qualcomm blobs still use /persist while Android 11 mounts the
     # partition at /mnt/vendor/persist.  Bind the modern mount to the legacy
-    # path so calibration/regionalization (including SIM topology) is visible.
+    # path so calibration and regionalization data remain visible.
     mkdir /persist 0771 root system
     mount none /mnt/vendor/persist /persist bind
 

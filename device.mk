@@ -24,30 +24,6 @@ PRODUCT_PACKAGES += \
     android.hardware.boot@1.0-service \
     bootctrl.msm8937
 
-# Boot animation
-# Keep the binary optional at make-parse time so this branch stays buildable
-# while the asset itself can be updated independently. Android 11 checks the
-# product partition before /system/media for bootanimation.zip.
-ifneq ($(wildcard $(LOCAL_PATH)/bootanimation.zip),)
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/bootanimation.zip:$(TARGET_COPY_OUT_PRODUCT)/media/bootanimation.zip
-endif
-
-# General Mobile default wallpaper.
-# Accept the historical root-level asset as well as the organized wallpaper/
-# location.  The first existing file is installed to the path referenced by
-# ro.config.wallpaper.
-GM8_DEFAULT_WALLPAPER := $(firstword \
-    $(wildcard $(LOCAL_PATH)/default_wallpaper.jpg) \
-    $(wildcard $(LOCAL_PATH)/wallpaper.jpg) \
-    $(wildcard $(LOCAL_PATH)/wallpaper/default_wallpaper.jpg))
-ifneq ($(GM8_DEFAULT_WALLPAPER),)
-PRODUCT_COPY_FILES += \
-    $(GM8_DEFAULT_WALLPAPER):$(TARGET_COPY_OUT_PRODUCT)/media/wallpaper/default_wallpaper.jpg
-PRODUCT_SYSTEM_PROPERTIES += \
-    ro.config.wallpaper=/product/media/wallpaper/default_wallpaper.jpg
-endif
-
 # Audio
 PRODUCT_PACKAGES += \
     audiod \
@@ -233,12 +209,6 @@ PRODUCT_COPY_FILES += \
 # Overlays
 DEVICE_PACKAGE_OVERLAYS += \
     $(LOCAL_PATH)/overlay
-
-# Runtime overlays/services still used by the LineageOS 18.1 framework.
-# These are internal plumbing only; they do not add LineageParts or branding.
-PRODUCT_PACKAGES += \
-    LineageBlackTheme \
-    GM8SettingsBridge
 
 # OMX
 PRODUCT_PACKAGES += \

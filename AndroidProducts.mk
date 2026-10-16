@@ -1,6 +1,6 @@
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/gm_GM8_sprout.mk
+    $(LOCAL_DIR)/lineage_GM8_sprout.mk
 
 COMMON_LUNCH_CHOICES := \
-    gm_GM8_sprout-userdebug \
-    gm_GM8_sprout-user
+    lineage_GM8_sprout-userdebug \
+    lineage_GM8_sprout-user

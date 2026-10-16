@@ -1,6 +1,5 @@
 subdirs = [
     "light",
-    "settingsbridge",
 ]
 soong_namespace {
     imports: ["hardware/qcom/bootctrl"],

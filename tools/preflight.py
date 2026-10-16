@@ -23,12 +23,12 @@ def main():
     required = [
         "build/envsetup.sh",
         "build/target/product/product_launched_with_o_mr1.mk",
-        "vendor/lineage/config/lineage_sdk_common.mk",
+        "vendor/lineage/config/common_full_phone.mk",
         "device/lineage/sepolicy/common/sepolicy.mk",
         "device/qcom/sepolicy-legacy-um/SEPolicy.mk",
         "hardware/qcom-caf/common/fwk-detect/Android.bp",
         "tools/extract-utils/extract_utils.sh",
-        "device/gm/GM8_sprout/gm_GM8_sprout.mk",
+        "device/gm/GM8_sprout/lineage_GM8_sprout.mk",
         "vendor/gm/GM8_sprout/GM8_sprout-vendor.mk",
         "kernel/gm/msm8937/Makefile",
         "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig",
@@ -75,9 +75,6 @@ def main():
                 if not (top / source).is_file():
                     errors.append(f"Missing copy input at {makefile.relative_to(top)}:{line_number}: {source}")
 
-    if not any((device / name).is_file() for name in (
-            "default_wallpaper.jpg", "wallpaper.jpg", "wallpaper/default_wallpaper.jpg")):
-        warnings.append("Stock wallpaper is absent; the framework wallpaper fallback will be used.")
     thermal = vendor / "proprietary/vendor/etc/thermal-engine.conf"
     if thermal.is_file() and not any(line.split("#", 1)[0].strip()
                                      for line in thermal.read_text().splitlines()):
