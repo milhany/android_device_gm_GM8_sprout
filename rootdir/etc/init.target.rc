@@ -91,7 +91,9 @@ on post-fs-data
     mkdir /data/vendor_de/sunwave/dump 0700 system system
     mkdir /data/vendor_de/sunwave/badpoint 0700 system system
     restorecon_recursive /data/vendor_de/sunwave
-    mkdir /data/vendor/dolby 0770 media media
+    # Stock Dolby's database path is relocated into vendor-owned storage.
+    mkdir /data/vendor/ds 0770 media media
+    restorecon_recursive /data/vendor/ds
 
 
 #Create folder for mm-qcamera-daemon

@@ -9,6 +9,8 @@ TARGET_BOOT_ANIMATION_RES := 720
 
 # Restore the complete Lineage phone profile, including LineageParts,
 # SetupWizard, Updater, themes, SDK and the standard mobile applications.
+# The GM8 stock DAP owns the global output mix; avoid two audio processors.
+TARGET_EXCLUDES_AUDIOFX := true
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
 # Preserve the existing Android 11 Google Mobile Services integration.

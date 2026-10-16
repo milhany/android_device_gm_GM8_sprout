@@ -2,6 +2,7 @@
 """Read-only GM8 source checks; the Android build remains the module/ABI gate."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -56,6 +57,29 @@ def main():
             json.loads(path.read_text())
         except (ValueError, OSError) as exc:
             errors.append(f"Invalid JSON: {path.relative_to(top)}: {exc}")
+
+    dolby_manifest = vendor / "dolby/stock-manifest.json"
+    if not dolby_manifest.is_file():
+        errors.append("Missing stock Dolby manifest; sync the matching GM8 vendor branch.")
+    else:
+        try:
+            for entry in json.loads(dolby_manifest.read_text())["files"]:
+                blob = vendor / "proprietary" / entry["path"]
+                if not blob.is_file() or hashlib.sha256(blob.read_bytes()).hexdigest() != entry["sha256"]:
+                    errors.append(f"Missing or mismatched stock Dolby blob: {entry['path']}")
+        except (ValueError, KeyError, OSError) as exc:
+            errors.append(f"Invalid stock Dolby manifest: {exc}")
+
+    effects = device / "configs/audio/audio_effects.xml"
+    try:
+        root = ET.parse(effects).getroot()
+        ns = {"a": "http://schemas.android.com/audio/audio_effects_conf/v2_0"}
+        libraries = {entry.attrib["name"] for entry in root.findall("a:libraries/a:library", ns)}
+        for effect in root.findall("a:effects/a:effect", ns):
+            if effect.attrib.get("library") not in libraries:
+                errors.append(f"Unknown audio effect library: {effect.attrib}")
+    except (ET.ParseError, OSError, KeyError) as exc:
+        errors.append(f"Cannot validate audio effect libraries: {exc}")
 
     # Check literal copy inputs in these two trees. Make conditionals, generated
     # outputs, inherited products and module providers are checked by `m nothing`.

@@ -1,4 +1,5 @@
 subdirs = [
+    "dolby",
     "light",
 ]
 soong_namespace {

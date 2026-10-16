@@ -25,6 +25,8 @@ PRODUCT_PACKAGES += \
     bootctrl.msm8937
 
 # Audio
+PRODUCT_PACKAGES += GM8Dolby
+
 PRODUCT_PACKAGES += \
     audiod \
     audio.a2dp.default \
