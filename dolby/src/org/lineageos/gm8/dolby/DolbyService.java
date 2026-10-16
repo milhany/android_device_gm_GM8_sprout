@@ -127,7 +127,7 @@ public final class DolbyService extends Service {
             }
             effect.apply(true, prefs.getInt("profile", 2));
             worker.postDelayed(verify, STABLE_MS);
-        } catch (RemoteException | RuntimeException e) {
+        } catch (RemoteException | RuntimeException | LinkageError e) {
             pause("Dolby attachment failed; waiting for an explicit retry", e);
         }
     }
@@ -144,7 +144,7 @@ public final class DolbyService extends Service {
             attaching = false;
             status = R.string.active;
             Log.i(TAG, "DAP ready: enabled=true profile=" + prefs.getInt("profile", 2));
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             pause("Dolby verification failed; waiting for an explicit retry", e);
         }
     }

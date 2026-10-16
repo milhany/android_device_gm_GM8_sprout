@@ -82,7 +82,14 @@ The callback hashes match the stock interface library. The platform app's DMS
 client permission is explicit. No mismatched Lenovo HIDL bindings are built.
 The app explicitly links `android.hidl.base-V1.0-java` as a compile-time `libs`
 dependency for `IBase.Stub`; `platform_apis` alone does not export those HIDL
-classes. Android 11's framework already supplies them at runtime.
+classes. It also declares the same required shared library in the manifest and
+Soong `uses_libs`. This build installs HIDL base as a shared Java library, so an
+application must request it in its class-loader context. A compile-only `libs`
+entry does not load it into the app. The first compile-dependency fix omitted
+this runtime declaration; `log(8).txt` then showed `NoClassDefFoundError` while
+resolving `StockDmsClient$Callback`, before DMS registration or effect attachment.
+Soong checks the manifest/uses-lib match for dexpreopt. Linkage errors during
+attach/readback now pause Dolby with a log instead of killing the app process.
 
 The client reattaches after an ordinary audioserver restart and requires five
 stable seconds plus native state readback before reporting success. A failed
