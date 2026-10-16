@@ -1,0 +1,23 @@
+# GM8 stock DMS 1.0. Keep its SQLite state separate from platform media data.
+hal_attribute(gm8_dolby)
+
+type hal_gm8_dolby_default, domain;
+hal_server_domain(hal_gm8_dolby_default, hal_gm8_dolby)
+type hal_gm8_dolby_default_exec, exec_type, vendor_file_type, file_type;
+init_daemon_domain(hal_gm8_dolby_default)
+hwbinder_use(hal_gm8_dolby_default)
+
+type hal_gm8_dolby_hwservice, hwservice_manager_type, protected_hwservice;
+hal_attribute_hwservice(hal_gm8_dolby, hal_gm8_dolby_hwservice)
+binder_call(hal_gm8_dolby_client, hal_gm8_dolby_server)
+binder_call(hal_gm8_dolby_server, hal_gm8_dolby_client)
+
+# The effect executes in the audio HAL. Codec clients may also use DMS.
+hal_client_domain(hal_audio_default, hal_gm8_dolby)
+hal_client_domain(audioserver, hal_gm8_dolby)
+hal_client_domain(mediacodec, hal_gm8_dolby)
+
+type vendor_gm8_dolby_data_file, file_type, data_file_type;
+allow hal_gm8_dolby_default vendor_data_file:dir search;
+allow hal_gm8_dolby_default vendor_gm8_dolby_data_file:dir create_dir_perms;
+allow hal_gm8_dolby_default vendor_gm8_dolby_data_file:file create_file_perms;

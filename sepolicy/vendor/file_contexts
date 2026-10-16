@@ -1,3 +1,7 @@
+# Dolby
+/(vendor|system/vendor)/bin/hw/vendor\.dolby\.hardware\.dms@1\.0-service u:object_r:hal_gm8_dolby_default_exec:s0
+/data/vendor/ds(/.*)? u:object_r:vendor_gm8_dolby_data_file:s0
+
 # DT2W
 /sys/android_touch/wakeup_gesture_enable				  u:object_r:sysfs_doubletap_gesture:s0
 

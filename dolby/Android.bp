@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0
+
+android_app {
+    name: "GM8Dolby",
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    optimize: { enabled: false },
+    required: ["privapp-permissions-gm8-dolby"],
+    overrides: ["AudioFX", "MusicFX"],
+}
+
+prebuilt_etc {
+    name: "privapp-permissions-gm8-dolby",
+    src: "privapp-permissions-gm8-dolby.xml",
+    sub_dir: "permissions",
+    filename_from_src: true,
+}
