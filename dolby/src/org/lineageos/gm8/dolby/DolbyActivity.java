@@ -7,10 +7,12 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Switch;
@@ -69,6 +71,15 @@ public final class DolbyActivity extends Activity {
         boolean primary = UserHandle.myUserId() == UserHandle.USER_SYSTEM;
         enabled.setEnabled(primary);
         profiles.setEnabled(primary);
+        Button retry = new Button(this);
+        retry.setText(R.string.retry);
+        retry.setEnabled(primary);
+        retry.setOnClickListener(view -> {
+            enabled.setChecked(true);
+            prefs.edit().putBoolean("enabled", true)
+                    .putLong("retry", SystemClock.elapsedRealtimeNanos()).apply();
+        });
+        layout.addView(retry);
         setContentView(layout);
     }
 

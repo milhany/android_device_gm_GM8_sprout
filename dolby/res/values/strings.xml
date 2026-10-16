@@ -6,7 +6,9 @@
     <string name="starting">Starting Dolby…</string>
     <string name="active">Dolby is active</string>
     <string name="inactive">Dolby is off</string>
-    <string name="unavailable">Dolby is unavailable. Retrying…</string>
+    <string name="unavailable">Dolby is unavailable.</string>
+    <string name="paused">Dolby stopped after an audio error. Tap Retry to try again.</string>
+    <string name="retry">Retry Dolby</string>
     <string name="primary_user_only">Sound profiles are managed by the primary user.</string>
     <string-array name="profiles">
         <item>Movie</item><item>Music</item><item>Game</item>

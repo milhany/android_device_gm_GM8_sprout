@@ -16,6 +16,9 @@ binder_call(hal_gm8_dolby_server, hal_gm8_dolby_client)
 hal_client_domain(hal_audio_default, hal_gm8_dolby)
 hal_client_domain(audioserver, hal_gm8_dolby)
 hal_client_domain(mediacodec, hal_gm8_dolby)
+# GM8Dolby is platform-signed. Its native-service registration initializes
+# stock DsManager before the audio HAL's software-effect client is created.
+hal_client_domain(platform_app, hal_gm8_dolby)
 
 type vendor_gm8_dolby_data_file, file_type, data_file_type;
 allow hal_gm8_dolby_default vendor_data_file:dir search;

@@ -739,13 +739,13 @@ vendor/bin/hw/vendor.dolby.hardware.dms@1.0-service|3c26ebf23f5a9cc06464eb3a59ba
 vendor/etc/init/vendor.dolby.hardware.dms@1.0-service.rc|1c83a265d89f3b44dd6c10a045d341896ab31987
 vendor/lib/libdlbdapstorage.so|23c9fa0983003314f4be5ef662fdbf399e66769b
 vendor/lib/libdlbdsservice.so|cc3cf3f9263ca576cbeff59753f3fd0cdd28c1f0
-vendor/lib/libdlbmemoryservice.so|d08b51b7ef34f2d929d02230907667b4a0c1d9da
+vendor/lib/libdlbmemoryservice.so|f1154883e4958b8793af9a13f311bd897e51ce53
 vendor/lib/vendor.dolby.hardware.dms@1.0.so|6f500cd84b281345cb13b2f2d7b809aa5e5d3108
 vendor/lib/vendor.dolby.hardware.dms@1.0-impl.so|aaa6a32fb033bc5bde18e7818c941bb8b4bee2e1
 vendor/lib/soundfx/libswdap.so|f9a1eeccc5f2734c21281dd1ae963c4ae3d9e665
 vendor/lib64/libdlbdapstorage.so|60a65608dd2b476f3e6fb5c24acdb4f44ea396dd
 vendor/lib64/libdlbdsservice.so|8ac539551037902c9440483021e6b5953030bd71
-vendor/lib64/libdlbmemoryservice.so|319a16a0e5f2e964892b72d470e640099cb22896
+vendor/lib64/libdlbmemoryservice.so|4047294176df8ff38150c64b8d93635fc5714b6f
 vendor/lib64/vendor.dolby.hardware.dms@1.0.so|e0ef1c162170099b5bc1f2ec47b95bfb2307eea2
 vendor/lib64/vendor.dolby.hardware.dms@1.0-impl.so|b18f610e57fc583310a54be4283fd8c3d441edd3
 vendor/lib64/soundfx/libswdap.so|b9be385d6c7ad5992f4f2ecf22e290349fe9aaca
