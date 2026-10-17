@@ -117,3 +117,7 @@ ro.cutoff_voltage_mv=3200
 # ZSL/reprocess capture so Snap requests a fresh HAL-backed still frame instead
 # of re-encoding a cached YUV preview frame.
 persist.sys.camera.zsl.disabled=true
+
+# Legacy Keymaster can hang while generating the Wi-Fi MAC HMAC secret.
+# Persist random addresses in the existing per-network Wi-Fi store instead.
+wifi.mac_rand_no_keystore=true

@@ -30,6 +30,12 @@ def main():
     if radio_check.returncode:
         errors.append(radio_check.stderr.strip() or "GM8 radio framework patch check failed.")
 
+    keystore_check = subprocess.run(
+        [sys.executable, str(device / "tools/apply-wifi-keystore-compat.py"),
+         "--top", str(top), "--check"], capture_output=True, text=True)
+    if keystore_check.returncode:
+        errors.append(keystore_check.stderr.strip() or "GM8 Wi-Fi KeyStore patch check failed.")
+
     required = [
         "build/envsetup.sh",
         "build/target/product/product_launched_with_o_mr1.mk",

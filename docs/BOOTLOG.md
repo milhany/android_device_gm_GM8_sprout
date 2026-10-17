@@ -16,8 +16,10 @@ reference policy with neverallows enabled, not a complete device policy build.
 `log(20261017-062200).txt` then reports a separate unresolved Wi-Fi failure:
 WCNSS and supplicant start, but `WifiThreadRunner.call()` repeatedly times out,
 and `com.android.settings/.Settings$WifiSettings2Activity` gets an ANR. The log
-does not include the blocked Wi-Fi thread's stack. A bugreport collected while
-stuck is needed to distinguish HAL/Binder waits from framework lock contention.
+does not include the blocked Wi-Fi thread's stack. The later `gm8-wifi.zip`
+provides five snapshots proving that Wi-Fi waits in KeyStore HMAC generation
+for its randomized MAC. See [WIFI_KEYSTORE.md](WIFI_KEYSTORE.md) for the scoped
+per-network-store workaround and required runtime validation.
 The TCP policy change is not claimed as a fix for this ANR. Do not format data
 or erase Wi-Fi configurations to diagnose this without further evidence.
 

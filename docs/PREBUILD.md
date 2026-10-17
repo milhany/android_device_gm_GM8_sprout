@@ -49,6 +49,8 @@ Do not include private signing material in Git or in the build record.
 Run from the Android source root:
 
 ```sh
+python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
+python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug
@@ -284,3 +286,5 @@ References:
 - [Qualcomm framework detection library](https://github.com/LineageOS/android_hardware_qcom-caf_common/blob/lineage-18.1/fwk-detect/Android.bp)
 - [Qualcomm companion HAL instances on LineageOS 18.1](https://github.com/LineageOS/android_device_xiaomi_msm8953-common/blob/lineage-18.1/manifest.xml)
 - [GM8 Voice2 kernel mixer controls](https://github.com/milhany/android_kernel_gm_msm8937/blob/lineage-18.1-rework/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c)
+
+For the GM8 Wi-Fi KeyStore/ANR workaround, see [WIFI_KEYSTORE.md](WIFI_KEYSTORE.md).
