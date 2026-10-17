@@ -36,6 +36,17 @@ the filename. Missing system_stats now returns an empty result with the power
 statistics. Expected missing-file opens do not emit an error each time; other
 filesystem failures still do.
 
+## MDSS display idle input
+
+GM8's `mdss_fb.c` exports `/sys/class/graphics/fb0/idle_notify`, returning
+`yes` when idle and `no` while idle work is pending. It does not expose the
+`idle_state` interface used by newer display drivers. The interaction handler
+now accepts this third path and its actual value format, with read-only
+SELinux access to that exact attribute. Missing optional paths use the
+existing timed hint fallback; access errors remain visible. All powerhint
+file nodes explicitly declare `Type=File` to avoid the parser's misleading
+missing-Type error messages. No frequency or boost-duration values changed.
+
 ## Checks and deployment
 
 Host-test the actual fallback opener with:

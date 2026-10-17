@@ -15,10 +15,10 @@ sets it in `system.prop`, so PhoneSwitcher uses its existing per-phone
 The `ro.ril.` prefix already has the platform `radio_prop` context. No additional
 SELinux permission or vendor binary modification is needed.
 
-This is a compatibility workaround for the observed failing command, not a
-confirmed hardware fix. A successful `ALLOW_DATA` response and packet attach
-still need to be verified on this modem. Neither returning fake success nor
-ignoring error 38 would attach the second SIM.
+The device owner reported SIM2 mobile data working after the patched ROM on
+2026-10-17. This confirms the reported use case on their phone; the wider
+SIM-switching, voice/SMS and reboot matrix below remains a release check.
+Neither returning fake success nor ignoring error 38 would attach the second SIM.
 
 ## Apply before building
 

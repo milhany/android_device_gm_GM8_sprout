@@ -2,6 +2,7 @@
   "Nodes": [
     {
       "Name": "CPUBigClusterMaxFreq",
+      "Type": "File",
       "Path": "/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq",
       "Values": [
         "9999999",
@@ -17,6 +18,7 @@
     },
     {
       "Name": "CPUBigClusterMinCPUs",
+      "Type": "File",
       "Path": "/sys/devices/system/cpu/cpu0/core_ctl/min_cpus",
       "Values": [
         "4",
@@ -26,6 +28,7 @@
     },
     {
       "Name": "CPUBigClusterMinFreq",
+      "Type": "File",
       "Path": "/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq",
       "Values": [
         "9999999",
@@ -42,6 +45,7 @@
     },
     {
       "Name": "CPULittleClusterMaxFreq",
+      "Type": "File",
       "Path": "/sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq",
       "Values": [
         "9999999",
@@ -57,6 +61,7 @@
     },
     {
       "Name": "CPULittleClusterMinFreq",
+      "Type": "File",
       "Path": "/sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq",
       "Values": [
         "9999999",
@@ -72,6 +77,7 @@
     },
     {
       "Name": "GPUMaxFreq",
+      "Type": "File",
       "Path": "/sys/class/kgsl/kgsl-3d0/max_pwrlevel",
       "Values": [
         "0",
@@ -82,6 +88,7 @@
     },
     {
       "Name": "GPUMinFreq",
+      "Type": "File",
       "Path": "/sys/class/kgsl/kgsl-3d0/min_pwrlevel",
       "Values": [
         "0",
@@ -92,6 +99,7 @@
     },
     {
       "Name": "GPUForceRailOn",
+      "Type": "File",
       "Path": "/sys/class/kgsl/kgsl-3d0/force_rail_on",
       "Values": [
         "1",
@@ -101,6 +109,7 @@
     },
     {
       "Name": "GPUForceClkOn",
+      "Type": "File",
       "Path": "/sys/class/kgsl/kgsl-3d0/force_clk_on",
       "Values": [
         "1",
@@ -110,6 +119,7 @@
     },
     {
       "Name": "GPUIdleTimer",
+      "Type": "File",
       "Path": "/sys/class/kgsl/kgsl-3d0/idle_timer",
       "Values": [
         "10000",
@@ -119,6 +129,7 @@
     },
     {
       "Name": "SchedBoost",
+      "Type": "File",
       "Path": "/proc/sys/kernel/sched_boost",
       "Values": [
         "1",
@@ -129,6 +140,7 @@
     },
     {
       "Name": "CPUBWHystTriggerCount",
+      "Type": "File",
       "Path": "/sys/devices/soc/soc:qcom,cpubw/devfreq/soc:qcom,cpubw/bw_hwmon/hyst_trigger_count",
       "Values": [
         "0",
@@ -138,6 +150,7 @@
     },
     {
       "Name": "CPUBWHistMemory",
+      "Type": "File",
       "Path": "/sys/devices/soc/soc:qcom,cpubw/devfreq/soc:qcom,cpubw/bw_hwmon/hist_memory",
       "Values": [
         "0",
@@ -147,6 +160,7 @@
     },
     {
       "Name": "CPUBWHystLength",
+      "Type": "File",
       "Path": "/sys/devices/soc/soc:qcom,cpubw/devfreq/soc:qcom,cpubw/bw_hwmon/hyst_length",
       "Values": [
         "0",
@@ -156,6 +170,7 @@
     },
     {
       "Name": "CPUBWMinFreq",
+      "Type": "File",
       "Path": "/sys/devices/soc/soc:qcom,cpubw/devfreq/soc:qcom,cpubw/min_freq",
       "Values": [
         "7031",
@@ -166,6 +181,7 @@
     },
     {
       "Name": "PMQoSCpuDmaLatency",
+      "Type": "File",
       "Path": "/dev/cpu_dma_latency",
       "Values": [
         "0x00000043",

@@ -17,6 +17,7 @@
 #define LOG_TAG "android.hardware.power@1.3-service.gm-libperfmgr"
 
 #include <fcntl.h>
+#include <errno.h>
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <time.h>
@@ -24,6 +25,8 @@
 #include <utils/Log.h>
 #include <utils/Trace.h>
 #include <memory>
+#include <cstring>
+#include <vector>
 
 #include "InteractionHandler.h"
 
@@ -33,7 +36,8 @@
 #define USINMS 1000000L
 
 static const std::vector<std::string> fb_idle_patch = {"/sys/class/drm/card0/device/idle_state",
-                                                       "/sys/class/graphics/fb0/idle_state"};
+                                                       "/sys/class/graphics/fb0/idle_state",
+                                                       "/sys/class/graphics/fb0/idle_notify"};
 
 InteractionHandler::InteractionHandler(std::shared_ptr<HintManager> const &hint_manager)
     : mState(INTERACTION_STATE_UNINITIALIZED),
@@ -50,11 +54,15 @@ InteractionHandler::~InteractionHandler() {
 static int fb_idle_open(void) {
     int fd;
     for (auto &path : fb_idle_patch) {
-        fd = open(path.c_str(), O_RDONLY);
+        fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
         if (fd >= 0)
             return fd;
+        if (errno != ENOENT && errno != ENOTDIR) {
+            ALOGE("Unable to open display idle path %s (%d)", path.c_str(), errno);
+            return -1;
+        }
     }
-    ALOGE("Unable to open fb idle state path (%d)", errno);
+    ALOGI("Display idle notification unavailable; using timed interaction hints");
     return -1;
 }
 
@@ -186,7 +194,7 @@ void InteractionHandler::AbortWaitLocked() {
 }
 
 void InteractionHandler::WaitForIdle(int32_t wait_ms, int32_t timeout_ms) {
-    char data[MAX_LENGTH];
+    char data[MAX_LENGTH] = {};
     ssize_t ret;
     struct pollfd pfd[2];
 
@@ -219,13 +227,14 @@ void InteractionHandler::WaitForIdle(int32_t wait_ms, int32_t timeout_ms) {
         return;
     }
 
-    ret = pread(mIdleFd, data, sizeof(data), 0);
-    if (!ret) {
-        ALOGE("%s: Unexpected EOF!", __func__);
+    ret = pread(mIdleFd, data, sizeof(data) - 1, 0);
+    if (ret <= 0) {
+        ALOGE("%s: Cannot read display idle state (%zd, %d)", __func__, ret, errno);
         return;
     }
 
-    if (!strncmp(data, "idle", 4)) {
+    // DRM idle_state reports "idle"; GM8's MDSS idle_notify reports "yes".
+    if (!strncmp(data, "idle", 4) || !strncmp(data, "yes", 3)) {
         ALOGV("%s: already idle", __func__);
         return;
     }

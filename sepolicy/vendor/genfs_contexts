@@ -1,3 +1,8 @@
 # Power
 genfscon debugfs /system_stats                                  u:object_r:debugfs_rpm:s0
 genfscon proc /android_touch                                    u:object_r:proc_doubletap_gesture:s0
+
+genfscon proc /sys/net/ipv4/tcp_limit_output_bytes                 u:object_r:vendor_proc_wifi_tcp:s0
+genfscon proc /sys/net/ipv4/tcp_use_userconfig                      u:object_r:vendor_proc_wifi_tcp:s0
+genfscon proc /sys/net/ipv4/tcp_adv_win_scale                       u:object_r:vendor_proc_wifi_tcp:s0
+genfscon sysfs /devices/virtual/graphics/fb0/idle_notify            u:object_r:vendor_sysfs_fb_idle:s0
