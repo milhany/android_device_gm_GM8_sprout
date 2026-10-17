@@ -1,0 +1,44 @@
+From: GM8 maintainers
+Subject: [PATCH] prima: dispatch SAE timeout independently of LFR MBB
+
+GM8 does not build WLAN_FEATURE_LFR_MBB. The SAE timeout (0x13fb) was
+therefore discarded by limProcessMessages, leaving the roam command active
+until its 60-second watchdog requested WCNSS recovery. Keep SAE cleanup
+independent of MBB. Report external-auth result delivery and propagate SME
+queue failures rather than acknowledging undelivered authentication results.
+
+diff --git a/drivers/staging/prima/CORE/MAC/src/pe/lim/limProcessMessageQueue.c b/drivers/staging/prima/CORE/MAC/src/pe/lim/limProcessMessageQueue.c
+--- a/drivers/staging/prima/CORE/MAC/src/pe/lim/limProcessMessageQueue.c
++++ b/drivers/staging/prima/CORE/MAC/src/pe/lim/limProcessMessageQueue.c
+@@ -2090,8 +2090,8 @@
+ #ifdef WLAN_FEATURE_LFR_MBB
+         case SIR_LIM_PREAUTH_MBB_RSP_TIMEOUT:
+         case SIR_LIM_REASSOC_MBB_RSP_TIMEOUT:
+-        case SIR_LIM_AUTH_SAE_TIMEOUT:
+ #endif
++        case SIR_LIM_AUTH_SAE_TIMEOUT:
+             // These timeout messages are handled by MLM sub module
+ 
+             limProcessMlmReqMessages(pMac,
+diff --git a/drivers/staging/prima/CORE/HDD/src/wlan_hdd_cfg80211.c b/drivers/staging/prima/CORE/HDD/src/wlan_hdd_cfg80211.c
+--- a/drivers/staging/prima/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/drivers/staging/prima/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -19589,9 +19589,16 @@
+    hddLog(VOS_TRACE_LEVEL_DEBUG, FL("external_auth status: %d"),
+           params->status);
+ 
+-   sme_handle_sae_msg(hdd_ctx->hHal, adapter->sessionId, params->status);
++   if (!HAL_STATUS_SUCCESS(sme_handle_sae_msg(hdd_ctx->hHal,
++                                             adapter->sessionId,
++                                             params->status))) {
++       hddLog(LOGE, FL("SAE external auth result could not be queued"));
++       return -EIO;
++   }
+ 
+-   return ret;
++   hddLog(LOGW, FL("SAE external auth result queued: status %u"),
++          params->status);
++   return 0;
+ }
+ 
+ /**

@@ -14,6 +14,25 @@ which lacks `WPA_DRIVER_CAPA_KEY_MGMT_SAE` (0x10000). This failure occurs before
 password authentication. The old Wi-Fi KeyStore generation timeout does not
 recur in that recording; ordinary WPA2 connectivity still needs a separate test.
 
+`log(20261017-081729).txt` reaches SAE association at 10:20:53, adds a
+supplicant PMKSA entry, then discards message `13FB` at 10:20:58. That message
+is `SIR_LIM_AUTH_SAE_TIMEOUT`: the dispatcher incorrectly put its case inside
+`WLAN_FEATURE_LFR_MBB`, which GM8 does not build. The existing recovery handler
+never ran. Scans remain busy, the roam command times out at 10:21:53, and the
+driver requests WCNSS subsystem recovery. The recording ends there; the user
+also reports a whole-phone reboot. It does not contain the final reboot panic.
+The WDI response value 162 is `WDI_MAX_RESP` in this configuration, not evidence
+that firmware command 162 was pending.
+
+Follow-up patch 0002 dispatches the SAE timeout independently of MBB, allowing
+the existing station authentication failure cleanup to run. External-auth
+result logging now exposes the supplicant reply and driver queue result, and
+SME queue failure is returned as an error. This fixes a demonstrated recovery
+defect; it does not establish why authentication completion was missing or
+prove successful WPA3 connectivity. A PMKSA entry alone is not a completed
+connection. Avoid repeatedly reconnecting the old build to the failing SAE
+network; use a separate WPA2 test hotspot while diagnosing.
+
 ## Implementation
 
 The existing Prima driver contains a host SAE implementation, but kernel builds
@@ -52,7 +71,8 @@ m bacon -j32
 The WPA3 helper checks both projects before changing either, accepts already
 applied patches, and refuses divergent source. It modifies kernel/gm/msm8937
 and external/wpa_supplicant_8 locally. Recheck after syncing those projects;
-do not discard local source edits blindly. Preflight requires both patches.
+do not discard local source edits blindly. Preflight requires all four patches.
+Already-applied 0001 patches are retained when adding the 0002 fixes.
 Install the complete matching ROM, including its boot image. No data wipe is
 needed. Keep a known working build available while testing the experiment.
 
@@ -87,11 +107,18 @@ real-handler host regression test with:
 ```sh
 python3 device/gm/GM8_sprout/tools/tests/wifi_external_auth_test.py \
   --kernel kernel/gm/msm8937
+python3 device/gm/GM8_sprout/tools/tests/wifi_sae_timeout_test.py \
+  --kernel kernel/gm/msm8937
 ```
 
 It executes the actual C external-auth/PMKSA handlers with netlink/driver
 fixtures, checking socket ownership, callbacks, length limits, failure status
 and PMK transfer. This is not a full ROM/supplicant build or hardware test.
+The timeout regression test extracts the actual dispatch cases and recovery
+handler, compiles them with and without MBB, and checks station recovery,
+stale timeout, AP and missing-session behavior. It fails on the old code and
+passes after patch 0002. The modified Prima files and built-in link also compile
+for GM8 ARM64 with Android GCC 4.9.
 
 ## Source references
 

@@ -18,6 +18,10 @@ def main():
          "patches/kernel_gm_msm8937/0001-gm8-wpa3-sae-external-auth.patch"),
         ("external/wpa_supplicant_8", "src/drivers/driver_nl80211.c",
          "patches/external_wpa_supplicant_8/0001-gm8-sae-connect-owner.patch"),
+        ("kernel/gm/msm8937", "include/net/cfg80211.h",
+         "patches/kernel_gm_msm8937/0002-gm8-recover-sae-auth-timeout.patch"),
+        ("external/wpa_supplicant_8", "src/drivers/driver_nl80211.c",
+         "patches/external_wpa_supplicant_8/0002-gm8-log-external-auth-result.patch"),
     ]
     missing = []
     for path, marker, relative_patch in projects:
@@ -29,7 +33,7 @@ def main():
         result = subprocess.run(["git", "apply", "--reverse", "--check", str(patch)],
                                 cwd=repo, capture_output=True, text=True)
         if result.returncode == 0:
-            print(f"GM8 WPA3 patch already applied: {path}")
+            print(f"GM8 WPA3 patch already applied: {path}: {patch.name}")
             continue
         result = subprocess.run(["git", "apply", "--check", str(patch)], cwd=repo,
                                 capture_output=True, text=True)

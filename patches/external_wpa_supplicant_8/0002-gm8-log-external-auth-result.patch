@@ -1,0 +1,27 @@
+From: GM8 maintainers
+Subject: [PATCH] nl80211: expose external auth result and reply failures
+
+Keep result status and driver reply failures visible without verbose logging.
+Do not log credentials or key material.
+
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -11463,7 +11463,7 @@
+ 	    (drv->capa.flags & WPA_DRIVER_FLAGS_SME))
+ 		return -1;
+ 
+-	wpa_dbg(drv->ctx, MSG_DEBUG,
++	wpa_dbg(drv->ctx, MSG_INFO,
+ 		"nl80211: External auth status: %u", params->status);
+ 
+ 	msg = nl80211_drv_msg(drv, 0, NL80211_CMD_EXTERNAL_AUTH);
+@@ -11479,7 +11479,7 @@
+ 	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+ 	msg = NULL;
+ 	if (ret) {
+-		wpa_printf(MSG_DEBUG,
++		wpa_printf(MSG_WARNING,
+ 			   "nl80211: External Auth status update failed: ret=%d (%s)",
+ 			   ret, strerror(-ret));
+ 		goto fail;
