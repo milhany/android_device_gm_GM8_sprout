@@ -36,6 +36,12 @@ def main():
     if keystore_check.returncode:
         errors.append(keystore_check.stderr.strip() or "GM8 Wi-Fi KeyStore patch check failed.")
 
+    wifi_check = subprocess.run(
+        [sys.executable, str(device / "tools/apply-wifi-compat.py"),
+         "--top", str(top), "--check"], capture_output=True, text=True)
+    if wifi_check.returncode:
+        errors.append(wifi_check.stderr.strip() or "GM8 WPA3 kernel/supplicant patches missing.")
+
     required = [
         "build/envsetup.sh",
         "build/target/product/product_launched_with_o_mr1.mk",

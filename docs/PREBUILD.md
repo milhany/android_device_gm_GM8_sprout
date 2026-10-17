@@ -1,6 +1,7 @@
 # GM8 Android 11 rework: build and device validation
 
-Use `lineage-18.1-rework` for all three GM8 repositories. The product is
+Use device branch `lineage-18.1-wpa3-test` with vendor and kernel branches
+`lineage-18.1-rework`; run the checked WPA3 helper before building. The product is
 `lineage_GM8_sprout`; it inherits the complete LineageOS 18.1 phone
 profile (LineageParts, SetupWizard, Updater, themes and mobile applications).
 This tree is not an OEM-certified Android 11 release.
@@ -51,6 +52,7 @@ Run from the Android source root:
 ```sh
 python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
+python3 device/gm/GM8_sprout/tools/apply-wifi-compat.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug

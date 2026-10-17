@@ -1,0 +1,514 @@
+From: GM8 maintainers
+Subject: [PATCH] GM8: enable Prima SAE with cfg80211 external authentication
+
+Backport station external authentication for the existing Prima SAE path.
+Based on upstream 40cbfa90218b, 10773a7c09b3, db8d93a7a355 and connection
+ownership bd2522b16884. Retain upstream command/attribute numbers and socket
+ownership cleanup. Transfer PMKs through PMKSA; require external auth and PMF
+for SAE. Bound driver SSID copies and report failed request delivery.
+
+Upstream authors: Srinivas Dasari, Jouni Malinen, Andrew Zaborowski,
+Johannes Berg. Adapted for the GM8 3.18 source and Prima interface.
+
+diff --git a/arch/arm64/configs/msm8937-perf_defconfig b/arch/arm64/configs/msm8937-perf_defconfig
+index d988ab3..d57838d 100644
+--- a/arch/arm64/configs/msm8937-perf_defconfig
++++ b/arch/arm64/configs/msm8937-perf_defconfig
+@@ -697,6 +697,7 @@ CONFIG_PRIMA_WLAN_LFR=y
+ CONFIG_PRIMA_WLAN_OKC=y
+ CONFIG_PRIMA_WLAN_11AC_HIGH_TP=y
+ CONFIG_WLAN_FEATURE_11W=y
++CONFIG_WLAN_FEATURE_SAE=y
+ CONFIG_QCOM_TDLS=y
+ CONFIG_QCOM_VOWIFI_11R=y
+ CONFIG_ENABLE_LINUX_REG=y
+diff --git a/drivers/staging/prima/CORE/HDD/src/wlan_hdd_assoc.c b/drivers/staging/prima/CORE/HDD/src/wlan_hdd_assoc.c
+index 3e6418f..16e42fa 100644
+--- a/drivers/staging/prima/CORE/HDD/src/wlan_hdd_assoc.c
++++ b/drivers/staging/prima/CORE/HDD/src/wlan_hdd_assoc.c
+@@ -214,7 +214,7 @@ static void wlan_hdd_sae_callback(hdd_adapter_t *adapter,
+                                   tCsrRoamInfo *roam_info)
+ {
+    hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+-   int flags;
++   int flags, ret;
+    struct sir_sae_info *sae_info = roam_info->sae_info;
+    struct cfg80211_external_auth_params params = {0};
+ 
+@@ -224,6 +224,12 @@ static void wlan_hdd_sae_callback(hdd_adapter_t *adapter,
+        hddLog(LOGE, FL("SAE info in NULL"));
+        return;
+    }
++   if (!sae_info->ssid.length || sae_info->ssid.length > sizeof(params.ssid.ssid)) {
++       hddLog(LOGE, FL("Invalid SAE SSID length"));
++       sme_handle_sae_msg(hdd_ctx->hHal, adapter->sessionId,
++                          WLAN_STATUS_UNSPECIFIED_FAILURE);
++       return;
++   }
+    flags = vos_get_gfp_flags();
+ 
+    params.key_mgmt_suite = 0x00;
+@@ -237,7 +243,13 @@ static void wlan_hdd_sae_callback(hdd_adapter_t *adapter,
+    vos_mem_copy(params.ssid.ssid, sae_info->ssid.ssId, sae_info->ssid.length);
+    params.ssid.ssid_len = sae_info->ssid.length;
+ 
+-   cfg80211_external_auth_request(adapter->dev, &params, flags);
++   ret = cfg80211_external_auth_request(adapter->dev, &params, flags);
++   if (ret) {
++       hddLog(LOGE, FL("SAE external authentication request failed: %d"), ret);
++       sme_handle_sae_msg(hdd_ctx->hHal, adapter->sessionId,
++                          WLAN_STATUS_UNSPECIFIED_FAILURE);
++       return;
++   }
+    hddLog(LOG1, FL("SAE: sent cmd"));
+ }
+ #else
+diff --git a/drivers/staging/prima/Kconfig b/drivers/staging/prima/Kconfig
+index e3fcf73..5f2cb9d 100644
+--- a/drivers/staging/prima/Kconfig
++++ b/drivers/staging/prima/Kconfig
+@@ -41,6 +41,13 @@ config WLAN_FEATURE_11W
+ 	bool "Enable the WLAN 802.11w Protected Management Frames feature"
+ 	default n
+ 
++config WLAN_FEATURE_SAE
++	bool "WPA3-Personal SAE external authentication"
++	depends on WLAN_FEATURE_11W
++	default n
++	help
++	  Enable the existing Prima SAE path and userspace authentication.
++
+ config QCOM_VOWIFI_11R
+ 	bool "Enable Fast Transition (11r) feature"
+ 	default n
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index 64d55bb..465392e 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -1826,6 +1826,7 @@ enum cfg80211_assoc_req_flags {
+ 	ASSOC_REQ_DISABLE_HT		= BIT(0),
+ 	ASSOC_REQ_DISABLE_VHT		= BIT(1),
+ 	ASSOC_REQ_USE_RRM		= BIT(2),
++	CONNECT_REQ_EXTERNAL_AUTH_SUPPORT = BIT(3),
+ };
+ 
+ /**
+@@ -2075,6 +2076,8 @@ enum wiphy_params_flags {
+ struct cfg80211_pmksa {
+ 	const u8 *bssid;
+ 	const u8 *pmkid;
++	const u8 *pmk;
++	size_t pmk_len;
+ };
+ 
+ /**
+@@ -2310,6 +2313,16 @@ struct cfg80211_qos_map {
+ 	struct cfg80211_dscp_range up[8];
+ };
+ 
++/* Station-mode external authentication, compatible with the v4.17 API. */
++#define CFG80211_EXTERNAL_AUTH_SUPPORT 1
++struct cfg80211_external_auth_params {
++	enum nl80211_external_auth_action action;
++	u8 bssid[ETH_ALEN] __aligned(2);
++	struct cfg80211_ssid ssid;
++	unsigned int key_mgmt_suite;
++	u16 status;
++};
++
+ /**
+  * struct cfg80211_ops - backend description for wireless configuration
+  *
+@@ -2591,6 +2604,8 @@ struct cfg80211_qos_map {
+  * @del_tx_ts: remove an existing TX TS
+  */
+ struct cfg80211_ops {
++	int (*external_auth)(struct wiphy *wiphy, struct net_device *dev,
++			     struct cfg80211_external_auth_params *params);
+ 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
+ 	int	(*resume)(struct wiphy *wiphy);
+ 	void	(*set_wakeup)(struct wiphy *wiphy, bool enabled);
+@@ -3601,6 +3616,9 @@ struct cfg80211_cached_keys;
+  * @conn: (private) cfg80211 software SME connection state machine data
+  * @connect_keys: (private) keys to set after connection is established
+  * @conn_bss_type: connecting/connected BSS type
++ * @conn_owner_nlportid: (private) connection owner socket port ID
++ * @disconnect_wk: (private) auto-disconnect work
++ * @disconnect_bssid: (private) the BSSID to use for auto-disconnect
+  * @ibss_fixed: (private) IBSS is using fixed BSSID
+  * @ibss_dfs_possible: (private) IBSS may change to a DFS channel
+  * @event_list: (private) list for internal event processing
+@@ -3632,6 +3650,10 @@ struct wireless_dev {
+ 	struct cfg80211_conn *conn;
+ 	struct cfg80211_cached_keys *connect_keys;
+ 	enum ieee80211_bss_type conn_bss_type;
++	u32 conn_owner_nlportid;
++
++	struct work_struct disconnect_wk;
++	u8 disconnect_bssid[ETH_ALEN];
+ 
+ 	struct list_head event_list;
+ 	spinlock_t event_lock;
+@@ -5418,4 +5440,8 @@ bool cfg80211_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb);
+ #define wiphy_WARN(wiphy, format, args...)			\
+ 	WARN(1, "wiphy: %s\n" format, wiphy_name(wiphy), ##args);
+ 
++int cfg80211_external_auth_request(struct net_device *netdev,
++				   struct cfg80211_external_auth_params *params,
++				   gfp_t gfp);
++
+ #endif /* __NET_CFG80211_H */
+diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
+index 468899e..074f893 100644
+--- a/include/uapi/linux/nl80211.h
++++ b/include/uapi/linux/nl80211.h
+@@ -1036,6 +1036,8 @@ enum nl80211_commands {
+ 
+ 	NL80211_CMD_UPDATE_CONNECT_PARAMS,
+ 
++	NL80211_CMD_EXTERNAL_AUTH = 127,
++
+ 	/* add new commands above here */
+ 
+ 	/* used to define NL80211_CMD_MAX below */
+@@ -2322,6 +2324,10 @@ enum nl80211_attrs {
+ 	NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI,
+ 	NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST,
+ 
++	NL80211_ATTR_PMK = 254,
++	NL80211_ATTR_EXTERNAL_AUTH_ACTION = 260,
++	NL80211_ATTR_EXTERNAL_AUTH_SUPPORT,
++
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
+ 	__NL80211_ATTR_AFTER_LAST,
+@@ -2329,6 +2335,7 @@ enum nl80211_attrs {
+ };
+ 
+ /* source-level API compatibility */
++#define NL80211_ATTR_SOCKET_OWNER NL80211_ATTR_IFACE_SOCKET_OWNER
+ #define NL80211_ATTR_SCAN_GENERATION NL80211_ATTR_GENERATION
+ #define	NL80211_ATTR_MESH_PARAMS NL80211_ATTR_MESH_CONFIG
+ 
+@@ -4788,4 +4795,9 @@ enum nl80211_bss_select_attr {
+ 	NL80211_BSS_SELECT_ATTR_MAX = __NL80211_BSS_SELECT_ATTR_AFTER_LAST - 1
+ };
+ 
++enum nl80211_external_auth_action {
++	NL80211_EXTERNAL_AUTH_START,
++	NL80211_EXTERNAL_AUTH_ABORT,
++};
++
+ #endif /* __LINUX_NL80211_H */
+diff --git a/net/wireless/core.c b/net/wireless/core.c
+index 304f310..2212fc5 100644
+--- a/net/wireless/core.c
++++ b/net/wireless/core.c
+@@ -1014,6 +1014,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
+ 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||
+ 		     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
+ 			dev->priv_flags |= IFF_DONT_BRIDGE;
++		INIT_WORK(&wdev->disconnect_wk, cfg80211_autodisconnect_wk);
+ 		break;
+ 	case NETDEV_GOING_DOWN:
+ 		switch (wdev->iftype) {
+@@ -1130,6 +1131,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
+ #ifdef CONFIG_CFG80211_WEXT
+ 			kzfree(wdev->wext.keys);
+ #endif
++			flush_work(&wdev->disconnect_wk);
+ 		}
+ 		/*
+ 		 * synchronise (so that we won't find this netdev
+diff --git a/net/wireless/core.h b/net/wireless/core.h
+index e724e1d..8663385 100644
+--- a/net/wireless/core.h
++++ b/net/wireless/core.h
+@@ -363,6 +363,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev,
+ 		       const u8 *resp_ie, size_t resp_ie_len);
+ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
+ 			      struct wireless_dev *wdev);
++void cfg80211_autodisconnect_wk(struct work_struct *work);
+ 
+ /* SME implementation */
+ void cfg80211_conn_work(struct work_struct *work);
+diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
+index 72be2be..3313dfa 100644
+--- a/net/wireless/mlme.c
++++ b/net/wireless/mlme.c
+@@ -332,6 +332,11 @@ int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
+ 	     !ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
+ 		return 0;
+ 
++	if (ether_addr_equal(wdev->disconnect_bssid, bssid) ||
++	    (wdev->current_bss &&
++	     ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
++		wdev->conn_owner_nlportid = 0;
++
+ 	return rdev_deauth(rdev, dev, &req);
+ }
+ 
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index 5b74c4a..773643b 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -389,6 +389,8 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
+ 	[NL80211_ATTR_WIPHY_FREQ_HINT] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_TDLS_PEER_CAPABILITY] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_IFACE_SOCKET_OWNER] = { .type = NLA_FLAG },
++	[NL80211_ATTR_PMK] = { .type = NLA_BINARY, .len = 48 },
++	[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_CSA_C_OFFSETS_TX] = { .type = NLA_BINARY },
+ 	[NL80211_ATTR_USE_RRM] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_TSID] = { .type = NLA_U8 },
+@@ -3596,6 +3598,10 @@ static bool nl80211_valid_auth_type(struct cfg80211_registered_device *rdev,
+ 			return false;
+ 		return true;
+ 	case NL80211_CMD_CONNECT:
++		if (auth_type == NL80211_AUTHTYPE_SAE &&
++		    !(rdev->wiphy.features & NL80211_FEATURE_SAE))
++			return false;
++		return true;
+ 	case NL80211_CMD_START_AP:
+ 		/* SAE not supported yet */
+ 		if (auth_type == NL80211_AUTHTYPE_SAE)
+@@ -7450,6 +7456,10 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
+ 		wdev_lock(dev->ieee80211_ptr);
+ 		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid,
+ 					  ssid, ssid_len, &req);
++		if (!err && info->attrs[NL80211_ATTR_SOCKET_OWNER]) {
++			dev->ieee80211_ptr->conn_owner_nlportid = info->snd_portid;
++			memcpy(dev->ieee80211_ptr->disconnect_bssid, bssid, ETH_ALEN);
++		}
+ 		wdev_unlock(dev->ieee80211_ptr);
+ 	}
+ 
+@@ -8149,11 +8159,31 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
+ 		}
+ 	}
+ 
++	if (nla_get_flag(info->attrs[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT])) {
++		if (!info->attrs[NL80211_ATTR_SOCKET_OWNER]) {
++			kzfree(connkeys);
++			return -EINVAL;
++		}
++		connect.flags |= CONNECT_REQ_EXTERNAL_AUTH_SUPPORT;
++	}
++	if (connect.auth_type == NL80211_AUTHTYPE_SAE &&
++	    (!(connect.flags & CONNECT_REQ_EXTERNAL_AUTH_SUPPORT) ||
++	     connect.mfp != NL80211_MFP_REQUIRED)) {
++		kzfree(connkeys);
++		return -EINVAL;
++	}
+ 	wdev_lock(dev->ieee80211_ptr);
+ 	err = cfg80211_connect(rdev, dev, &connect, connkeys, NULL);
+-	wdev_unlock(dev->ieee80211_ptr);
+ 	if (err)
+ 		kzfree(connkeys);
++	if (!err && info->attrs[NL80211_ATTR_SOCKET_OWNER]) {
++		dev->ieee80211_ptr->conn_owner_nlportid = info->snd_portid;
++		if (connect.bssid)
++			memcpy(dev->ieee80211_ptr->disconnect_bssid, connect.bssid, ETH_ALEN);
++		else
++			eth_zero_addr(dev->ieee80211_ptr->disconnect_bssid);
++	}
++	wdev_unlock(dev->ieee80211_ptr);
+ 	return err;
+ }
+ 
+@@ -8257,6 +8287,12 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
+ 
+ 	pmksa.pmkid = nla_data(info->attrs[NL80211_ATTR_PMKID]);
+ 	pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
++	if (info->attrs[NL80211_ATTR_PMK]) {
++		pmksa.pmk = nla_data(info->attrs[NL80211_ATTR_PMK]);
++		pmksa.pmk_len = nla_len(info->attrs[NL80211_ATTR_PMK]);
++		if (pmksa.pmk_len != 32 && pmksa.pmk_len != 48)
++			return -EINVAL;
++	}
+ 
+ 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+ 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
+@@ -10190,6 +10226,48 @@ static int nl80211_del_tx_ts(struct sk_buff *skb, struct genl_info *info)
+ 	return err;
+ }
+ 
++static int nl80211_external_auth(struct sk_buff *skb, struct genl_info *info)
++{
++	struct cfg80211_registered_device *rdev = info->user_ptr[0];
++	struct net_device *dev = info->user_ptr[1];
++	struct cfg80211_external_auth_params params;
++
++	if (!rdev->ops->external_auth)
++		return -EOPNOTSUPP;
++
++	if (!dev->ieee80211_ptr->conn_owner_nlportid ||
++	    dev->ieee80211_ptr->conn_owner_nlportid != info->snd_portid)
++		return -EPERM;
++
++	if (!info->attrs[NL80211_ATTR_SSID])
++		return -EINVAL;
++
++	if (!info->attrs[NL80211_ATTR_BSSID])
++		return -EINVAL;
++
++	if (nla_len(info->attrs[NL80211_ATTR_BSSID]) != ETH_ALEN)
++		return -EINVAL;
++
++	if (!info->attrs[NL80211_ATTR_STATUS_CODE])
++		return -EINVAL;
++
++	memset(&params, 0, sizeof(params));
++
++	params.ssid.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
++	if (params.ssid.ssid_len == 0 ||
++	    params.ssid.ssid_len > IEEE80211_MAX_SSID_LEN)
++		return -EINVAL;
++	memcpy(params.ssid.ssid, nla_data(info->attrs[NL80211_ATTR_SSID]),
++	       params.ssid.ssid_len);
++
++	memcpy(params.bssid, nla_data(info->attrs[NL80211_ATTR_BSSID]),
++	       ETH_ALEN);
++
++	params.status = nla_get_u16(info->attrs[NL80211_ATTR_STATUS_CODE]);
++
++	return rdev->ops->external_auth(&rdev->wiphy, dev, &params);
++}
++
+ #define NL80211_FLAG_NEED_WIPHY		0x01
+ #define NL80211_FLAG_NEED_NETDEV	0x02
+ #define NL80211_FLAG_NEED_RTNL		0x04
+@@ -10301,6 +10379,13 @@ static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
+ }
+ 
+ static const struct genl_ops nl80211_ops[] = {
++	{
++		.cmd = NL80211_CMD_EXTERNAL_AUTH,
++		.doit = nl80211_external_auth,
++		.policy = nl80211_policy,
++		.flags = GENL_ADMIN_PERM,
++		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP | NL80211_FLAG_NEED_RTNL,
++	},
+ 	{
+ 		.cmd = NL80211_CMD_GET_WIPHY,
+ 		.doit = nl80211_get_wiphy,
+@@ -12650,6 +12735,8 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
+ 
+ 			if (wdev->owner_nlportid == notify->portid)
+ 				schedule_destroy_work = true;
++			else if (notify->portid && wdev->conn_owner_nlportid == notify->portid)
++				schedule_work(&wdev->disconnect_wk);
+ 		}
+ 
+ 		spin_lock_bh(&rdev->beacon_registrations_lock);
+@@ -12814,6 +12901,48 @@ void cfg80211_ap_stopped(struct net_device *netdev, gfp_t gfp)
+ }
+ EXPORT_SYMBOL(cfg80211_ap_stopped);
+ 
++int cfg80211_external_auth_request(struct net_device *dev,
++				   struct cfg80211_external_auth_params *params,
++				   gfp_t gfp)
++{
++	struct wireless_dev *wdev = dev->ieee80211_ptr;
++	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
++	struct sk_buff *msg;
++	void *hdr;
++
++	if (!wdev->conn_owner_nlportid || !params->ssid.ssid_len ||
++	    params->ssid.ssid_len > IEEE80211_MAX_SSID_LEN)
++		return -EINVAL;
++
++	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
++	if (!msg)
++		return -ENOMEM;
++
++	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_EXTERNAL_AUTH);
++	if (!hdr)
++		goto nla_put_failure;
++
++	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
++	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
++	    nla_put_u32(msg, NL80211_ATTR_AKM_SUITES, params->key_mgmt_suite) ||
++	    nla_put_u32(msg, NL80211_ATTR_EXTERNAL_AUTH_ACTION,
++			params->action) ||
++	    nla_put(msg, NL80211_ATTR_BSSID, ETH_ALEN, params->bssid) ||
++	    nla_put(msg, NL80211_ATTR_SSID, params->ssid.ssid_len,
++		    params->ssid.ssid))
++		goto nla_put_failure;
++
++	genlmsg_end(msg, hdr);
++	return genlmsg_unicast(wiphy_net(&rdev->wiphy), msg,
++			wdev->conn_owner_nlportid);
++
++ nla_put_failure:
++	nlmsg_free(msg);
++	return -ENOBUFS;
++}
++
++EXPORT_SYMBOL(cfg80211_external_auth_request);
++
+ /* initialisation/exit functions */
+ 
+ int nl80211_init(void)
+diff --git a/net/wireless/sme.c b/net/wireless/sme.c
+index f189f47..f98f956 100644
+--- a/net/wireless/sme.c
++++ b/net/wireless/sme.c
+@@ -664,6 +664,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+ 		kzfree(wdev->connect_keys);
+ 		wdev->connect_keys = NULL;
+ 		wdev->ssid_len = 0;
++		wdev->conn_owner_nlportid = 0;
+ 		if (bss) {
+ 			cfg80211_unhold_bss(bss_from_pub(bss));
+ 			cfg80211_put_bss(wdev->wiphy, bss);
+@@ -891,6 +892,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
+ 
+ 	wdev->current_bss = NULL;
+ 	wdev->ssid_len = 0;
++	wdev->conn_owner_nlportid = 0;
+ 
+ 	nl80211_send_disconnected(rdev, dev, reason, ie, ie_len, from_ap);
+ 
+@@ -1022,6 +1024,8 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
+ 	kzfree(wdev->connect_keys);
+ 	wdev->connect_keys = NULL;
+ 
++	wdev->conn_owner_nlportid = 0;
++
+ 	if (wdev->conn)
+ 		err = cfg80211_sme_disconnect(wdev, reason);
+ 	else if (!rdev->ops->disconnect)
+@@ -1031,3 +1035,32 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
+ 
+ 	return err;
+ }
++
++/*
++ * Used to clean up after the connection / connection attempt owner socket
++ * disconnects
++ */
++void cfg80211_autodisconnect_wk(struct work_struct *work)
++{
++	struct wireless_dev *wdev =
++		container_of(work, struct wireless_dev, disconnect_wk);
++	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
++
++	wdev_lock(wdev);
++
++	if (wdev->conn_owner_nlportid) {
++		/*
++		 * Use disconnect_bssid if still connecting and ops->disconnect
++		 * not implemented.  Otherwise we can use cfg80211_disconnect.
++		 */
++		if (rdev->ops->disconnect || wdev->current_bss)
++			cfg80211_disconnect(rdev, wdev->netdev,
++					    WLAN_REASON_DEAUTH_LEAVING, true);
++		else
++			cfg80211_mlme_deauth(rdev, wdev->netdev,
++					     wdev->disconnect_bssid, NULL, 0,
++					     WLAN_REASON_DEAUTH_LEAVING, false);
++	}
++
++	wdev_unlock(wdev);
++}
