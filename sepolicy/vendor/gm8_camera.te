@@ -1,0 +1,11 @@
+# Stock camera state/debug properties; never grant writes to default_prop.
+vendor_internal_prop(vendor_gm8_camera_aeinfo_prop)
+vendor_internal_prop(vendor_gm8_camera_debug_prop)
+
+set_prop(mm-qcamerad, vendor_gm8_camera_aeinfo_prop)
+set_prop(mm-qcamerad, vendor_gm8_camera_debug_prop)
+
+# camera.msm8937.so reads aeinfo and its shared camera debug library reads the
+# legacy logfile property inside the vendor camera provider process.
+get_prop(hal_camera_default, vendor_gm8_camera_aeinfo_prop)
+get_prop(hal_camera_default, vendor_gm8_camera_debug_prop)

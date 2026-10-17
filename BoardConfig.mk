@@ -160,6 +160,8 @@ TARGET_PROVIDES_QTI_TELEPHONY_JAR := true
 # Add only the device-specific Qualcomm and GM8 policy here.
 include device/qcom/sepolicy-legacy-um/SEPolicy.mk
 BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
+# Camera app domains are platform-private Lineage types, not vendor API types.
+BOARD_PLAT_PRIVATE_SEPOLICY_DIR += $(DEVICE_PATH)/sepolicy/private
 
 # VINTF
 DEVICE_MANIFEST_FILE := $(DEVICE_PATH)/configs/vintf/manifest.xml

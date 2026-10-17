@@ -1,0 +1,4 @@
+# Android's camera availability property is read by the framework and camera
+# clients. Legacy property-compatibility builds may lack the generic read rule.
+# Keep platform-private Lineage app domains out of the vendor policy API.
+get_prop({ zygote snap_app gallery_app gmscore_app }, exported_camera_prop)
