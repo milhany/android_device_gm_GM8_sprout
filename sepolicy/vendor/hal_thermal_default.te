@@ -1,0 +1,4 @@
+# Read-only sensor reporting through the existing Android 11 thermal service.
+allow hal_thermal_default sysfs:dir r_dir_perms;
+allow hal_thermal_default sysfs:lnk_file r_file_perms;
+r_dir_file(hal_thermal_default, sysfs_thermal)

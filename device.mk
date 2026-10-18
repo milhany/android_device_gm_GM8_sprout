@@ -70,6 +70,7 @@ PRODUCT_PACKAGES += \
     android.hardware.sensors@1.0-service \
     android.hardware.thermal@1.0-impl \
     android.hardware.thermal@1.0-service \
+    thermal.gm8 \
     android.hardware.vibrator@1.0-impl \
     android.hardware.vibrator@1.0-service
 

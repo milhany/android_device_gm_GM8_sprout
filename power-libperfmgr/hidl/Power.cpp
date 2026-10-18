@@ -90,23 +90,49 @@ Power::Power()
         }
 
         state = android::base::GetProperty(kPowerHalRenderingProp, "");
-        if (state == "EXPENSIVE_RENDERING") {
-            ALOGI("Initialize with EXPENSIVE_RENDERING on");
-            mHintManager->DoHint("EXPENSIVE_RENDERING");
+        {
+            std::lock_guard<std::mutex> lk(mPolicyLock);
+            mRenderingRequested = state == "EXPENSIVE_RENDERING";
+            mReady.store(true);
+            // Apply screen/LOW_POWER events received during initialization.
+            ApplyPowerPolicyLocked();
         }
-        // Now start to take powerhint
-        mReady.store(true);
         ALOGI("PowerHAL ready to process hints");
     });
     mInitThread.detach();
 }
 
 // Methods from ::android::hardware::power::V1_0::IPower follow.
-Return<void> Power::setInteractive(bool /* interactive */) {
+void Power::ApplyPowerPolicyLocked() {
+    if (!mReady) return;
+    if (mLowPowerModeOn) {
+        mHintManager->DoHint("LOW_POWER");
+    } else {
+        mHintManager->EndHint("LOW_POWER");
+    }
+    if (!mInteractive || mLowPowerModeOn) {
+        mInteractionHandler->Cancel();
+        mHintManager->EndHint("LAUNCH");
+        mHintManager->EndHint("EXPENSIVE_RENDERING");
+    } else if (mRenderingRequested && !mSustainedPerfModeOn) {
+        mHintManager->DoHint("EXPENSIVE_RENDERING");
+    }
+}
+
+Return<void> Power::setInteractive(bool interactive) {
+    std::lock_guard<std::mutex> lk(mPolicyLock);
+    mInteractive = interactive;
+    ApplyPowerPolicyLocked();
     return Void();
 }
 
 Return<void> Power::powerHint(PowerHint_1_0 hint, int32_t data) {
+    std::lock_guard<std::mutex> lk(mPolicyLock);
+    if (hint == PowerHint_1_0::LOW_POWER) {
+        mLowPowerModeOn = data != 0;
+        ApplyPowerPolicyLocked();
+        return Void();
+    }
     if (!mReady) {
         return Void();
     }
@@ -114,7 +140,7 @@ Return<void> Power::powerHint(PowerHint_1_0 hint, int32_t data) {
              android::hardware::power::V1_0::toString(hint).c_str(), static_cast<int>(data));
     switch (hint) {
         case PowerHint_1_0::INTERACTION:
-            if (mSustainedPerfModeOn) {
+            if (mSustainedPerfModeOn || mLowPowerModeOn || !mInteractive) {
                 ALOGV("%s: ignoring due to other active perf hints", __func__);
             } else {
                 mInteractionHandler->Acquire(data);
@@ -130,15 +156,10 @@ Return<void> Power::powerHint(PowerHint_1_0 hint, int32_t data) {
             }
             break;
         case PowerHint_1_0::LAUNCH:
-            if (mSustainedPerfModeOn) {
-                ALOGV("%s: ignoring due to other active perf hints", __func__);
+            if (data && !mSustainedPerfModeOn && !mLowPowerModeOn && mInteractive) {
+                mHintManager->DoHint("LAUNCH");
             } else {
-                if (data) {
-                    // Hint until canceled
-                    mHintManager->DoHint("LAUNCH");
-                } else {
-                    mHintManager->EndHint("LAUNCH");
-                }
+                mHintManager->EndHint("LAUNCH");
             }
             break;
         case PowerHint_1_0::LOW_POWER:
@@ -273,14 +294,13 @@ Return<void> Power::powerHintAsync_1_3(PowerHint_1_3 hint, int32_t data) {
     }
 
     if (hint == PowerHint_1_3::EXPENSIVE_RENDERING) {
-        if (mSustainedPerfModeOn) {
-            ALOGV("%s: ignoring due to other active perf hints", __func__);
+        std::lock_guard<std::mutex> lk(mPolicyLock);
+        mRenderingRequested = data > 0;
+        if (mRenderingRequested && mInteractive && !mLowPowerModeOn &&
+                !mSustainedPerfModeOn) {
+            mHintManager->DoHint("EXPENSIVE_RENDERING");
         } else {
-            if (data > 0) {
-                mHintManager->DoHint("EXPENSIVE_RENDERING");
-            } else {
-                mHintManager->EndHint("EXPENSIVE_RENDERING");
-            }
+            mHintManager->EndHint("EXPENSIVE_RENDERING");
         }
     } else {
         return powerHintAsync_1_2(static_cast<PowerHint_1_2>(hint), data);

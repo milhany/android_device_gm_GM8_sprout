@@ -25,6 +25,7 @@
 #include <utils/Log.h>
 #include <utils/Trace.h>
 #include <memory>
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -42,8 +43,8 @@ static const std::vector<std::string> fb_idle_patch = {"/sys/class/drm/card0/dev
 InteractionHandler::InteractionHandler(std::shared_ptr<HintManager> const &hint_manager)
     : mState(INTERACTION_STATE_UNINITIALIZED),
       mWaitMs(100),
-      mMinDurationMs(1400),
-      mMaxDurationMs(5650),
+      mMinDurationMs(250),
+      mMaxDurationMs(1500),
       mDurationMs(0),
       mHintManager(hint_manager) {}
 
@@ -136,7 +137,8 @@ void InteractionHandler::Acquire(int32_t duration) {
         return;
     }
 
-    int inputDuration = duration + 650;
+    // Clamp before adding the grace period (the framework argument is int32).
+    int inputDuration = std::max(0, std::min(duration, mMaxDurationMs)) + 100;
     int finalDuration;
     if (inputDuration > mMaxDurationMs)
         finalDuration = mMaxDurationMs;
@@ -169,6 +171,15 @@ void InteractionHandler::Acquire(int32_t duration) {
 
     mState = INTERACTION_STATE_INTERACTION;
     mCond.notify_one();
+}
+
+void InteractionHandler::Cancel() {
+    std::lock_guard<std::mutex> lk(mLock);
+    if (mState == INTERACTION_STATE_UNINITIALIZED || mState == INTERACTION_STATE_IDLE)
+        return;
+    if (mState == INTERACTION_STATE_WAITING) AbortWaitLocked();
+    PerfRel();
+    mState = INTERACTION_STATE_IDLE;
 }
 
 void InteractionHandler::Release() {

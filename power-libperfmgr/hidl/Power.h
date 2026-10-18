@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 #include <android/hardware/power/1.3/IPower.h>
@@ -50,7 +51,7 @@ class Power : public IPower {
 
     Power();
 
-    Return<void> setInteractive(bool /* interactive */) override;
+    Return<void> setInteractive(bool interactive) override;
     Return<void> powerHint(PowerHint_1_0 hint, int32_t data) override;
     Return<void> setFeature(Feature feature, bool activate) override;
     Return<void> getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_cb) override;
@@ -68,6 +69,11 @@ class Power : public IPower {
     // Methods from ::android::hidl::base::V1_0::IBase follow.
 
   private:
+    void ApplyPowerPolicyLocked();
+    std::mutex mPolicyLock;
+    bool mLowPowerModeOn = false;
+    bool mInteractive = true;
+    bool mRenderingRequested = false;
     std::shared_ptr<HintManager> mHintManager;
     std::unique_ptr<InteractionHandler> mInteractionHandler;
     std::atomic<bool> mSustainedPerfModeOn;

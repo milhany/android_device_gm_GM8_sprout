@@ -51,6 +51,9 @@ def main():
         "hardware/qcom-caf/common/fwk-detect/Android.bp",
         "tools/extract-utils/extract_utils.sh",
         "device/gm/GM8_sprout/lineage_GM8_sprout.mk",
+        "device/gm/GM8_sprout/thermal/Android.bp",
+        "device/gm/GM8_sprout/thermal/Sensors.cpp",
+        "device/gm/GM8_sprout/thermal/Thermal.cpp",
         "vendor/gm/GM8_sprout/GM8_sprout-vendor.mk",
         "kernel/gm/msm8937/Makefile",
         "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig",
@@ -78,6 +81,23 @@ def main():
             json.loads(path.read_text())
         except (ValueError, OSError) as exc:
             errors.append(f"Invalid JSON: {path.relative_to(top)}: {exc}")
+
+    try:
+        power = json.loads((device / "configs/powerhint.json").read_text())
+        nodes = {node["Name"]: node for node in power["Nodes"]}
+        if len(nodes) != len(power["Nodes"]):
+            errors.append("Duplicate powerhint node names.")
+        for action in power["Actions"]:
+            if action["Node"] not in nodes or action["Value"] not in nodes[action["Node"]]["Values"]:
+                errors.append(f"Unknown powerhint node/value: {action}")
+            if not isinstance(action["Duration"], int) or action["Duration"] < 0:
+                errors.append(f"Invalid powerhint duration: {action}")
+        if not any(action["PowerHint"] == "LOW_POWER" for action in power["Actions"]):
+            errors.append("Missing LOW_POWER profile required by GM8's power HAL.")
+        if "ro.hardware.thermal=gm8" not in (device / "vendor.prop").read_text().splitlines():
+            errors.append("GM8 thermal sensor module is not selected in vendor.prop.")
+    except (ValueError, KeyError, OSError) as exc:
+        errors.append(f"Invalid power/thermal configuration: {exc}")
 
     dolby_manifest = vendor / "dolby/stock-manifest.json"
     if not dolby_manifest.is_file():
@@ -123,7 +143,7 @@ def main():
     thermal = vendor / "proprietary/vendor/etc/thermal-engine.conf"
     if thermal.is_file() and not any(line.split("#", 1)[0].strip()
                                      for line in thermal.read_text().splitlines()):
-        warnings.append("thermal-engine.conf has no policy; verify the active thermal implementation on hardware.")
+        warnings.append("thermal-engine.conf has no mitigation policy; thermal.gm8 reports sensors only. Verify kernel/firmware protection on hardware.")
     props = device / "vendor.prop"
     if props.is_file():
         match = re.search(r"^ro\.product\.first_api_level=(\d+)$", props.read_text(), re.M)

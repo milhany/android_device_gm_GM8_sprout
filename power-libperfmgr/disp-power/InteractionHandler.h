@@ -41,6 +41,7 @@ class InteractionHandler {
     bool Init();
     void Exit();
     void Acquire(int32_t duration);
+    void Cancel();
 
   private:
     void Release();

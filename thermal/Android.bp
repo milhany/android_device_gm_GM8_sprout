@@ -1,0 +1,10 @@
+cc_library_shared {
+    name: "thermal.gm8",
+    vendor: true,
+    relative_install_path: "hw",
+    compile_multilib: "both",
+    srcs: ["Sensors.cpp", "Thermal.cpp"],
+    header_libs: ["libhardware_headers"],
+    cflags: ["-Wall", "-Wextra", "-Werror"],
+    cpp_std: "c++17",
+}

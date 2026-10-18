@@ -34,6 +34,10 @@ ro.telephony.default_network=9,0
 # The companion framework patch selects per-phone ALLOW_DATA instead.
 ro.ril.use_legacy_data_switch=true
 
+# Android 11 supports the 64-bit host compiler on ARM64. Keep profile-guided
+# install/background filters; benchmark new installs on the experimental ROM.
+dalvik.vm.dex2oat64.enabled=true
+
 debug.sf.enable_hwc_vds=1
 debug.sf.latch_unsignaled=1
 persist.hwc.mdpcomp.enable=true
