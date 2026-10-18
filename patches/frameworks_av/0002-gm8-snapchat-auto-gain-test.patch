@@ -1,0 +1,81 @@
+--- a/services/camera/libcameraservice/api2/CameraDeviceClient.cpp
++++ b/services/camera/libcameraservice/api2/CameraDeviceClient.cpp
+@@ -229,6 +229,62 @@
+     return binder::Status::ok();
+ }
+
++// GM8 opt-in diagnostic: leave ignored manual controls out of automatic AE.
++// The legacy HAL family forwards these fields even when AE is on. This is a
++// hypothesis test, not evidence that the GM8 binary misuses them.
++static status_t applyGm8SnapchatAutoGainCompat(CameraMetadata *settings,
++        const CameraMetadata &staticInfo, const String16 &packageName,
++        bool streaming, bool reprocess, size_t requestCount, size_t physicalCount) {
++    if (!streaming || reprocess || requestCount != 1 || physicalCount != 1 ||
++            packageName != String16("com.snapchat.android") ||
++            !property_get_bool("persist.vendor.camera.gm8_auto_gain", false)) {
++        return OK;
++    }
++    const CameraMetadata &request = *settings;
++    auto fps = request.find(ANDROID_CONTROL_AE_TARGET_FPS_RANGE);
++    auto mode = request.find(ANDROID_CONTROL_MODE);
++    auto ae = request.find(ANDROID_CONTROL_AE_MODE);
++    auto lock = request.find(ANDROID_CONTROL_AE_LOCK);
++    auto intent = request.find(ANDROID_CONTROL_CAPTURE_INTENT);
++    if (fps.count != 2 || fps.data.i32[0] != 30 || fps.data.i32[1] != 30 ||
++            mode.count != 1 || mode.data.u8[0] != ANDROID_CONTROL_MODE_AUTO ||
++            ae.count != 1 || ae.data.u8[0] != ANDROID_CONTROL_AE_MODE_ON ||
++            intent.count != 1 ||
++            (intent.data.u8[0] != ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW &&
++             intent.data.u8[0] != ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD) ||
++            (lock.count != 0 &&
++             (lock.count != 1 || lock.data.u8[0] != ANDROID_CONTROL_AE_LOCK_OFF))) {
++        return OK;
++    }
++    auto iso = request.find(ANDROID_SENSOR_SENSITIVITY);
++    auto exposure = request.find(ANDROID_SENSOR_EXPOSURE_TIME);
++    auto boost = request.find(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST);
++    auto isoRange = staticInfo.find(ANDROID_SENSOR_INFO_SENSITIVITY_RANGE);
++    auto exposureRange = staticInfo.find(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE);
++    auto boostRange = staticInfo.find(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE);
++    if (iso.count != 1 || exposure.count != 1 || boost.count != 1 ||
++            isoRange.count != 2 || exposureRange.count != 2 || boostRange.count != 2 ||
++            isoRange.data.i32[0] != 100 || isoRange.data.i32[1] < 100 ||
++            exposureRange.data.i64[0] != 10263 ||
++            exposureRange.data.i64[1] < exposureRange.data.i64[0] ||
++            boostRange.data.i32[0] != 100 || boostRange.data.i32[1] <= 100 ||
++            iso.data.i32[0] != 100 || exposure.data.i64[0] != 10263 ||
++            boost.data.i32[0] != 100) {
++        return OK;
++    }
++    // Edit a copy so a failed erase does not leave a partially changed request.
++    CameraMetadata automatic(*settings);
++    if (automatic.isEmpty()) return NO_MEMORY;
++    for (uint32_t tag : {ANDROID_SENSOR_EXPOSURE_TIME, ANDROID_SENSOR_SENSITIVITY,
++                        ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST}) {
++        status_t result = automatic.erase(tag);
++        if (result != OK) return result;
++    }
++    settings->swap(automatic);
++    ALOGI("GM8 Snapchat AE compat: removed default manual sensor/ISP controls");
++    return OK;
++}
++
+ binder::Status CameraDeviceClient::submitRequestList(
+         const std::vector<hardware::camera2::CaptureRequest>& requests,
+         bool streaming,
+@@ -433,6 +489,15 @@
+
+         physicalSettingsList.begin()->metadata.update(ANDROID_REQUEST_ID,
+                 &(submitInfo->mRequestId), /*size*/1);
++        err = applyGm8SnapchatAutoGainCompat(&physicalSettingsList.begin()->metadata,
++                mDevice->info(), mClientPackageName, streaming, request.mIsReprocess,
++                requests.size(), request.mPhysicalCameraSettings.size());
++        if (err != OK) {
++            return STATUS_ERROR_FMT(CameraService::ERROR_INVALID_OPERATION,
++                    "Camera %s: unable to prepare GM8 automatic AE settings (%d)",
++                    mCameraIdStr.string(), err);
++        }
++
+         loopCounter++; // loopCounter starts from 1
+         ALOGV("%s: Camera %s: Creating request with ID %d (%d of %zu)",
+                 __FUNCTION__, mCameraIdStr.string(), submitInfo->mRequestId,

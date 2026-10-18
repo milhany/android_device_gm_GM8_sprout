@@ -10,3 +10,4 @@ persist.camera.debug.logfile              u:object_r:vendor_gm8_camera_debug_pro
 
 # App-scoped Camera2 FPS experiment, consumed by cameraserver.
 persist.vendor.camera.gm8_fps30           u:object_r:vendor_gm8_camera_fps_prop:s0 exact bool
+persist.vendor.camera.gm8_auto_gain       u:object_r:vendor_gm8_camera_fps_prop:s0 exact bool

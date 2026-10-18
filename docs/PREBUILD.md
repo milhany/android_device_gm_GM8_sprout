@@ -54,6 +54,7 @@ python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-compat.py
 python3 device/gm/GM8_sprout/tools/apply-camera-fps-compat.py
+python3 device/gm/GM8_sprout/tools/apply-camera-auto-gain-compat.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug

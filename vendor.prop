@@ -10,6 +10,8 @@ persist.camera.HAL3.enabled=1
 persist.vendor.camera.HAL3.enabled=1
 # Requires tools/apply-camera-fps-compat.py; debug builds can toggle for comparison.
 persist.vendor.camera.gm8_fps30=true
+# Diagnostic only: keep off until a controlled comparison on the matching ROM.
+persist.vendor.camera.gm8_auto_gain=false
 persist.vendor.camera.display.umax=1920x1080
 persist.vendor.camera.display.lmax=1280x720
 persist.vendor.camera.isp.clock.optmz=0

@@ -1,5 +1,8 @@
 # Snapchat recording: software HEVC experiment
 
+For the later measured 29.86 fps output, remaining darkness and a default-off
+automatic-exposure comparison, see [SNAPCHAT-AE.md](SNAPCHAT-AE.md).
+
 The supplied 2026-10-18 recording is from the 2026-10-17 ROM, before the
 power/thermal changes. The normal Camera application records correctly;
 Snapchat's live view stutters severely, with milder stutter in saved playback.
