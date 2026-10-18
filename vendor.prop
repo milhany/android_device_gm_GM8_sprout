@@ -8,6 +8,8 @@ vendor.hw.fm.init=0
 # of the stock product configuration and could perturb front-camera tuning.
 persist.camera.HAL3.enabled=1
 persist.vendor.camera.HAL3.enabled=1
+# Requires tools/apply-camera-fps-compat.py; debug builds can toggle for comparison.
+persist.vendor.camera.gm8_fps30=true
 persist.vendor.camera.display.umax=1920x1080
 persist.vendor.camera.display.lmax=1280x720
 persist.vendor.camera.isp.clock.optmz=0

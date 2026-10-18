@@ -53,11 +53,13 @@ Run from the Android source root:
 python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-compat.py
+python3 device/gm/GM8_sprout/tools/apply-camera-fps-compat.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug
 m nothing
 m android.hardware.power@1.3-service.gm-libperfmgr thermal.gm8 -j32
+m libcameraservice -j32
 m bootimage
 m target-files-package otatools
 ```

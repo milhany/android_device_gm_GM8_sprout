@@ -7,3 +7,6 @@ vendor.gm8.fingerprint.sensor            u:object_r:vendor_gm8_fingerprint_prop:
 # Exact properties written by the stock GM8 camera daemon.
 persist.vendor.camera.aeinfo              u:object_r:vendor_gm8_camera_aeinfo_prop:s0 exact string
 persist.camera.debug.logfile              u:object_r:vendor_gm8_camera_debug_prop:s0 exact string
+
+# App-scoped Camera2 FPS experiment, consumed by cameraserver.
+persist.vendor.camera.gm8_fps30           u:object_r:vendor_gm8_camera_fps_prop:s0 exact bool

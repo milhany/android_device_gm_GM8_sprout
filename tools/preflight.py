@@ -22,6 +22,12 @@ def main():
     errors = []
     warnings = []
 
+    camera_check = subprocess.run(
+        [sys.executable, str(device / "tools/apply-camera-fps-compat.py"),
+         "--top", str(top), "--check"], capture_output=True, text=True)
+    if camera_check.returncode:
+        errors.append(camera_check.stderr.strip() or "GM8 camera FPS patch check failed.")
+
     # The modem advertises RadioConfig 1.1 but rejects its preferred-data
     # command. Do not silently build the property without its framework hook.
     radio_check = subprocess.run(

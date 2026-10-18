@@ -9,3 +9,11 @@ set_prop(mm-qcamerad, vendor_gm8_camera_debug_prop)
 # legacy logfile property inside the vendor camera provider process.
 get_prop(hal_camera_default, vendor_gm8_camera_aeinfo_prop)
 get_prop(hal_camera_default, vendor_gm8_camera_debug_prop)
+
+# Read by the system camera service; vendor-public permits this Treble boundary.
+vendor_public_prop(vendor_gm8_camera_fps_prop)
+get_prop(cameraserver, vendor_gm8_camera_fps_prop)
+get_prop(shell, vendor_gm8_camera_fps_prop)
+userdebug_or_eng(`
+    set_prop(su, vendor_gm8_camera_fps_prop)
+')

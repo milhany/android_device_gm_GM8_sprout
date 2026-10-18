@@ -1,0 +1,70 @@
+--- a/services/camera/libcameraservice/api2/CameraDeviceClient.cpp
++++ b/services/camera/libcameraservice/api2/CameraDeviceClient.cpp
+@@ -49,6 +49,51 @@
+
+ namespace android {
+ using namespace camera2;
++
++// GM8: opt-in compatibility for Snapchat's observed low-light repeating request.
++// Only a supported AE FPS pair changes; capture intent, AF, exposure and ISO stay
++// under the client's/HAL's control. Other products have no enabling property.
++static status_t applyGm8SnapchatFpsCompat(CameraMetadata *settings,
++        const CameraMetadata &staticInfo, const String16 &packageName,
++        bool streaming, bool reprocess, size_t requestCount, size_t physicalCount) {
++    if (!streaming || reprocess || requestCount != 1 || physicalCount != 1 ||
++            packageName != String16("com.snapchat.android") ||
++            !property_get_bool("persist.vendor.camera.gm8_fps30", false)) {
++        return OK;
++    }
++
++    const CameraMetadata &request = *settings;
++    auto fps = request.find(ANDROID_CONTROL_AE_TARGET_FPS_RANGE);
++    auto control = request.find(ANDROID_CONTROL_MODE);
++    auto ae = request.find(ANDROID_CONTROL_AE_MODE);
++    auto intent = request.find(ANDROID_CONTROL_CAPTURE_INTENT);
++    auto aeLock = request.find(ANDROID_CONTROL_AE_LOCK);
++    if (fps.count != 2 || fps.data.i32[0] != 7 || fps.data.i32[1] != 30 ||
++            control.count != 1 || control.data.u8[0] != ANDROID_CONTROL_MODE_AUTO ||
++            ae.count != 1 || ae.data.u8[0] != ANDROID_CONTROL_AE_MODE_ON ||
++            intent.count != 1 ||
++            (intent.data.u8[0] != ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW &&
++             intent.data.u8[0] != ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD) ||
++            (aeLock.count != 0 &&
++             (aeLock.count != 1 || aeLock.data.u8[0] != ANDROID_CONTROL_AE_LOCK_OFF))) {
++        return OK;
++    }
++
++    auto available = staticInfo.find(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
++    if (available.count % 2 != 0) return OK;
++    for (size_t i = 0; i + 1 < available.count; i += 2) {
++        if (available.data.i32[i] == 30 && available.data.i32[i + 1] == 30) {
++            const int32_t fixedFps[] = {30, 30};
++            status_t result = settings->update(ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
++                    fixedFps, 2);
++            if (result == OK) {
++                ALOGI("GM8 Snapchat FPS compat: repeating AE range 7-30 -> 30-30");
++            }
++            return result;
++        }
++    }
++    return OK;
++}
+
+ CameraDeviceClientBase::CameraDeviceClientBase(
+         const sp<CameraService>& cameraService,
+@@ -367,6 +412,15 @@
+             // Callee logs
+             return STATUS_ERROR(CameraService::ERROR_PERMISSION_DENIED,
+                     "Caller does not have permission to change restricted controls");
++        }
++
++        err = applyGm8SnapchatFpsCompat(&physicalSettingsList.begin()->metadata,
++                mDevice->info(), mClientPackageName, streaming, request.mIsReprocess,
++                requests.size(), request.mPhysicalCameraSettings.size());
++        if (err != OK) {
++            return STATUS_ERROR_FMT(CameraService::ERROR_INVALID_OPERATION,
++                    "Camera %s: unable to update GM8 FPS compatibility settings (%d)",
++                    mCameraIdStr.string(), err);
+         }
+
+         physicalSettingsList.begin()->metadata.update(ANDROID_REQUEST_OUTPUT_STREAMS,
