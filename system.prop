@@ -120,3 +120,7 @@ persist.sys.camera.zsl.disabled=true
 # Legacy Keymaster can hang while generating the Wi-Fi MAC HMAC secret.
 # Persist random addresses in the existing per-network Wi-Fi store instead.
 wifi.mac_rand_no_keystore=true
+
+# Stock 3.18 has xt_qtaguid, not the Android 12 eBPF ABI.
+# Requires the paired system/bpf + system/netd patches checked by preflight.
+ro.kernel.ebpf.supported=false

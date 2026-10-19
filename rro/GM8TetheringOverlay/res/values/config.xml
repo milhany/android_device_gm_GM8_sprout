@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The stock 3.18 kernel has no Android 12 eBPF maps/programs. -->
+    <bool name="config_tether_enable_bpf_offload">false</bool>
+</resources>

@@ -1,0 +1,1 @@
+ro.kernel.ebpf.supported u:object_r:gm8_legacy_network_prop:s0 exact bool

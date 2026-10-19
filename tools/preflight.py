@@ -27,7 +27,8 @@ def main():
     # The modem advertises RadioConfig 1.1 but rejects its preferred-data
     # command. Do not silently build the property without its framework hook.
     if not args.source_only:
-        for helper in ("apply-radio-compat.py", "apply-wifi-keystore-compat.py"):
+        for helper in ("apply-radio-compat.py", "apply-wifi-keystore-compat.py",
+                       "apply-legacy-network-compat.py"):
             check = subprocess.run(
                 [sys.executable, str(device / "tools" / helper), "--top", str(top), "--check"],
                 capture_output=True, text=True)
@@ -38,6 +39,18 @@ def main():
                             version_file.read_text() if version_file.is_file() else "", re.M)
         if not version or version[1] != "32":
             errors.append("This branch requires a LineageOS 19.1 / Android 12.1 (SDK 32) source tree.")
+
+        kernel_config = top / "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig"
+        config = kernel_config.read_text() if kernel_config.is_file() else ""
+        for feature in ("CONFIG_NETFILTER_XT_MATCH_QTAGUID", "CONFIG_NETFILTER_XT_MATCH_QUOTA2",
+                        "CONFIG_NETFILTER_XT_MATCH_POLICY", "CONFIG_NETFILTER_XT_TARGET_MARK"):
+            if not re.search(r"^" + feature + r"=y$", config, re.M):
+                errors.append(f"Legacy network accounting requires built-in {feature}.")
+
+    system_props = device / "system.prop"
+    if not system_props.is_file() or not re.search(
+            r"^ro\.kernel\.ebpf\.supported=false$", system_props.read_text(), re.M):
+        errors.append("GM8 3.18 requires ro.kernel.ebpf.supported=false and its paired patches.")
 
     required = [
         "build/envsetup.sh",

@@ -112,3 +112,35 @@ line and other CPIO metadata, and recomputes the v0 boot ID. It refuses signed
 trailers or mismatched input checksums and leaves the original image intact.
 GM8's normal system-as-root boot uses properties from system/vendor; the helper
 does not modify those images. This image is for collecting bring-up logs only.
+
+## Captured bpfloader boot failure
+
+The pstore capture on 2026-10-19 confirms that /data mounted as F2FS and
+init reached load_bpf_programs. bpfloader could not create tether_error_map
+(ENOSYS / Function not implemented), exited with status 2 and triggered
+reboot,bpfloader-failed. This is a userspace-requested reboot, not evidence
+of a kernel panic or an unformatted data partition.
+
+The paired system/bpf and system/netd patches restore the legacy qtaguid/
+iptables implementation. The GM8 property, explicit system_ext SELinux label
+and tethering RRO select the supported path. The build helper applies both
+patches and preflight refuses a missing half or kernel accounting option.
+See patches/LEGACY-NETWORK.md for exact provenance and feature limitations.
+
+Build a new ROM (system, system_ext and product change); boot.img alone cannot
+carry this fix. Keep the pstore-enabled kernel for further diagnosis. The ROM
+boot image has normal recovery authentication: tools/make-recovery-adb-debug.py
+can create a separate diagnostic image again after the build if necessary.
+Do not format userdata or change slots to address this captured failure.
+
+Local checks verify real upstream patch application, repeat/check modes and
+refusal of a divergent second project without changing the first. The actual
+patched accounting command generator is compiled on the host against the
+restored upstream test expectations for both modes. Android compilation,
+SELinux policy validation and on-device boot/network tests remain pending.
+
+On a prepared source tree, repeat the host regressions with:
+
+```sh
+python3 device/gm/GM8_sprout/tools/tests/legacy_network_19_1_test.py --top .
+```

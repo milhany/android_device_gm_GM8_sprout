@@ -10,6 +10,9 @@ $(call inherit-product, frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk)
 # Retain the shipping FCM 2 contract, including its 3.18 kernel requirements.
 PRODUCT_PACKAGES += gm8_framework_compatibility_matrix.2.xml
 
+# Use software tethering on the stock kernel without Android 12 eBPF.
+PRODUCT_PACKAGES += GM8TetheringOverlay
+
 # A/B
 PRODUCT_PACKAGES += \
     update_engine \

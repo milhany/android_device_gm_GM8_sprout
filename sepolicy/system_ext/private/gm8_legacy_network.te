@@ -1,0 +1,3 @@
+# Only the paired platform loader/netd fallback reads this opt-in.
+get_prop(bpfloader, gm8_legacy_network_prop)
+get_prop(netd, gm8_legacy_network_prop)
