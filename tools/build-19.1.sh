@@ -35,6 +35,7 @@ python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
 python3 device/gm/GM8_sprout/tools/apply-legacy-network-compat.py
 python3 device/gm/GM8_sprout/tools/apply-processgroup-compat.py
+python3 device/gm/GM8_sprout/tools/fixup-legacy-protobuf.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 
 RECORD_DIR="$(dirname "${TOP}")/gm8-19.1-records/$(date -u +%Y%m%dT%H%M%SZ)"
@@ -52,6 +53,7 @@ for PROJECT in system/bpf system/netd system/core; do
     git -C "${PROJECT}" rev-parse HEAD >> "${RECORD_DIR}/revisions.txt"
     git -C "${PROJECT}" diff HEAD > "${RECORD_DIR}/${PROJECT//\//_}-local.patch"
 done
+python3 device/gm/GM8_sprout/tools/fixup-legacy-protobuf.py --check --record "${RECORD_DIR}/protobuf-fixups.json"
 echo "Build record: ${RECORD_DIR}"
 
 source build/envsetup.sh

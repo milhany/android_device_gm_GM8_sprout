@@ -159,13 +159,13 @@ PRODUCT_PACKAGES += \
 
 # The legacy Qualcomm userspace needs the Android 10 protobuf ABI. The arm64
 # snapshot contains both ARMv8 32-bit and AArch64 libraries for this device.
-# Stock ELF DT_NEEDED entries use the original SONAMEs. Install the legacy
-# copies under those names in /vendor, separate from platform/VNDK APEX libs.
+# Use isolated file/SONAMEs; the build helper prepares these from VNDK v29
+# and redirects the reviewed stock ELF dependencies to the versioned names.
 PRODUCT_COPY_FILES += \
-    prebuilts/vndk/v29/arm64/arch-arm-armv8-a/shared/vndk-core/libprotobuf-cpp-full.so:$(TARGET_COPY_OUT_VENDOR)/lib/libprotobuf-cpp-full.so \
-    prebuilts/vndk/v29/arm64/arch-arm-armv8-a/shared/vndk-core/libprotobuf-cpp-lite.so:$(TARGET_COPY_OUT_VENDOR)/lib/libprotobuf-cpp-lite.so \
-    prebuilts/vndk/v29/arm64/arch-arm64-armv8-a/shared/vndk-core/libprotobuf-cpp-full.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libprotobuf-cpp-full.so \
-    prebuilts/vndk/v29/arm64/arch-arm64-armv8-a/shared/vndk-core/libprotobuf-cpp-lite.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libprotobuf-cpp-lite.so
+    $(LOCAL_PATH)/generated/legacy-protobuf/lib/libprotobuf-cpp-full-v29.so:$(TARGET_COPY_OUT_VENDOR)/lib/libprotobuf-cpp-full-v29.so \
+    $(LOCAL_PATH)/generated/legacy-protobuf/lib/libprotobuf-cpp-lite-v29.so:$(TARGET_COPY_OUT_VENDOR)/lib/libprotobuf-cpp-lite-v29.so \
+    $(LOCAL_PATH)/generated/legacy-protobuf/lib64/libprotobuf-cpp-full-v29.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libprotobuf-cpp-full-v29.so \
+    $(LOCAL_PATH)/generated/legacy-protobuf/lib64/libprotobuf-cpp-lite-v29.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libprotobuf-cpp-lite-v29.so
 
 
 # Wi-Fi Display's vendor namespace copy is installed by the vendor tree.

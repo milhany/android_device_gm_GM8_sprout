@@ -230,3 +230,52 @@ establish the reason for zero camera enumeration: a single direct TERM of the
 provider can bypass the old broken init/cgroup path for a no-build diagnosis.
 The submitted log still reports the previous protobuf loader errors, so modem
 runtime success after the preceding SONAME fix is also not yet established.
+
+## Isolated protobuf packaging (supersedes the unsuffixed copy attempt)
+
+The first SONAME packaging repair hit a real Android build ownership conflict:
+vendor/lib/libprotobuf-cpp-full.so is also installed by a source-built module.
+Do not override that module or disable the duplicate-target check.
+
+The final approach keeps libprotobuf-cpp-{full,lite}-v29.so at distinct vendor
+paths and also rewrites the snapshots' DT_SONAME to those versioned names.
+A reviewed manifest covers seven stock consumers: ARM/ARM64 RIL and libsettings,
+ARM/ARM64 libwvdrmengine and ARM64 libwvhidl. Their DT_NEEDED entries point to
+the isolated libraries. Full/lite source-built platform modules keep their
+original targets and dependency names.
+
+tools/fixup-legacy-protobuf.py prepares four ignored generated library inputs
+from the synced VNDK v29 snapshots and fixes local vendor consumers before the
+Android build. Raw stock inputs must match their recorded SHA256 hashes, which
+also match all seven pinned proprietary-files.txt SHA1 entries. Every input
+is checked and every ELF rewrite staged before replacing any source file;
+unexpected inputs are refused without partial writes. Repeated runs preserve
+already-fixed files. The extraction hook applies the same manifest-driven fix
+and the SDK 32 build helper applies/checks it and records final hashes/tool
+version. No proprietary binary change needs to be downloaded from this device
+commit; the build uses the existing synced snapshots and vendor files.
+
+Preflight checks the isolated destinations and all required fixups, and rejects
+an unsuffixed PRODUCT_COPY_FILES target that would conflict with platform
+modules. Generated inputs live under generated/legacy-protobuf and are ignored
+by Git; the original VNDK prebuilt checkout is never modified. Sync
+prebuilts/extract-tools if its standard linux-x86/bin/patchelf-0_9 is missing.
+
+Host validation used the actual Lineage 19.1 bundled patchelf 0.9 and all four
+AOSP android-12.1.0_r22 snapshots plus all seven pinned stock ELF files. Every
+rewritten dependency and library SONAME was verified. Dynamic symbols were
+preserved in all eleven files. Apply/check/repeat and the single-blob extraction
+mode passed; a deliberately edited final stock input was rejected without
+modifying earlier inputs. Copy-target ownership checks and Python/shell/XML syntax checks pass.
+Full Android compilation and on-device modem/DRM/camera behavior remain pending.
+
+On a prepared checkout, the fixture-based regression can be repeated with:
+
+```sh
+python3 device/gm/GM8_sprout/tools/tests/protobuf_19_1_test.py --top .
+```
+
+The test reads reviewed original vendor objects from the recorded vendor Git
+revision (or matching raw files), stages its inputs in a temporary directory,
+and prepares the same ignored generated libraries. It requires readelf and the
+bundled patchelf; it never modifies the real vendor source files.

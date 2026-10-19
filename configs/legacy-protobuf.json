@@ -1,0 +1,40 @@
+{
+  "vendor_ref": "69e3e328f2d2634643a562186f9c9c403397a0c5",
+  "files": [
+    {
+      "path": "vendor/lib/libril-qc-hal-qmi.so",
+      "sha256": "a499704c7e7cc0459c1bdc02904b2164f5767158a637f9760d1d225bb0a0abfc",
+      "variant": "full"
+    },
+    {
+      "path": "vendor/lib/libsettings.so",
+      "sha256": "cc8ba496f0c30a433c0f5f5a3eb34d81f2259051f6141cf3623216f1baea2c42",
+      "variant": "full"
+    },
+    {
+      "path": "vendor/lib/mediadrm/libwvdrmengine.so",
+      "sha256": "042e0459800e34e67c73e0c7cc3e99c2f165f32dc2aa7b705492ce79741f03a8",
+      "variant": "lite"
+    },
+    {
+      "path": "vendor/lib64/libril-qc-hal-qmi.so",
+      "sha256": "c12045d390e8f8bfbd8246d9ac7baba0fb6c2ce64cea8da5868ff69550c5d102",
+      "variant": "full"
+    },
+    {
+      "path": "vendor/lib64/libsettings.so",
+      "sha256": "e9e509e1dd117141f2d82f0fde03bf7f4a6a78a583d97f3a6e215ded66e4575b",
+      "variant": "full"
+    },
+    {
+      "path": "vendor/lib64/libwvhidl.so",
+      "sha256": "e0be160de64f12f813afade03e5013b4827de3eb882e4f251f8b9f00a454f72b",
+      "variant": "lite"
+    },
+    {
+      "path": "vendor/lib64/mediadrm/libwvdrmengine.so",
+      "sha256": "5b3d2fc52c37a040e25360c97f06bd4d6db96a764c9f22433157980e9821f818",
+      "variant": "lite"
+    }
+  ]
+}

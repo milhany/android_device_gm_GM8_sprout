@@ -55,6 +55,9 @@ fi
 
 function blob_fixup() {
     case "${1}" in
+    vendor/lib/libril-qc-hal-qmi.so|vendor/lib64/libril-qc-hal-qmi.so|vendor/lib/libsettings.so|vendor/lib64/libsettings.so|vendor/lib64/libwvhidl.so|vendor/lib/mediadrm/libwvdrmengine.so|vendor/lib64/mediadrm/libwvdrmengine.so)
+        python3 "${MY_DIR}/tools/fixup-legacy-protobuf.py" --blob "${2}" --relative-path "${1}" --patchelf "${PATCHELF}"
+        ;;
     vendor/lib/libdlbdsservice.so|vendor/lib64/libdlbdsservice.so|vendor/lib/libdlbmemoryservice.so|vendor/lib64/libdlbmemoryservice.so)
         python3 "${MY_DIR}/tools/fixup-stock-dolby.py" "${2}" --patchelf "${PATCHELF}"
         ;;

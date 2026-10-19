@@ -28,7 +28,8 @@ def main():
     # command. Do not silently build the property without its framework hook.
     if not args.source_only:
         for helper in ("apply-radio-compat.py", "apply-wifi-keystore-compat.py",
-                       "apply-legacy-network-compat.py", "apply-processgroup-compat.py"):
+                       "apply-legacy-network-compat.py", "apply-processgroup-compat.py",
+                       "fixup-legacy-protobuf.py"):
             check = subprocess.run(
                 [sys.executable, str(device / "tools" / helper), "--top", str(top), "--check"],
                 capture_output=True, text=True)
@@ -89,17 +90,18 @@ def main():
                 if not (top / path).is_file():
                     errors.append(f"Missing legacy protobuf ABI: {path}")
 
-    # The stock modem/DRM ELFs request the unsuffixed protobuf SONAMEs.
-    # Copying only *-v29.so files leaves those DT_NEEDED entries unresolved.
-    device_make = device / "device.mk"
-    make_text = device_make.read_text() if device_make.is_file() else ""
-    for arch, libdir in (("arm", "lib"), ("arm64", "lib64")):
+    # Keep current platform modules and stock protobuf ABIs at separate targets.
+    make_text = (device / "device.mk").read_text()
+    for libdir in ("lib", "lib64"):
         for variant in ("full", "lite"):
-            source = (f"prebuilts/vndk/v29/arm64/arch-{arch}-armv8-a/shared/vndk-core/"
-                      f"libprotobuf-cpp-{variant}.so")
-            destination = f"$(TARGET_COPY_OUT_VENDOR)/{libdir}/libprotobuf-cpp-{variant}.so"
+            name = f"libprotobuf-cpp-{variant}-v29.so"
+            source = f"$(LOCAL_PATH)/generated/legacy-protobuf/{libdir}/{name}"
+            destination = f"$(TARGET_COPY_OUT_VENDOR)/{libdir}/{name}"
             if f"{source}:{destination}" not in make_text:
-                errors.append(f"Missing stock protobuf SONAME install: {destination}")
+                errors.append(f"Missing isolated protobuf install: {destination}")
+            plain = f"$(TARGET_COPY_OUT_VENDOR)/{libdir}/libprotobuf-cpp-{variant}.so"
+            if re.search(":" + re.escape(plain) + r"(?:\s|$)", make_text):
+                errors.append(f"Stock protobuf must not override a platform target: {plain}")
 
     xml_count = 0
     for path in device.rglob("*.xml"):
