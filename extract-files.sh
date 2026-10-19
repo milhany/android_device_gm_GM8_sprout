@@ -55,10 +55,13 @@ fi
 
 function blob_fixup() {
     case "${1}" in
+    vendor/lib/libdlbdsservice.so|vendor/lib64/libdlbdsservice.so|vendor/lib/libdlbmemoryservice.so|vendor/lib64/libdlbmemoryservice.so)
+        python3 "${MY_DIR}/tools/fixup-stock-dolby.py" "${2}" --patchelf "${PATCHELF}"
+        ;;
     vendor/lib/hw/camera.msm8937.so)
         sed -i "s/service.bootanim.exit/service.bootanim.zzzz/g" "${2}"
         ;;
-    product/lib64/libdpmframework.so)
+    product/lib64/libdpmframework.so|system_ext/lib64/libdpmframework.so)
         "${PATCHELF}" --add-needed "libshim_dpmframework.so" "${2}"
         ;;
     vendor/lib/hw/gatekeeper.msm8937.so)

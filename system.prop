@@ -29,6 +29,9 @@ persist.radio.volte.dan_support=true
 persist.radio.VT_ENABLE=1
 persist.cne.feature=1
 ro.telephony.default_network=9,0
+# This GM8 modem rejects RadioConfig 1.1 SET_PREFERRED_DATA_MODEM with error 38.
+# The companion framework patch selects per-phone ALLOW_DATA instead.
+ro.ril.use_legacy_data_switch=true
 
 debug.sf.enable_hwc_vds=1
 debug.sf.latch_unsignaled=1
@@ -113,3 +116,7 @@ ro.cutoff_voltage_mv=3200
 # ZSL/reprocess capture so Snap requests a fresh HAL-backed still frame instead
 # of re-encoding a cached YUV preview frame.
 persist.sys.camera.zsl.disabled=true
+
+# Legacy Keymaster can hang while generating the Wi-Fi MAC HMAC secret.
+# Persist random addresses in the existing per-network Wi-Fi store instead.
+wifi.mac_rand_no_keystore=true

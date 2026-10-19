@@ -28,9 +28,7 @@ persist.vendor.radio.rat_on=combine
 persist.backup.ntpServer=0.pool.ntp.org
 sys.vendor.shutdown.waittime=500
 ro.frp.pst=/dev/block/bootdevice/by-name/config
-ro.com.google.clientidbase=android-a1-gm-rev2
 ro.product.first_api_level=26
-ro.config.ringtone=GeneralMobile.mp3
 drm.service.enabled=true
 persist.radio.multisim.config=ssss
 af.fast_track_multiplier=1
@@ -79,3 +77,10 @@ ro.hardware.vibrator=msm8937
 # Keep explicit HAL1 compatibility only for legacy video-call clients.
 vendor.camera.hal1.packagelist=com.skype.raider,com.google.android.talk
 vendor.camera.aux.packagelist=org.codeaurora.snapcam,org.lineageos.snap,com.android.camera
+
+# Report the actual GM8 thermal zones through the legacy HAL wrapper.
+ro.hardware.thermal=gm8
+
+# DPM is installed on system_ext; its vendor-owned property belongs on vendor.
+persist.vendor.dpm.feature=1
+persist.vendor.dpm.loglevel=0

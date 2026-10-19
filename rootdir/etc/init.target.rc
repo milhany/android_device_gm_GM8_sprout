@@ -1,12 +1,5 @@
-# Persist the firmware-detected SIM topology after /data/property is ready.
-# init.qcom.class_core.sh performs the early detection and stores the result in
-# vendor.gm8.multisim.config. Either property may become ready first. Only copy
-# a supported, non-empty value; an unknown variant keeps the existing setting.
-on property:vold.post_fs_data_done=1 && property:vendor.gm8.multisim.config=dsds
-    setprop persist.radio.multisim.config dsds
-
-on property:vold.post_fs_data_done=1 && property:vendor.gm8.multisim.config=ssss
-    setprop persist.radio.multisim.config ssss
+# SIM mode defaults to ssss in vendor.prop. Keep an explicitly persisted dsds
+# selection; variant detection and boot-time SIM-mode overrides are disabled.
 
 # Copyright (c) 2014-2015,2018, The Linux Foundation. All rights reserved.
 #
@@ -56,7 +49,7 @@ on fs
 
     # Legacy GM8 Qualcomm blobs still use /persist while Android 12 mounts the
     # partition at /mnt/vendor/persist.  Bind the modern mount to the legacy
-    # path so calibration/regionalization (including SIM topology) is visible.
+    # path so calibration and regionalization data remain visible.
     mkdir /persist 0771 root system
     mount none /mnt/vendor/persist /persist bind
 
@@ -98,7 +91,9 @@ on post-fs-data
     mkdir /data/vendor_de/sunwave/dump 0700 system system
     mkdir /data/vendor_de/sunwave/badpoint 0700 system system
     restorecon_recursive /data/vendor_de/sunwave
-    mkdir /data/vendor/dolby 0770 media media
+    # Stock Dolby's database path is relocated into vendor-owned storage.
+    mkdir /data/vendor/ds 0770 media media
+    restorecon_recursive /data/vendor/ds
 
 
 #Create folder for mm-qcamera-daemon
@@ -155,13 +150,6 @@ service perfd /system/vendor/bin/perfd
    class main
    user root
    disabled
-
-service gamed /system/vendor/bin/gamed
-   class main
-   user system
-   group system
-   disabled
-   socket gamed seqpacket 0640 system system
 
 service thermal-engine /system/vendor/bin/thermal-engine
    class main

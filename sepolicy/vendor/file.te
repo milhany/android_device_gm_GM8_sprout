@@ -9,3 +9,9 @@ type sysfs_healthd, fs_type, sysfs_type, mlstrustedobject;
 type debugfs_rpm, debugfs_type, fs_type;
 type sysfs_msm_subsys, sysfs_type, fs_type;
 
+# Only the three TCP controls written by the Qualcomm Wi-Fi HAL.
+type vendor_proc_wifi_tcp, fs_type, proc_type, proc_net_type;
+
+# MDSS display idle notification (read-only power hint input).
+type vendor_sysfs_fb_idle, fs_type, sysfs_type;
+

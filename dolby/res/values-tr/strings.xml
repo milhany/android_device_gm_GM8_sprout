@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dolby Audio</string>
+    <string name="enabled">Dolby Audio</string>
+    <string name="profile">Ses profili</string>
+    <string name="description">GM8’in orijinal hoparlör ve kulaklık ses ayarları</string>
+    <string name="starting">Dolby başlatılıyor…</string>
+    <string name="active">Dolby etkin</string>
+    <string name="inactive">Dolby kapalı</string>
+    <string name="unavailable">Dolby kullanılamıyor.</string>
+    <string name="paused">Dolby ses hatası nedeniyle durduruldu. Yeniden denemek için düğmeye dokunun.</string>
+    <string name="retry">Dolby’yi yeniden dene</string>
+    <string name="primary_user_only">Ses profillerini ana kullanıcı yönetir.</string>
+    <string-array name="profiles">
+        <item>Film</item><item>Müzik</item><item>Oyun</item>
+        <item>Konuşma</item><item>Özel 1</item><item>Özel 2</item>
+    </string-array>
+</resources>

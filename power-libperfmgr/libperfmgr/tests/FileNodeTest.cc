@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <thread>
 
 #include "perfmgr/FileNode.h"
@@ -36,6 +37,25 @@ static inline void _VerifyPathValue(const std::string& path,
     std::string s;
     EXPECT_TRUE(android::base::ReadFileToString(path, &s)) << strerror(errno);
     EXPECT_EQ(value, s);
+}
+
+// Policy alias disappears on CPU hotplug and is resolved again on each update.
+TEST(FileNodeTest, HotplugFallbackTest) {
+    TemporaryDir dir;
+    const std::string primary = std::string(dir.path) + "/cpu0";
+    const std::string sibling = std::string(dir.path) + "/cpu1";
+    ASSERT_TRUE(android::base::WriteStringToFile("", sibling));
+    FileNode node("cluster", primary, {{"boost"}, {"default"}}, 1, true,
+                  false, {sibling});
+    node.Update(false);
+    _VerifyPathValue(sibling, "default");
+    ASSERT_TRUE(node.AddRequest(0, "LAUNCH", ReqTime::max()));
+    node.Update(false);
+    _VerifyPathValue(sibling, "boost");
+    ASSERT_EQ(0, rename(sibling.c_str(), primary.c_str()));
+    ASSERT_TRUE(node.RemoveRequest("LAUNCH"));
+    node.Update(false);
+    _VerifyPathValue(primary, "default");
 }
 
 // Test init with no default value

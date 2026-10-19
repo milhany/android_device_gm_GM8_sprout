@@ -12,7 +12,7 @@ for prop in \
     ro.product.first_api_level ro.vndk.version ro.secure ro.adb.secure ro.debuggable \
     ro.boot.mode ro.boot.verifiedbootstate ro.boot.flash.locked ro.boot.vbmeta.device_state \
     ro.crypto.state ro.crypto.type \
-    persist.radio.multisim.config vendor.gm8.multisim.config persist.vendor.gm8.multisim_override \
+    persist.radio.multisim.config \
     persist.sys.usb.config persist.vendor.usb.config \
     init.svc.vendor.qcrild init.svc.vendor.qcrild2 init.svc.keymaster-3-0 \
     init.svc.vendor.qseecomd init.svc.qteeconnector-hal-1-0; do

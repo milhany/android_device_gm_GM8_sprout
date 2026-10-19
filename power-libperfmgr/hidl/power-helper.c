@@ -116,8 +116,11 @@ static int extract_stats(uint64_t *list, char *file,
 
     fp = fopen(file, "re");
     if (fp == NULL) {
-        ALOGE("%s: failed to open: %s Error = %s", __func__, file, strerror(errno));
-        return -errno;
+        int error = errno;
+        // Optional RPM debugfs interface is absent on some kernels.
+        if (error != ENOENT && error != ENOTDIR)
+            ALOGE("%s: failed to open: %s Error = %s", __func__, file, strerror(error));
+        return -error;
     }
 
     line = malloc(len);

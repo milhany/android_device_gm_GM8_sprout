@@ -1,0 +1,22 @@
+--- a/src/java/com/android/internal/telephony/RadioConfig.java
++++ b/src/java/com/android/internal/telephony/RadioConfig.java
+@@ -39,6 +39,7 @@
+ import android.os.Message;
+ import android.os.Registrant;
+ import android.os.RemoteException;
++import android.os.SystemProperties;
+ import android.os.WorkSource;
+ import android.telephony.TelephonyManager;
+ import android.util.SparseArray;
+@@ -440,6 +441,11 @@
+      * See PhoneSwitcher for more details.
+      */
+     public boolean isSetPreferredDataCommandSupported() {
++        // GM8 exposes RadioConfig 1.1 but rejects preferred-data switching.
++        // Opt in to PhoneSwitcher's existing per-phone ALLOW_DATA path.
++        if (SystemProperties.getBoolean("ro.ril.use_legacy_data_switch", false)) {
++            return false;
++        }
+         IRadioConfig radioConfigProxy = getRadioConfigProxy(null);
+         return radioConfigProxy != null && mRadioConfigVersion
+                 .greaterOrEqual(RADIO_CONFIG_HAL_VERSION_1_1);

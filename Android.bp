@@ -1,7 +1,8 @@
 subdirs = [
+    "dolby",
     "light",
-    "settingsbridge",
+    "thermal",
 ]
 soong_namespace {
-    imports: ["hardware/qcom/bootctrl"],
+    imports: ["hardware/qcom-caf/bootctrl"],
 }

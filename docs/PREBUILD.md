@@ -1,284 +1,125 @@
-# GM8 Android 12.1 rework: build and device validation
+# GM8 LineageOS 19.1 bring-up
 
-Use `lineage-19.1` for all three GM8 repositories. The product is
-`gm_GM8_sprout`; it uses the LineageOS 19.1 source base with a GM/AOSP-facing
-application profile. This tree is not an OEM-certified Android 12.1 release.
+Use `lineage-19.1` for all three GM8 repositories and a complete LineageOS 19.1 /
+Android 12.1 source tree (SDK 32). Lunch: `lineage_GM8_sprout-userdebug`.
+The full Lineage phone profile, LineageParts, SetupWizard, Updater and themes are
+restored. The old `gm_GM8_sprout` product and SettingsBridge are removed.
+AudioFX is excluded because stock Dolby owns the global audio mix.
 
-## Source setup
+This prepares sources for bring-up. Android 12.1 build/boot/hardware validation
+is still required. See [the migration record](BRINGUP-19.1.md).
 
-Start from a complete LineageOS 19.1 checkout, including its Qualcomm projects,
-Lineage SDK, extract-utils and VNDK 28/29/30/31 snapshots. Add the projects in
-`docs/local_manifest.xml` to your local manifest, avoiding duplicate project
-paths if they are already present:
+## Separate source checkout
 
-| Repository | Checkout path |
-| --- | --- |
-| `milhany/android_device_gm_GM8_sprout` | `device/gm/GM8_sprout` |
-| `milhany/proprietary_vendor_gm_GM8_sprout` | `vendor/gm/GM8_sprout` |
-| `milhany/android_kernel_gm_msm8937` | `kernel/gm/msm8937` |
-
-`BoardConfig.mk` imports `device/lineage/sepolicy/common/sepolicy.mk` and
-`device/qcom/sepolicy-legacy-um/SEPolicy.mk`. The latter comes from
-`LineageOS/android_device_qcom_sepolicy`, branch `lineage-19.1-legacy-um`.
-The kernel expects the aarch64 Android GCC 4.9 prebuilt path in BoardConfig.
-
-The product requires Android 12.1 ARM64 GApps before lunch. For the first checkout:
+Run inside the existing Ubuntu 22.04 build container as builder, in tmux.
+Keep the working 18.1 source/output available.
 
 ```sh
-bash device/gm/GM8_sprout/setup-gapps.sh
-git -C vendor/gapps rev-parse HEAD
+mkdir -p ~/android/lineage-19.1
+cd ~/android/lineage-19.1
+set -o pipefail
+repo init -u https://github.com/LineageOS/android.git -b lineage-19.1 --no-clone-bundle
+mkdir -p .repo/local_manifests
+curl -fL https://raw.githubusercontent.com/milhany/android_device_gm_GM8_sprout/lineage-19.1/docs/local_manifest.xml -o .repo/local_manifests/gm8.xml
+repo sync -c -j16 --no-clone-bundle --fail-fast 2>&1 | tee ~/android/gm8-19.1-sync.log
 ```
 
-Record that full SHA. For a reproducible subsequent checkout, pass the recorded
-40-character MindTheGapps commit as the sole argument to `setup-gapps.sh`.
-The helper refuses dirty or unexpected checkouts and never resets local work.
-Without a SHA it follows `sigma` using fast-forward updates; a detached checkout
-requires an explicit SHA. Review local commits if your `sigma` is ahead of upstream.
+The local manifest adds only the three GM8 repos. Upstream supplies Qualcomm
+CAF, sepolicy-legacy-um (lineage-19.1-legacy-um), Lineage SDK, extract-utils,
+GCC 4.9 and VNDK snapshots. Do not replace a failed public project with an
+arbitrary newer branch: mixed Soong/LLVM revisions caused earlier build failures.
+Diagnose the specific failed repository URL.
 
-Before each build, save `repo manifest -r -o <build-record.xml>` outside the
-source repositories. Record the GApps SHA separately if the helper cloned it
-outside `repo`, along with any local changes and the signing-key identifiers.
-Do not include private signing material in Git or in the build record.
+Check disk space before sync and the full build: both the second source and
+its output need space. Use the container's existing bind-mounted Android
+directory, not its ephemeral writable image layer.
 
-## Build gates
+## Build gates and logs
 
-Run from the Android source root:
+The helper prepares pinned ARM64 Android 12.1 GApps, applies the Android 12.1
+radio/Wi-Fi patches, runs full preflight, records revisions/local framework
+patches and selects lunch. It stops at the first failure and never resets
+existing changes.
 
 ```sh
+cd ~/android/lineage-19.1
+set -o pipefail
+bash device/gm/GM8_sprout/tools/build-19.1.sh boot 2>&1 | tee ~/android/gm8-19.1-boot.log
+```
+
+This runs `m nothing`, then `m bootimage -j32`. After both pass:
+
+```sh
+bash device/gm/GM8_sprout/tools/build-19.1.sh rom 2>&1 | tee ~/android/gm8-19.1-build.log
+```
+
+`rom` runs the graph gate then `m bacon -j32`; `check` runs only the graph.
+The default is `boot`. Timestamped records are in the sibling
+`gm8-19.1-records` directory. GApps sigma is pinned to
+`f75a18fd21f0ceaa73b3c2c01bdb257aff976f2f`; use an explicit reviewed SHA when
+updating it. Do not reuse Android 11 rho GApps here.
+
+Manual preparation after each framework sync:
+
+```sh
+bash device/gm/GM8_sprout/setup-gapps.sh f75a18fd21f0ceaa73b3c2c01bdb257aff976f2f
+python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
+python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 source build/envsetup.sh
-lunch gm_GM8_sprout-userdebug
+lunch lineage_GM8_sprout-userdebug
 m nothing
-m bootimage
-m target-files-package otatools
+m bootimage -j32
 ```
 
-Preflight checks files and syntax, not every Make conditional, Soong module,
-binary dependency or ABI. `m nothing` validates the selected build graph; the
-full target-files build is required to verify compilation, linking and images.
+Preflight checks inputs, XML/JSON, Dolby hashes, SDK, compatibility patches and
+stale QTI relocation paths. It does not prove modules, ELF ABI, linking, VINTF
+or SELinux correctness. `--source-only` reviews an isolated device/vendor pair
+and does not satisfy the build gate. Keep neverallows/compatibility checks.
 
-- [ ] All source and GApps revisions recorded; no unexplained local changes.
-- [ ] Correct GCC prebuilt is present and runnable on the build host.
-- [ ] `hardware/qcom-caf/common/fwk-detect/Android.bp` is present from
-      `LineageOS/android_hardware_qcom-caf_common`, branch `lineage-19.1`.
-      It provides `libqti_vndfwk_detect` with a vendor variant and both ARM and
-      ARM64 builds. Use that source provider instead of defining duplicate
-      modules for the unused blobs in the GM8 vendor directory.
-- [ ] The VNDK v29 snapshot provides the protobuf libraries copied as
-      `libprotobuf-cpp-{full,lite}-v29.so`. Check both ARM and ARM64 install
-      paths needed by the old blobs.
-- [ ] No missing HAL/service modules, ELF dependencies, VINTF incompatibilities,
-      or SELinux neverallow failures. Do not suppress these build gates.
-- [ ] Final boot/system/vendor image sizes fit BoardConfig partition limits.
-      GApps and filesystem overhead must be included; blob file sizes alone
-      are not sufficient. Validate A/B slot switching, recovery and OTA.
-- [ ] Inspect the generated target-files properties. `device.mk` inherits the
-      Android O launch product and `vendor.prop` declares first API 26. Keep
-      that original GM8 launch metadata authoritative; do not change it just
-      to influence an Integrity result.
+Both ARM and ARM64 v29 full/lite protobuf copies are required. The bootctrl
+namespace is hardware/qcom-caf/bootctrl. The build system includes Lineage
+BoardConfig/common policy itself: do not duplicate these includes. Android 12.1
+platform policy covers camera-property readers; Android 11-only snap_app and
+gallery_app policy is not used.
 
-Do not regenerate the vendor makefiles blindly with `setup-makefiles.sh`: the
-rework vendor tree has manual module and compatibility adjustments. Review the
-generated diff and retain those adjustments when re-extracting stock blobs.
+## Installation and hardware gates
 
-## Data, charging and SIM release gates
+- Check generated boot/system/vendor sizes against A/B partition limits,
+  including GApps and filesystem overhead. Keep the partition layout.
+- A boot image is not a complete Android 12.1 installation. Prepare matching
+  ROM/recovery before flashing. The helper never flashes or formats.
+- /data remains F2FS with encryptable=footer. Identify the current filesystem,
+  encryption and recovery decryption support before an installation plan.
+  Back up phone data before the major-version transition; dirty-flash support
+  has not been validated.
+- First boot: check setup/SystemUI, enforcing SELinux and service restart loops.
+  Then test WPA2 with mobile data off, Bluetooth, calls/SMS and data.
+- Single SIM defaults to ssss; persisted dsds is respected. Test both SIMs,
+  voice in both directions, data switching and reboots. Automatic detection
+  and a TWRP selection mechanism are not added.
+- Test Dolby initialization/profiles/playback, calls, headphones and reboots.
+  See [Dolby](DOLBY.md).
+- Test front/rear photos/video/audio, Snapchat, GNSS and fingerprint variants.
+  CPU HEVC encoding is excluded; AVC encoding and HEVC decoding remain.
+  HEVC-only recording apps may need separate handling.
+- Initial bring-up excludes experimental WPA3 kernel/supplicant and Snapchat
+  FPS/AE request rewriting. WPA3 support is not claimed here.
+- Test screen-off suspend, saver and CPU temperatures. thermal.gm8 reports
+  sensors; the empty thermal-engine policy remains an open warning. Kernel/
+  firmware protection, JEITA and charger limits are retained and need testing.
+- Android O launch API 26 remains authoritative. A cmdline display filter does
+  not lock the bootloader or guarantee an Integrity verdict.
 
-- [ ] `/data` is currently F2FS-only in the shared Android/recovery fstab.
-      Identify the existing filesystem and encryption state first. An ext4
-      installation is not converted by this fstab; formatting erases its data.
-      Test clean install, encrypted boot, recovery decryption and OTA migration
-      on backed-up hardware before choosing a migration procedure.
-- [ ] `encryptable=footer` permits unencrypted data. Switching to forced
-      encryption requires a tested filesystem/recovery migration plan; it is
-      not an Integrity property tweak.
-- [ ] The charger mutex fix releases the profile lock when the BMS voltage
-      read fails. Recheck unplug/replug and suspend/resume around low battery.
-- [ ] Charger DTS limits are still TA input 2000 mA / charge 1980 mA. The vendor
-      `thermal-engine.conf` has no explicit policy. Verify actual thermal-engine
-      behavior, JEITA, hot/cold stops, every mitigation level and USB SDP/CDP/DCP
-      current limits using the original adapter and representative USB hosts.
-      Do not raise these limits further without measurements. The final thermal
-      mitigation level must stop charging. Factory BatteryTestStatus must remain
-      zero during normal operation; it bypasses the thermal level setter.
-- [ ] Test both GM8 single-SIM and GM8_d dual-SIM hardware. Check detected
-      `vendor.gm8.multisim.config`, persisted `persist.radio.multisim.config`,
-      modem startup, calls/SMS/data and IMS on each supported SIM.
-- [ ] On dual-SIM firmware, verify `vendor.qcrild2` and second-slot QTI HAL
-      registrations. The manifest declares the companion audio, OEM hook,
-      IMS, QtiRadio and UIM services for both slots, using the existing versions.
-      `IQcRilAudio/slot2` and `IQtiOemHook/oemhook1` must be available: basic
-      `IRadio/slot2` call setup alone does not prove voice audio or data control
-      works. A shell `lshal` query denied by SELinux is not proof of absence;
-      inspect early service registration/client errors as well.
-- [ ] Test incoming/outgoing SIM2 calls with earpiece and speaker, checking
-      both audio directions. Repeat on SIM1. During an active SIM2 call, QTI
-      voice parameters must activate the matching VSID session; audio mode 2
-      with all sessions inactive is not success. The `voice2-call speaker`
-      microphone route uses the kernel's `TERT_MI2S_TX_Voice2` control.
-- [ ] With Wi-Fi off and no call active, select SIM2 for mobile data and verify
-      actual Internet access, then switch to SIM1 and back. Capture radio logs
-      for OEM-hook availability, DDS selection and data-call errors if it fails.
-      Test IMS/VoLTE only where the SIM, carrier and modem firmware support it;
-      these declarations do not provision IMS or enable dual active calls/data.
-- [ ] The framework's configured physical slot count is 1, but Android 12.1's
-      UiccController raises it to at least the active phone count. Therefore this
-      overlay alone does not establish a SIM2 failure. Confirm early detection
-      and real HAL registrations before changing slot/IMS declarations.
-- [ ] The two `vendor.gm8` variant properties use `vendor_radio_prop`, which the
-      matching Qualcomm init policy permits. Check enforcing-mode AVCs and
-      access to the firmware/persist identity sources on actual hardware.
-      The persist action now waits for both a recognized `dsds`/`ssss` result
-      and post-fs-data completion, whichever arrives last. This prevents an
-      empty or late result from being missed; it does not supply a missing
-      firmware identity or guarantee that the detector actually runs.
+Use tools/collect-hardware-state.sh, [telephony](TELEPHONY.md),
+[Wi-Fi KeyStore](WIFI_KEYSTORE.md), [power](POWER.md) and [thermal](THERMAL.md).
+Capture live logcat while reproducing a failure. Boot-only logs do not exercise
+camera recording, satellite acquisition or SIM2 data switching.
 
-## Stock appearance and functional checks
+Do not regenerate vendor makefiles blindly: manual module/compatibility
+adjustments must survive re-extraction. Review paths and Dolby fixups.
 
-The framework overlay now selects round icon assets and a circular adaptive
-icon mask. Verify after first boot and after an OTA: a previously selected
-launcher/theme overlay may override the default. Check the effective mask
-before clearing launcher data, which would erase the home-screen layout.
-
-The stock wallpaper asset is not supplied in these sources. Add an authorized
-stock image as `wallpaper/default_wallpaper.jpg` when available; the build also
-accepts the historical root-level filenames. The wallpaper property is emitted
-only when an asset is actually copied, otherwise Android uses its fallback.
-
-The stock GeneralMobile ringtone and boot animation are already supplied.
-Several applications remain AOSP/Lineage implementations; changing their names
-does not make them the OEM applications. Preserve the Lineage SDK and settings
-runtime required by this source base when removing visible branding.
-
-- [ ] Circular launcher icons, wallpaper, ringtone and setup flow.
-- [ ] Screen brightness, rotation, sleep/wake, both supported touch controllers
-      and repeated double-tap-to-wake toggles without HAL failures.
-- [ ] Front/rear camera, video audio, fingerprint, sensors, Wi-Fi, Bluetooth,
-      GNSS cold/warm starts, cellular data and VoLTE where provisioned.
-- [ ] Check `vendor.gm8.fingerprint.sensor` and the `GM8Fingerprint` startup
-      message. A bound FPC driver with an IRQ node selects `fpc_fps_hal`; a
-      Sunwave character device selects `vendor.fps_hal` plus its extension.
-      Neither or both markers leave the HALs disabled with an explicit error.
-      This follows the kernel's selection; it does not validate or override the
-      physical GPIO ID. Check `/proc/fp_info` and kernel probe logs if selection
-      disagrees with known stock behavior.
-- [ ] The device rc overrides the AOSP `vendor.fps_hal` definition so the
-      generic Sunwave module cannot start unconditionally and claim the default
-      fingerprint service on an FPC device. Confirm only the selected default
-      HAL registers. On FPC, `/data/fpc` must be system:system 0700 with
-      `fingerprint_vendor_data_file`, and the existing ueventd rules must give
-      system access to the driver's IRQ, reset and wakeup nodes. Test enrollment,
-      unlock and template persistence after reboot on both sensor variants.
-- [ ] Sunwave's fixed `/data/vendor_de/sunwave` cache and its dump/badpoint
-      directories are created as system:system 0700 and labeled
-      `fingerprint_vendor_data_file`. Verify `/dev/sunwave_fp`, HAL startup,
-      enrollment, unlock and persistence after reboot. Storage setup alone does
-      not prove the sensor or TEE initialization succeeds.
-- [ ] Charging at rest/load, deep sleep, battery saver and thermal behavior.
-- [ ] Charging LED with the screen off, at low/medium/full charge and after
-      unplugging. The Lineage SDK overlay advertises RGB notification and
-      battery support (67); timed pulsing is not implemented by this light HAL.
-      An active notification/attention request takes priority over the battery
-      state. Dismissing it must restore the charging color, and subsequent
-      battery updates must not erase an active notification.
-- [ ] USB charging, file transfer and user-enabled ADB. On a clean `user` build,
-      the vendor script defaults to `none` instead of a diagnostic/ADB
-      composition. An existing explicit persistent USB selection is preserved.
-
-## Hardware logs from Windows
-
-`tools/collect-hardware-state.sh` runs on Android and keeps stderr in the report.
-It records caller identity, installed configuration hashes, SIM firmware hints,
-radio/audio state, Sunwave paths, CPU nodes, active GNSS requests and network
-state. It does not request root or change the device configuration. Permission
-errors are useful evidence; a missing stdout line alone is not proof that a
-device node is absent.
-
-From a Windows platform-tools directory, copy this script beside `adb.exe`:
-
-```powershell
-.\adb.exe push .\collect-hardware-state.sh /data/local/tmp/gm8-hardware-state.sh
-.\adb.exe shell sh /data/local/tmp/gm8-hardware-state.sh > gm8-hardware-state.txt
-```
-
-Capture early HAL and variant failures immediately after a reboot: start
-`adb logcat -b all -v threadtime` as soon as adb reconnects and save it on the
-host while exercising the device. A later `logcat -d` can retain early system
-messages while the main buffer containing HAL initialization has already wrapped.
-
-For a SIM2 reproduction, start this in one PowerShell window before placing the
-call or selecting SIM2 data, then stop with Ctrl+C after the failure:
-
-```powershell
-.\adb.exe logcat -b main -b system -b radio -v threadtime > gm8-sim2-live.txt
-```
-
-Run the hardware collector from another window while the call is active. Note
-which slot, audio route and data SIM were selected. Do not clear the log buffers
-first; startup registration errors may be needed. Logs may contain phone numbers,
-subscriber/network details and location; redact them before public sharing.
-
-Keep a GNSS test app open in the foreground with location permission during the
-hardware capture, even if it never gets a fix. Verify an active GPS request,
-satellite-status/CN0 reports and satellites used in a fix. A coarse position with
-hundreds of kilometres of uncertainty is not a valid satellite fix, even if a
-report/TTFF counter increases.
-If XTRA or NTP fails, compare with the current default network and DNS state;
-an app-wide DNS failure is not proof of a GNSS-specific configuration fault.
-Use working SIM1 data or validated Wi-Fi to isolate this from the SIM2 data
-failure, then repeat outdoors with a clear sky view. Record per-satellite C/N0,
-satellites used, fix accuracy and elapsed time. A different phone's faster fix
-does not distinguish GM8 antenna/RF, firmware and aiding failures by itself.
-Changing NTP servers or reported accuracy thresholds does not increase receiver
-sensitivity; keep RF/antenna diagnosis open if useful satellite signals remain
-absent with a working network and an active GNSS request.
-
-A boot-only log does not exercise satellite acquisition. Android trying GNSS
-2.1 and then connecting to the installed 2.0 service is normal version fallback.
-An old modem can reject optional clock-estimator/blacklist/constellation commands;
-those messages alone do not prove that basic positioning has failed. Capture
-the actual no-fix attempt: start `adb logcat -b main -b system -v threadtime`
-before opening the GNSS app, leave the request active for two minutes, then run
-the hardware collector while the app is still open. Record zero satellites or
-zero C/N0 too; a successful fix is not a prerequisite for a useful capture.
-
-## Release signing and Play Integrity
-
-After debugging, build the actual `gm_GM8_sprout-user` target and sign its
-target-files/OTA with your own protected release keys using the Android 12.1
-release tools. Keep platform/shared/media/networkstack/APK and OTA key mappings
-consistent, and preserve the signing requirements of PRESIGNED GApps. Plan key
-rotation and upgrades from earlier test-key installations before distribution.
-Changing `ro.build.tags` to `release-keys` does not sign an image. A stock public
-certificate does not provide the OEM private key.
-
-Test a clean release environment with enforcing SELinux, working GMS and the
-stock-compatible Keymaster/QSEE stack. The active Keymaster HAL is 3.0; the
-presence of unused 4.0 blobs is not a reason to enable a second service. Retain
-the genuine boot state exposed by the bootloader and `/proc/cmdline`.
-
-Collect a concise read-only report from a connected, authorized device:
-
-```sh
-bash device/gm/GM8_sprout/tools/collect-device-state.sh > gm8-device-state.txt
-```
-
-Run the Integrity checker separately and save its raw verdict or API error,
-checker name/version, test time and whether BASIC was requested. For diagnosis,
-inspect Keymaster/QSEE/GMS and SELinux logs locally; redact personal data before
-sharing logs. Keep the attestation certificate-chain error distinct from a
-Play Integrity API failure.
-
-`MEETS_BASIC_INTEGRITY` is an optional verdict and can allow an unlocked
-bootloader. Source changes and release signing do not guarantee Google's
-server-side verdict. Do not relock this custom ROM without a verified supported
-boot/signing chain. If the original attestation provisioning is damaged, these
-tree fixes do not recreate its hardware-backed identity.
-
-References:
-
-- [Android release signing](https://source.android.com/docs/core/ota/sign_builds)
-- [Play Integrity verdict meanings](https://developer.android.com/google/play/integrity/verdicts)
-- [Android 12.1 UiccController](https://github.com/LineageOS/android_frameworks_opt_telephony/blob/lineage-19.1/src/java/com/android/internal/telephony/uicc/UiccController.java)
-- [Qualcomm framework detection library](https://github.com/LineageOS/android_hardware_qcom-caf_common/blob/lineage-19.1/fwk-detect/Android.bp)
-- [Qualcomm companion HAL instances on LineageOS 19.1](https://github.com/LineageOS/android_device_xiaomi_msm8953-common/blob/lineage-19.1/manifest.xml)
-- [GM8 Voice2 kernel mixer controls](https://github.com/milhany/android_kernel_gm_msm8937/blob/lineage-19.1/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c)
+After hardware validation, use lineage_GM8_sprout-user and Android 12.1 release
+tools with protected keys. Preserve PRESIGNED GApps requirements and plan
+upgrades from test-key builds. Build tags and reported boot-state filtering
+do not provide release signatures, OEM provisioning or guaranteed Integrity.

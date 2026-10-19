@@ -18,8 +18,8 @@ cat /proc/uptime
 for prop in ro.build.display.id ro.build.date ro.vendor.build.date \
     ro.boot.slot_suffix ro.debuggable ro.boot.hardware.sku ro.boot.hwc \
     ro.boot.product.device ro.boot.product.name gsm.version.baseband \
-    persist.radio.multisim.config vendor.gm8.multisim.config \
-    persist.vendor.gm8.multisim_override vold.post_fs_data_done \
+    persist.radio.multisim.config \
+    vold.post_fs_data_done \
     init.svc.qcom-c_core-sh init.svc.vendor.qcrild init.svc.vendor.qcrild2 \
     vendor.gm8.fingerprint.sensor init.svc.vendor.gm8-fingerprint-init \
     init.svc.vendor.fps_hal init.svc.fpc_fps_hal \
@@ -41,17 +41,6 @@ ps -AZ | grep -E 'qcrild|rild|qcrilmsgtunnel|ims'
 grep -E 'vendor.qti.hardware.radio|IQcRilAudio|IQtiOemHook|IImsRadio|IQtiRadio|<instance>' \
     /vendor/etc/vintf/manifest.xml
 dumpsys audio
-
-section 'Firmware variant sources'
-ls -ldZ /mnt/vendor/persist /mnt/vendor/persist/speccfg /persist
-for path in /vendor/firmware_mnt/verinfo/ver_info.txt \
-    /mnt/vendor/persist/gm8_variant \
-    /mnt/vendor/persist/speccfg/vendor_ro.prop \
-    /mnt/vendor/persist/speccfg/vendor_persist.prop \
-    /mnt/vendor/persist/speccfg/spec \
-    /mnt/vendor/persist/speccfg/devicetype; do
-    show_file "$path"
-done
 
 section 'Fingerprint device, storage and services'
 show_file /proc/fp_info

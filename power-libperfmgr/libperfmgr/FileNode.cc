@@ -18,6 +18,7 @@
 #define LOG_TAG "libperfmgr"
 
 #include "perfmgr/FileNode.h"
+#include "perfmgr/NodePaths.h"
 
 #include <cerrno>
 #include <cstring>
@@ -36,10 +37,11 @@ namespace perfmgr {
 FileNode::FileNode(std::string name, std::string node_path,
                    std::vector<RequestGroup> req_sorted,
                    std::size_t default_val_index, bool reset_on_init,
-                   bool hold_fd)
+                   bool hold_fd, std::vector<std::string> fallback_paths)
     : Node(std::move(name), std::move(node_path), std::move(req_sorted),
            default_val_index, reset_on_init),
       hold_fd_(hold_fd),
+      fallback_paths_(std::move(fallback_paths)),
       warn_timeout_(
           android::base::GetBoolProperty("ro.debuggable", false) ? 5ms : 50ms) {
 }
@@ -63,8 +65,9 @@ std::chrono::milliseconds FileNode::Update(bool log_error) {
             req_sorted_[value_index].GetRequestValue();
 
         android::base::Timer t;
-        const int new_fd = TEMP_FAILURE_RETRY(
-            open(node_path_.c_str(), O_WRONLY | O_CLOEXEC | O_TRUNC));
+        std::string opened_path = node_path_;
+        const int new_fd = OpenNodePaths(node_path_, fallback_paths_,
+                                        O_WRONLY | O_CLOEXEC | O_TRUNC, &opened_path);
         // Preserve open's errno before reset closes the previous descriptor.
         const int open_error = new_fd == -1 ? errno : 0;
         fd_.reset(new_fd);
@@ -73,7 +76,7 @@ std::chrono::milliseconds FileNode::Update(bool log_error) {
             const int io_error = fd_ == -1 ? open_error : errno;
             if (log_error) {
                 LOG(WARNING) << "Failed to " << (fd_ == -1 ? "open" : "write")
-                             << " node: " << node_path_
+                             << " node: " << opened_path
                              << " with value: " << req_value << ", fd: " << fd_
                              << ", errno: " << io_error
                              << " (" << std::strerror(io_error) << ")";
@@ -93,7 +96,7 @@ std::chrono::milliseconds FileNode::Update(bool log_error) {
             }
             auto duration = t.duration();
             if (duration > warn_timeout_) {
-                LOG(WARNING) << "Slow writing to file: '" << node_path_
+                LOG(WARNING) << "Slow writing to file: '" << opened_path
                              << "' with value: '" << req_value
                              << "' took: " << duration.count() << " ms";
             }
@@ -112,7 +115,9 @@ bool FileNode::GetHoldFd() const {
 
 void FileNode::DumpToFd(int fd) const {
     std::string node_value;
-    if (!android::base::ReadFileToString(node_path_, &node_value)) {
+    android::base::unique_fd node_fd(OpenNodePaths(
+        node_path_, fallback_paths_, O_RDONLY | O_CLOEXEC, nullptr));
+    if (node_fd == -1 || !android::base::ReadFdToString(node_fd, &node_value)) {
         LOG(ERROR) << "Failed to read node path: " << node_path_;
     }
     node_value = android::base::Trim(node_value);
