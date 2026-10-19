@@ -77,7 +77,10 @@ stale QTI relocation paths. It does not prove modules, ELF ABI, linking, VINTF
 or SELinux correctness. `--source-only` reviews an isolated device/vendor pair
 and does not satisfy the build gate. Keep neverallows/compatibility checks.
 
-Both ARM and ARM64 v29 full/lite protobuf copies are required. The bootctrl
+Both ARM and ARM64 v29 full/lite protobuf copies are required. On GM8, both
+come from the arm64 snapshot: arch-arm-armv8-a for 32-bit and
+arch-arm64-armv8-a for 64-bit. The arm snapshot instead contains ARMv7 builds.
+The bootctrl
 namespace is hardware/qcom-caf/bootctrl. The build system includes Lineage
 BoardConfig/common policy itself: do not duplicate these includes. Android 12.1
 platform policy covers camera-property readers; Android 11-only snap_app and

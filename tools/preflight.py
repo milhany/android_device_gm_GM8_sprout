@@ -67,9 +67,10 @@ def main():
             "vendor/gapps/arm64/arm64-vendor.mk", "vendor/partner_gms/products/gms.mk")):
         errors.append("GApps are required; run setup-gapps.sh with a recorded Android 12.1 commit.")
     if not args.source_only:
-        for abi, arch in (("arm", "arm"), ("arm64", "arm64")):
+        # The ARM64 device snapshot includes the matching 32-bit ARMv8 ABI.
+        for arch in ("arm", "arm64"):
             for variant in ("full", "lite"):
-                path = (f"prebuilts/vndk/v29/{abi}/arch-{arch}-armv8-a/shared/vndk-core/"
+                path = (f"prebuilts/vndk/v29/arm64/arch-{arch}-armv8-a/shared/vndk-core/"
                         f"libprotobuf-cpp-{variant}.so")
                 if not (top / path).is_file():
                     errors.append(f"Missing legacy protobuf ABI: {path}")
