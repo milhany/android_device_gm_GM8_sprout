@@ -60,6 +60,18 @@ Run the method regression on a prepared checkout with:
 python3 device/gm/GM8_sprout/tools/tests/compat_19_1_test.py --top .
 ```
 
+## First server boot-image gate
+
+The first server boot-image build completed successfully on 2026-10-19 with
+kernel 3.18.124-perf-g74abe9876717. The earlier Clang offset-marker, DTC symbol
+and segmentation-fault messages were absent from that supplied log.
+Module installation still reported missing Getopt::Std in bundled Perl 5.26
+and missing /sbin/depmod. The subsequent source update makes signing honor
+PERL, selects clean native Perl and checks the container's perl/kmod tools.
+Its actual sign-file script signed an ELF fixture and the SHA512/RSA signature
+was independently verified with OpenSSL. Full ROM compilation, installation
+and on-device boot remain unverified.
+
 ## Primary sources reviewed
 
 - [Manifest](https://github.com/LineageOS/android/tree/lineage-19.1)

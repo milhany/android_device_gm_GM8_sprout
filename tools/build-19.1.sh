@@ -18,6 +18,17 @@ if [[ ! -f build/core/version_defaults.mk ]] ||
     exit 1
 fi
 
+if [[ "${STAGE}" != check ]]; then
+    if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MGetopt::Std -MIPC::Open2 -MFileHandle -e 1; then
+        echo "Kernel module signing needs the container's full Perl: sudo apt install perl" >&2
+        exit 1
+    fi
+    if [[ ! -x /sbin/depmod ]]; then
+        echo "Kernel module installation needs depmod: sudo apt install kmod" >&2
+        exit 1
+    fi
+fi
+
 GAPPS_SHA=f75a18fd21f0ceaa73b3c2c01bdb257aff976f2f
 bash device/gm/GM8_sprout/setup-gapps.sh "${GAPPS_SHA}"
 python3 device/gm/GM8_sprout/tools/apply-radio-compat.py

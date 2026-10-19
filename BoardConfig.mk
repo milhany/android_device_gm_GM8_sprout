@@ -108,6 +108,8 @@ TARGET_KERNEL_SOURCE := kernel/gm/msm8937
 TARGET_KERNEL_CONFIG := msm8937-perf_defconfig
 # This stock-derived 3.18 tree uses GCC 4.9; 19.1 otherwise defaults to Clang.
 TARGET_KERNEL_CLANG_COMPILE := false
+# Use the build container's complete Perl, without the bundled Perl 5.26 library path.
+TARGET_KERNEL_ADDITIONAL_FLAGS += PERL="/usr/bin/env -u PERL5LIB /usr/bin/perl"
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := $(PWD)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 BOARD_FLASH_BLOCK_SIZE := 131072 # (BOARD_KERNEL_PAGESIZE * 64)
 BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)

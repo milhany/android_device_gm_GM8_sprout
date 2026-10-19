@@ -14,6 +14,17 @@ is still required. See [the migration record](BRINGUP-19.1.md).
 Run inside the existing Ubuntu 22.04 build container as builder, in tmux.
 Keep the working 18.1 source/output available.
 
+Install the host tools inside this build container:
+
+```sh
+sudo apt install -y perl kmod
+```
+
+The legacy module signer needs the complete system Perl (Getopt::Std,
+IPC::Open2 and FileHandle). The kernel signing recipe honors PERL, and the
+device selects /usr/bin/perl without the bundled Perl 5.26 PERL5LIB path.
+Keep module signing enabled. kmod supplies the kernel's /sbin/depmod.
+
 ```sh
 mkdir -p ~/android/lineage-19.1
 cd ~/android/lineage-19.1
