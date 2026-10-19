@@ -144,3 +144,45 @@ On a prepared source tree, repeat the host regressions with:
 ```sh
 python3 device/gm/GM8_sprout/tools/tests/legacy_network_19_1_test.py --top .
 ```
+
+## First successful boot: modem / camera follow-up
+
+The owner confirmed that the ROM boots after 7653470. The supplied
+log(20261019-173011).txt shows qcrild repeatedly failing before main because
+libril-qc-hal-qmi.so requests libprotobuf-cpp-full.so, and Widevine failing
+because libwvhidl.so requests libprotobuf-cpp-lite.so. Both v29 snapshots
+were previously copied under *-v29.so filenames without changing the blobs'
+DT_NEEDED entries. Install the snapshots at their original vendor SONAMEs
+for both ARM and ARM64 instead; platform/VNDK APEX copies remain separate.
+Preflight now checks all four exact install destinations.
+
+The actual AOSP android-12.1.0_r22 VNDK v29 ARM64 full/lite files report the
+expected unsuffixed SONAMEs. All 55 required protobuf dynamic symbols from
+the supplied Widevine library are present in the lite snapshot. qcrild's
+library directly requests the full SONAME; it has no strong undefined
+protobuf symbols in the inspected dynamic symbol table. This validates the
+identified loader-name failure, not complete radio/DRM runtime behavior.
+
+The same boot rejects persist.camera.HAL3.enabled, persist.camera.depth.focus.cb,
+persist.camera.gyro.disable and rild.libpath as untyped legacy properties.
+Export narrowly scoped system_ext configuration property types and allow
+vendor_init to configure them with the standard system_vendor_config_prop
+macro. Camera HAL servers, cameraserver, mm-qcamerad and telephony HAL servers
+receive only the relevant property read permissions. Exact boolean/string
+contexts replace the default_prop fallback; no default_prop grants, permissive
+mode or neverallow bypass is added. Public property types and HAL attributes
+allow platform/vendor policy to compile separately.
+
+Camera root cause is not yet established: both Holitech S5K3L8 front/rear
+sensor probes succeed at boot, while Camera2 sees an empty camera list later.
+The provider starts before the legacy camera daemon. Collect dumpsys media.camera
+before/after a single provider restart to distinguish an enumeration/startup
+issue from another HAL problem. No speculative kernel sensor change, provider
+version downgrade or unconditional restart loop is included.
+
+Validation: all four copy paths match the requested SONAMEs, device XML and
+Python/shell syntax pass. Android 12.1's actual property macros were expanded
+and the scoped rules compiled in the available host policy fixture; injecting
+an application property writer was rejected by neverallow. This is not a full
+Android 12 platform/vendor policy build. Full ROM compilation and on-device
+baseband/camera/DRM tests remain required. No userdata format is needed.

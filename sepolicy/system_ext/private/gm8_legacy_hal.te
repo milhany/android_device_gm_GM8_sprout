@@ -1,0 +1,5 @@
+# Stock camera/RIL blobs retain these pre-Treble property names. Give each
+# family an explicit owner and readers instead of granting default_prop access.
+get_prop(hal_camera_server, gm8_legacy_camera_prop)
+get_prop(cameraserver, gm8_legacy_camera_prop)
+get_prop(hal_telephony_server, gm8_legacy_ril_prop)

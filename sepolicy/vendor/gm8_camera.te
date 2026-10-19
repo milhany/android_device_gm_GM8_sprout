@@ -10,5 +10,8 @@ set_prop(mm-qcamerad, vendor_gm8_camera_debug_prop)
 get_prop(hal_camera_default, vendor_gm8_camera_aeinfo_prop)
 get_prop(hal_camera_default, vendor_gm8_camera_debug_prop)
 
+# System-ext exports the narrowly scoped pre-Treble configuration property.
+get_prop(mm-qcamerad, gm8_legacy_camera_prop)
+
 # Android 12.1 platform policy already grants exported_camera_prop reads to
 # coredomain/appdomain. The Android 11-only snap_app/gallery_app grants are gone.

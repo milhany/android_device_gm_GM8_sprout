@@ -88,6 +88,18 @@ def main():
                 if not (top / path).is_file():
                     errors.append(f"Missing legacy protobuf ABI: {path}")
 
+    # The stock modem/DRM ELFs request the unsuffixed protobuf SONAMEs.
+    # Copying only *-v29.so files leaves those DT_NEEDED entries unresolved.
+    device_make = device / "device.mk"
+    make_text = device_make.read_text() if device_make.is_file() else ""
+    for arch, libdir in (("arm", "lib"), ("arm64", "lib64")):
+        for variant in ("full", "lite"):
+            source = (f"prebuilts/vndk/v29/arm64/arch-{arch}-armv8-a/shared/vndk-core/"
+                      f"libprotobuf-cpp-{variant}.so")
+            destination = f"$(TARGET_COPY_OUT_VENDOR)/{libdir}/libprotobuf-cpp-{variant}.so"
+            if f"{source}:{destination}" not in make_text:
+                errors.append(f"Missing stock protobuf SONAME install: {destination}")
+
     xml_count = 0
     for path in device.rglob("*.xml"):
         try:

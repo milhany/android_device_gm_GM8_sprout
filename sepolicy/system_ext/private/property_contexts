@@ -1,1 +1,5 @@
 ro.kernel.ebpf.supported u:object_r:gm8_legacy_network_prop:s0 exact bool
+persist.camera.HAL3.enabled u:object_r:gm8_legacy_camera_prop:s0 exact bool
+persist.camera.depth.focus.cb u:object_r:gm8_legacy_camera_prop:s0 exact bool
+persist.camera.gyro.disable u:object_r:gm8_legacy_camera_prop:s0 exact bool
+rild.libpath u:object_r:gm8_legacy_ril_prop:s0 exact string
