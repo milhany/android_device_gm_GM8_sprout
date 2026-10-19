@@ -1,0 +1,10 @@
+// Copyright (C) 2026 The LineageOS Project
+// SPDX-License-Identifier: Apache-2.0
+
+// Android 12's platform matrices start at FCM 3. GM8 retains FCM 2.
+vintf_compatibility_matrix {
+    name: "gm8_framework_compatibility_matrix.2.xml",
+    stem: "compatibility_matrix.2.xml",
+    srcs: ["framework_compatibility_matrix.2.xml"],
+    kernel_configs: ["gm8_kernel_config_o_mr1_3.18"],
+}

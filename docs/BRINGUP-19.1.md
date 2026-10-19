@@ -72,6 +72,23 @@ Its actual sign-file script signed an ELF fixture and the SHA512/RSA signature
 was independently verified with OpenSSL. Full ROM compilation, installation
 and on-device boot remain unverified.
 
+## Legacy FCM 2 packaging
+
+The first OTA packaging attempt reached checkvintf, then failed because the
+vendor manifest targets FCM 2 while Android 12.1 installs only FCM 3 through 6.
+GM8 now installs compatibility_matrix.2.xml using the standard
+vintf_compatibility_matrix module. The HAL matrix is unchanged from LineageOS
+18.1 hardware/interfaces (blob d4f9809b7eb7c3c55c78587a968644d9f161cb88).
+The required and optional HAL declarations are preserved; newer platform
+matrices continue to provide higher-version replacements during merging.
+
+The accompanying ARM64 kernel_config module retains the frozen O MR1 3.18
+base/ARM64 requirements and minlts metadata from AOSP kernel/configs,
+android-11.0.0_r46, commit e4102999005f8f3c8db1fdacfba80a2c581a72f1.
+It is scoped to GM8's 3.18 kernel. This does not alter the manifest target-level,
+launch API, HAL declarations or OTA VINTF enforcement. Full merged-target-files
+validation and on-device testing must still pass on the build server/device.
+
 ## Primary sources reviewed
 
 - [Manifest](https://github.com/LineageOS/android/tree/lineage-19.1)

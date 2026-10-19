@@ -7,6 +7,9 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 # Setup dalvik vm configs
 $(call inherit-product, frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk)
 
+# Retain the shipping FCM 2 contract, including its 3.18 kernel requirements.
+PRODUCT_PACKAGES += gm8_framework_compatibility_matrix.2.xml
+
 # A/B
 PRODUCT_PACKAGES += \
     update_engine \
