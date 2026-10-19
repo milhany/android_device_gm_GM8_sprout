@@ -28,7 +28,7 @@ def main():
     # command. Do not silently build the property without its framework hook.
     if not args.source_only:
         for helper in ("apply-radio-compat.py", "apply-wifi-keystore-compat.py",
-                       "apply-legacy-network-compat.py"):
+                       "apply-legacy-network-compat.py", "apply-processgroup-compat.py"):
             check = subprocess.run(
                 [sys.executable, str(device / "tools" / helper), "--top", str(top), "--check"],
                 capture_output=True, text=True)
@@ -43,9 +43,10 @@ def main():
         kernel_config = top / "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig"
         config = kernel_config.read_text() if kernel_config.is_file() else ""
         for feature in ("CONFIG_NETFILTER_XT_MATCH_QTAGUID", "CONFIG_NETFILTER_XT_MATCH_QUOTA2",
-                        "CONFIG_NETFILTER_XT_MATCH_POLICY", "CONFIG_NETFILTER_XT_TARGET_MARK"):
+                        "CONFIG_NETFILTER_XT_MATCH_POLICY", "CONFIG_NETFILTER_XT_TARGET_MARK",
+                        "CONFIG_CGROUP_CPUACCT"):
             if not re.search(r"^" + feature + r"=y$", config, re.M):
-                errors.append(f"Legacy network accounting requires built-in {feature}.")
+                errors.append(f"Legacy GM8 compatibility requires built-in {feature}.")
 
     system_props = device / "system.prop"
     if not system_props.is_file() or not re.search(

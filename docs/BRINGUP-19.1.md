@@ -186,3 +186,47 @@ and the scoped rules compiled in the available host policy fixture; injecting
 an application property writer was rejected by neverallow. This is not a full
 Android 12 platform/vendor policy build. Full ROM compilation and on-device
 baseband/camera/DRM tests remain required. No userdata format is needed.
+
+## Process-group tracking on the legacy kernel
+
+The follow-up gm8-camera-check.txt confirms root/su access but keeps camera
+provider PID 552 before and after ctl.restart. Init accepts the command and
+logs successful process-group killing without reaping/replacing the provider.
+The same boot repeatedly fails to create /sys/fs/cgroup/uid_* directories.
+Android 12 processgroup.cpp unconditionally selects the cgroup v2 hierarchy;
+DoKillProcessGroupOnce treats the absent uid/pid/cgroup.procs file as an
+already-dead process and returns success without signalling the live process.
+
+The processgroup compatibility patch selects a mounted cgroup v2 hierarchy
+when available, otherwise a mounted cpuacct v1 hierarchy. Creation, signalling
+and startup cleanup use the same selection. No usable hierarchy returns ENODEV
+instead of using an empty/unmounted root. The existing cgroup.procs member
+enumeration and process-group signalling logic is retained. This does not
+replace tracking with a blind kill(initialPid) fallback or fake a cgroup2 mount.
+
+GM8's vendor cgroups configuration retains schedtune and explicitly mounts
+cpuacct at /acct with system ownership. CONFIG_CGROUP_CPUACCT is already enabled
+in the kernel; preflight now requires it. Android 12's rootdir already creates
+/acct and its existing SELinux label/policies support cgroup v1 access. No
+kernel update, permissive policy or new SELinux permission is required here.
+The build helper applies/checks the system/core patch and records the local
+core diff beside the other compatibility patches.
+
+Host regression compiles the actual controller-selection function and actual
+process-group killer. It tests mounted-v2 priority, mounted-v1 fallback and
+missing-hierarchy failure; reproduces the old missing-file false success with
+two live child processes; then verifies both children are killed through a
+populated cgroup.procs fixture. Real upstream patch apply/check/repeat, SDK
+rejection, local edit preservation and drift refusal pass. The host fixture
+uses regular files, not a mounted Android cgroup controller; Android compilation
+and on-device mount/tracking/lifecycle validation remain necessary.
+
+```sh
+python3 device/gm/GM8_sprout/tools/tests/processgroup_19_1_test.py --top .
+```
+
+This repairs the identified service lifecycle incompatibility. It does not
+establish the reason for zero camera enumeration: a single direct TERM of the
+provider can bypass the old broken init/cgroup path for a no-build diagnosis.
+The submitted log still reports the previous protobuf loader errors, so modem
+runtime success after the preceding SONAME fix is also not yet established.

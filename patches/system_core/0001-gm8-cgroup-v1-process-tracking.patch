@@ -1,0 +1,77 @@
+diff --git a/libprocessgroup/processgroup.cpp b/libprocessgroup/processgroup.cpp
+index a9a6e59..19eaaa8 100644
+--- a/libprocessgroup/processgroup.cpp
++++ b/libprocessgroup/processgroup.cpp
+@@ -69,6 +69,25 @@ bool CgroupGetControllerPath(const std::string& cgroup_name, std::string* path)
+     return true;
+ }
+ 
++// GM8's 3.18 kernel has cgroup v1 only. Use a mounted accounting
++// hierarchy for uid/pid tracking; both versions expose cgroup.procs.
++static bool GetProcessGroupControllerPath(std::string* path) {
++    auto& map = CgroupMap::GetInstance();
++    auto unified = map.FindController(CGROUPV2_CONTROLLER_NAME);
++    if (unified.IsUsable()) {
++        *path = unified.path();
++        return true;
++    }
++    auto legacy = map.FindController("cpuacct");
++    if (legacy.IsUsable()) {
++        *path = legacy.path();
++        return true;
++    }
++    LOG(ERROR) << "No mounted process-group cgroup hierarchy";
++    errno = ENODEV;
++    return false;
++}
++
+ bool CgroupGetAttributePath(const std::string& attr_name, std::string* path) {
+     const TaskProfiles& tp = TaskProfiles::GetInstance();
+     const ProfileAttribute* attr = tp.GetAttribute(attr_name);
+@@ -187,7 +206,7 @@ void removeAllProcessGroups() {
+     std::vector<std::string> cgroups;
+     std::string path;
+ 
+-    if (CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &path)) {
++    if (GetProcessGroupControllerPath(&path)) {
+         cgroups.push_back(path);
+     }
+     if (CgroupGetControllerPath("memory", &path)) {
+@@ -348,15 +367,15 @@ static int DoKillProcessGroupOnce(const char* cgroup, uid_t uid, int initialPid,
+ static int KillProcessGroup(uid_t uid, int initialPid, int signal, int retries,
+                             int* max_processes) {
+     std::string hierarchy_root_path;
+-    CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &hierarchy_root_path);
+-    const char* cgroup = hierarchy_root_path.c_str();
+-
+     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+ 
+     if (max_processes != nullptr) {
+         *max_processes = 0;
+     }
+ 
++    if (!GetProcessGroupControllerPath(&hierarchy_root_path)) return -ENODEV;
++    const char* cgroup = hierarchy_root_path.c_str();
++
+     int retry = retries;
+     int processes;
+     while ((processes = DoKillProcessGroupOnce(cgroup, uid, initialPid, signal)) > 0) {
+@@ -461,6 +480,8 @@ static int createProcessGroupInternal(uid_t uid, int initialPid, std::string cgr
+ }
+ 
+ int createProcessGroup(uid_t uid, int initialPid, bool memControl) {
++    std::string processgroup_path;
++    if (!GetProcessGroupControllerPath(&processgroup_path)) return -ENODEV;
+     std::string cgroup;
+ 
+     if (memControl && !UsePerAppMemcg()) {
+@@ -477,8 +498,7 @@ int createProcessGroup(uid_t uid, int initialPid, bool memControl) {
+         }
+     }
+ 
+-    CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &cgroup);
+-    return createProcessGroupInternal(uid, initialPid, cgroup);
++    return createProcessGroupInternal(uid, initialPid, processgroup_path);
+ }
+ 
+ static bool SetProcessGroupValue(int tid, const std::string& attr_name, int64_t value) {

@@ -1,0 +1,18 @@
+{
+  "Cgroups": [
+    {
+      "Controller": "schedtune",
+      "Path": "/dev/stune",
+      "Mode": "0755",
+      "UID": "system",
+      "GID": "system"
+    },
+    {
+      "Controller": "cpuacct",
+      "Path": "/acct",
+      "Mode": "0755",
+      "UID": "system",
+      "GID": "system"
+    }
+  ]
+}
