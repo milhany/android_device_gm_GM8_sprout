@@ -24,6 +24,7 @@
 #include <json/value.h>
 
 #include <algorithm>
+#include <memory>
 #include <set>
 
 #include "perfmgr/FileNode.h"
@@ -151,9 +152,13 @@ std::vector<std::unique_ptr<Node>> HintManager::ParseNodes(
     std::set<std::string> nodes_name_parsed;
     std::set<std::string> nodes_path_parsed;
     Json::Value root;
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+    // Match the legacy Reader's handling of trailing commas and UTF-8 BOMs.
+    builder["allowTrailingCommas"] = false;
+    builder["skipBom"] = false;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
 
-    if (!reader.parse(json_doc, root)) {
+    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.size(), &root, nullptr)) {
         LOG(ERROR) << "Failed to parse JSON config";
         return nodes_parsed;
     }
@@ -314,9 +319,13 @@ std::map<std::string, std::vector<NodeAction>> HintManager::ParseActions(
     // function starts
     std::map<std::string, std::vector<NodeAction>> actions_parsed;
     Json::Value root;
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+    // Match the legacy Reader's handling of trailing commas and UTF-8 BOMs.
+    builder["allowTrailingCommas"] = false;
+    builder["skipBom"] = false;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
 
-    if (!reader.parse(json_doc, root)) {
+    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.size(), &root, nullptr)) {
         LOG(ERROR) << "Failed to parse JSON config";
         return actions_parsed;
     }
