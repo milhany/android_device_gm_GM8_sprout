@@ -1,1 +1,2 @@
-type vendor_power_prop, property_type;
+# Power HAL state is owned and used by vendor components.
+vendor_internal_prop(vendor_power_prop)
