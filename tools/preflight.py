@@ -49,6 +49,20 @@ def main():
             if not re.search(r"^" + feature + r"=y$", config, re.M):
                 errors.append(f"Legacy GM8 compatibility requires built-in {feature}.")
 
+    # Legacy Qualcomm used input property 0x06 for a private resume quirk.
+    # Android 12 interprets that bit as an accelerometer and selects BOOTTIME.
+    if not args.source_only:
+        kernel = top / "kernel/gm/msm8937"
+        codes_path = kernel / "include/uapi/linux/input-event-codes.h"
+        input_path = kernel / "include/linux/input.h"
+        codes = codes_path.read_text() if codes_path.is_file() else ""
+        input_header = input_path.read_text() if input_path.is_file() else ""
+        if ("INPUT_PROP_NO_DUMMY_RELEASE" in codes or
+                not re.search(r"^#define\s+INPUT_PROP_ACCELEROMETER\s+0x06\b", codes, re.M) or
+                not re.search(r"\bbool\s+no_dummy_release\s*;", input_header)):
+            errors.append("GM8 key timestamp fix is missing: update kernel/gm/msm8937 "
+                          "to the latest lineage-19.1 branch before building.")
+
     system_props = device / "system.prop"
     if not system_props.is_file() or not re.search(
             r"^ro\.kernel\.ebpf\.supported=false$", system_props.read_text(), re.M):

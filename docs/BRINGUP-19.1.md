@@ -279,3 +279,39 @@ The test reads reviewed original vendor objects from the recorded vendor Git
 revision (or matching raw files), stages its inputs in a temporary directory,
 and prepares the same ignored generated libraries. It requires readelf and the
 bundled patchelf; it never modifies the real vendor source files.
+
+## PMIC key timestamp crash and input property collision
+
+The submitted gm8-tus log records repeated system_server crashes in
+PowerManagerService.goToSleep from PhoneWindowManager.powerPress, plus wakeUp
+exceptions, all reporting "event time must not be in the future". EventHub
+identifies qpnp_pon and the wired-headset Button Jack as KEYBOARD | SENSOR and
+reports usingClockIoctl=false for both; gpio-keys and the touchscreen select
+their clocks successfully.
+
+The kernel's Qualcomm INPUT_PROP_NO_DUMMY_RELEASE used public property bit
+0x06, which Android 12 interprets as INPUT_PROP_ACCELEROMETER. EventHub then
+requests CLOCK_BOOTTIME for these false sensors. The 3.18 evdev handler only
+accepts MONOTONIC or REALTIME, rejects that request, and leaves the default
+REALTIME clock. PowerManager requires uptime-based timestamps.
+
+Kernel commit 043f2b4e64b1ef578d4ceed33bfd5f580834103e moves the resume
+quirk into a private input_dev.no_dummy_release flag. The PMIC power driver
+and both WCD headset implementations keep their resume behavior without
+advertising an accelerometer. Public bit 0x06 regains its standard meaning.
+No framework timestamp validation is disabled. Update both the device and
+kernel lineage-19.1 branches before the combined ROM build; preflight refuses
+the old conflicting kernel. Boot image and matching modules must be rebuilt.
+
+The host regression compiles the actual input_reset_device implementation,
+Android 12 EventHub classification/clock-selection blocks and the kernel's
+clock acceptance condition with minimal host stubs. It reproduces the old
+BOOTTIME rejection, verifies all three fixed quirk users select MONOTONIC,
+and checks both preserved private-quirk and normal key-release behavior.
+The actual preflight guard also accepts fixed headers and rejects old ones.
+Full kernel/Android compilation and physical power/volume/headset key tests
+remain pending; the supplied crash stacks specifically prove the power path.
+
+```sh
+python3 device/gm/GM8_sprout/tools/tests/input_19_1_test.py --top .
+```
