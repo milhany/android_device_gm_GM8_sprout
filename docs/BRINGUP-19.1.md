@@ -99,3 +99,16 @@ validation and on-device testing must still pass on the build server/device.
 - [Codec2 discovery](https://github.com/LineageOS/android_frameworks_av/blob/lineage-19.1/media/codec2/sfplugin/Codec2InfoBuilder.cpp)
 - [Platform property policy](https://github.com/LineageOS/android_system_sepolicy/blob/lineage-19.1/private/domain.te)
 - [Build imports](https://github.com/LineageOS/android_build/blob/lineage-19.1/core/config.mk)
+
+## Recovery ADB diagnostic image
+
+If the recovery menu cannot clear an unauthorized ADB connection, run
+`tools/make-recovery-adb-debug.py` on the already-built pstore boot image.
+The opt-in helper creates a separate image with ro.adb.secure=0,
+ro.adb.secure.recovery=0 and service.adb.root=1 in recovery prop.default.
+It requires a GM8 userdebug
+image and built-in pstore, preserves the kernel/DTBs/load addresses/command
+line and other CPIO metadata, and recomputes the v0 boot ID. It refuses signed
+trailers or mismatched input checksums and leaves the original image intact.
+GM8's normal system-as-root boot uses properties from system/vendor; the helper
+does not modify those images. This image is for collecting bring-up logs only.
