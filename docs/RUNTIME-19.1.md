@@ -107,3 +107,32 @@ aborts and sensor wakeups. See [BOOTLOG-20261020.md](BOOTLOG-20261020.md).
 The live capture subsequently identifies Bluetooth's FIFO thread permission
 failure and confirms zero child-group RT budgets. The repair and sensor dump
 interpretation are in [BLUETOOTH-RT-19.1.md](BLUETOOTH-RT-19.1.md).
+
+## Android 12 fingerprint provider registration
+
+The owner reports fingerprint is unavailable. The current runtime capture
+repeatedly reports FingerprintService: No providers found. The device has the
+fingerprint feature XML and HAL packages, but its framework overlay does not
+declare config_biometric_sensors. Lineage 19.1 AuthService.onStart consumes this
+array, whose platform default is empty; registerAuthenticators passes an empty
+HIDL fingerprint list to FingerprintService. Its addHidlProviders therefore
+creates no Fingerprint21 provider, even if the native HAL is running.
+
+Declare one sensor as 0:2:15 (ID 0, fingerprint modality, strong), using the
+platform SensorConfig format. With the existing empty UDFPS configuration and
+false power-button configuration, AuthService describes it as a rear sensor.
+FPC and Sunwave are alternative native backends for that one physical sensor,
+not two simultaneously registered sensors. Retain the initialized-driver
+selector, mutually exclusive HAL startup, enrollment data and SELinux policy.
+Preflight rejects an absent, duplicated or changed sensor declaration.
+
+XML/resource checks and the actual Android SensorConfig parser pass on the
+host. This repairs the missing framework registration; it does not establish
+that driver probing, HAL/TEE startup, enrollment or authentication now work on
+the phone. The supplied runtime ring contains no native fingerprint startup
+sequence to validate those layers. Build framework resources with the ROM and
+reboot, then verify a provider in dumpsys fingerprint, enroll a finger, and
+test lock-screen and application authentication. If registration is present
+but hardware is still unavailable, collect the initialized-driver property,
+HAL service states and the native startup error before changing those layers.
+No format, template deletion or clean build is required for this overlay.

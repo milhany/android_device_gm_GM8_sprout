@@ -161,6 +161,17 @@ def main():
         except (ValueError, OSError) as exc:
             errors.append(f"Invalid JSON: {path.relative_to(top)}: {exc}")
 
+    # Android 12 does not infer HIDL biometric sensors from the feature XML.
+    # Both fingerprint variants expose one logical rear sensor via HIDL 2.1.
+    try:
+        resources = ET.parse(device / "overlay/frameworks/base/core/res/res/values/config.xml")
+        sensors = resources.findall("./string-array[@name='config_biometric_sensors']")
+        if (len(sensors) != 1 or
+                [item.text.strip() for item in sensors[0].findall("item")] != ["0:2:15"]):
+            errors.append("GM8 requires one HIDL fingerprint configuration: 0:2:15.")
+    except (ET.ParseError, OSError, AttributeError) as exc:
+        errors.append(f"Invalid GM8 biometric configuration: {exc}")
+
     try:
         power = json.loads((device / "configs/powerhint.json").read_text())
         nodes = {node["Name"]: node for node in power["Nodes"]}
