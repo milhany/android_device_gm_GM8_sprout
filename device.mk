@@ -7,6 +7,11 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 # Setup dalvik vm configs
 $(call inherit-product, frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk)
 
+# Prefer ahead-of-time app code on the Cortex-A53 during background maintenance.
+# Keep install/post-boot defaults so compilation does not block every install
+# or first boot. Full background compilation uses more disk and maintenance CPU.
+PRODUCT_SYSTEM_PROPERTIES += pm.dexopt.bg-dexopt=speed
+
 # Retain the shipping FCM 2 contract, including its 3.18 kernel requirements.
 PRODUCT_PACKAGES += gm8_framework_compatibility_matrix.2.xml
 

@@ -34,7 +34,9 @@ ro.telephony.default_network=9,0
 ro.ril.use_legacy_data_switch=true
 
 debug.sf.enable_hwc_vds=1
-debug.sf.latch_unsignaled=1
+# Wait for producer fences on the stock display stack. Force-latching
+# unsignaled buffers is an optional optimization, not required for acceleration.
+debug.sf.latch_unsignaled=0
 persist.hwc.mdpcomp.enable=true
 debug.mdpcomp.logs=0
 dev.pm.dyn_samplingrate=1
