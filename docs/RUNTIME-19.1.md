@@ -97,3 +97,7 @@ References: AOSP android-12.1.0_r22 NetworkStack; LineageOS lineage-19.1
 libprocessgroup setup/default profiles, framework resource/permission
 declarations and PackageManager configurator handling; GM8 kernel source and
 the pinned MindTheGapps manifest/overlay.
+
+The next capture confirms the preceding errors are absent in that recording
+and exposes named camera property lookups, Bluetooth alarm initialization
+aborts and sensor wakeups. See [BOOTLOG-20261020.md](BOOTLOG-20261020.md).
