@@ -2,12 +2,20 @@
 # Prepare a separate Android 12.1 checkout and stop at a selected build gate.
 set -eo pipefail
 
-if [[ $# -gt 1 ]]; then
-    echo "Usage: $0 [check|boot|rom]" >&2
+if [[ $# -gt 2 ]]; then
+    echo "Usage: $0 [check|boot|rom|target-files] [userdebug|user]" >&2
     exit 2
 fi
 STAGE="${1:-boot}"
-case "${STAGE}" in check|boot|rom) ;; *) echo "Usage: $0 [check|boot|rom]" >&2; exit 2 ;; esac
+case "${STAGE}" in
+    check|boot|rom|target-files) ;;
+    *) echo "Usage: $0 [check|boot|rom|target-files] [userdebug|user]" >&2; exit 2 ;;
+esac
+BUILD_VARIANT="${2:-userdebug}"
+case "${BUILD_VARIANT}" in
+    userdebug|user) ;;
+    *) echo "Build variant must be userdebug or user." >&2; exit 2 ;;
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
@@ -40,6 +48,7 @@ python3 device/gm/GM8_sprout/tools/preflight.py
 
 RECORD_DIR="$(dirname "${TOP}")/gm8-19.1-records/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "${RECORD_DIR}"
+printf 'stage=%s\nvariant=%s\n' "${STAGE}" "${BUILD_VARIANT}" > "${RECORD_DIR}/build-selection.txt"
 repo manifest -r -o "${RECORD_DIR}/manifest.xml"
 for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 vendor/gapps; do
     printf '%s ' "${PROJECT}" >> "${RECORD_DIR}/revisions.txt"
@@ -57,9 +66,16 @@ python3 device/gm/GM8_sprout/tools/fixup-legacy-protobuf.py --check --record "${
 echo "Build record: ${RECORD_DIR}"
 
 source build/envsetup.sh
-lunch lineage_GM8_sprout-userdebug
+lunch "lineage_GM8_sprout-${BUILD_VARIANT}"
 m nothing -j32
 case "${STAGE}" in
     boot) m bootimage -j32 ;;
     rom) m bacon -j32 ;;
+    target-files)
+        m target-files-package otatools -j32
+        python3 device/gm/GM8_sprout/tools/inspect-release-19.1.py \
+            --product-out "$(get_build_var PRODUCT_OUT)" \
+            --variant "${BUILD_VARIANT}" --output "${RECORD_DIR}/signing-inputs.txt"
+        echo "Target-files preparation only: sign and plan key migration before installation."
+        ;;
 esac

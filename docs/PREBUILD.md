@@ -65,6 +65,8 @@ bash device/gm/GM8_sprout/tools/build-19.1.sh rom 2>&1 | tee ~/android/gm8-19.1-
 ```
 
 `rom` runs the graph gate then `m bacon -j32`; `check` runs only the graph.
+The optional second argument selects `userdebug` (default) or `user`.
+For release preparation use `target-files user`; see [RELEASE-19.1.md](RELEASE-19.1.md).
 The default is `boot`. Timestamped records are in the sibling
 `gm8-19.1-records` directory. GApps sigma is pinned to
 `f75a18fd21f0ceaa73b3c2c01bdb257aff976f2f`; use an explicit reviewed SHA when
