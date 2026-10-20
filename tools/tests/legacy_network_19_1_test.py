@@ -5,7 +5,7 @@ parser=argparse.ArgumentParser(description='Host regressions for patched GM8 SDK
 parser.add_argument('--top',type=Path,default=Path(__file__).resolve().parents[5])
 base=parser.parse_args().top.resolve()
 device=Path(__file__).resolve().parents[2]
-patches=[('system/bpf',base/'system/bpf',device/'patches/system_bpf/0001-gm8-legacy-bpf-loader.patch'),('system/netd',base/'system/netd',device/'patches/system_netd/0001-gm8-legacy-traffic-accounting.patch')]
+patches=[('system/bpf',base/'system/bpf',device/'patches/system_bpf/0001-gm8-legacy-bpf-loader.patch'),('system/netd',base/'system/netd',device/'patches/system_netd/0001-gm8-legacy-traffic-accounting.patch'),('packages/modules/NetworkStack',base/'packages/modules/NetworkStack',device/'patches/packages_modules_NetworkStack/0001-gm8-bound-legacy-tcp-info-attributes.patch')]
 with tempfile.TemporaryDirectory() as td:
     top=Path(td)
     (top/'build/core').mkdir(parents=True)
@@ -28,6 +28,12 @@ with tempfile.TemporaryDirectory() as td:
     run(1)
     assert first.read_bytes()==original,'modified first repo despite divergent second repo'
     second.write_text(before)
+    third=top/'packages/modules/NetworkStack/src/com/android/networkstack/netlink/TcpSocketTracker.java'
+    before_third=third.read_text()
+    third.write_text(before_third.replace('final int remainingDataSize =', 'final long remainingDataSize ='))
+    run(1)
+    assert first.read_bytes()==original and second.read_text()==before, 'partially applied before final repo drift'
+    third.write_text(before_third)
     (top/'system/netd/keep-local.txt').write_text('preserved\n')
     run(0)
     run(0)
@@ -37,7 +43,7 @@ with tempfile.TemporaryDirectory() as td:
         subprocess.run(['git','apply','--reverse','--check',str(patch)],cwd=top/project,check=True)
     (top/'build/core/version_defaults.mk').write_text('PLATFORM_SDK_VERSION := 30\n')
     run(1)
-print('PASS: paired apply, check, repeat, drift refusal without partial apply, local work preservation, SDK rejection')
+print('PASS: three-project apply, check, repeat, drift refusal without partial apply, local work preservation, SDK rejection')
 
 # Compile the actual patched command generator and its upstream expected output.
 netd=base/'system/netd'

@@ -303,10 +303,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/telephony_system_ext_privapp-permissions-qti.xml:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/permissions/telephony_system_ext_privapp-permissions-qti.xml
 
-# Retain legacy task profiles and mount cgroup v1 CPU accounting for uid/pid tracking.
+# Use the available HMP CPU controller and retain v1 accounting for uid/pid tracking.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/cgroups-gm8.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json \
-    system/core/libprocessgroup/profiles/task_profiles_28.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
+    $(LOCAL_PATH)/configs/task-profiles-gm8.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
 
 # RIL
 PRODUCT_PACKAGES += \

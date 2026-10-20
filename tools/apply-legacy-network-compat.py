@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore the paired Android 12.1 legacy BPF-loader/netd paths for GM8."""
+"""Restore the Android 12.1 legacy BPF-loader/netd and safe TCP diagnostics paths for GM8."""
 
 import argparse
 from pathlib import Path
@@ -24,6 +24,8 @@ def main():
     patches = [
         ("system/bpf", device / "patches/system_bpf/0001-gm8-legacy-bpf-loader.patch"),
         ("system/netd", device / "patches/system_netd/0001-gm8-legacy-traffic-accounting.patch"),
+        ("packages/modules/NetworkStack", device /
+         "patches/packages_modules_NetworkStack/0001-gm8-bound-legacy-tcp-info-attributes.patch"),
     ]
 
     def apply(repo, patch, *flags):
@@ -49,7 +51,7 @@ def main():
         print("GM8 legacy network patches are missing; run "
               "python3 device/gm/GM8_sprout/tools/apply-legacy-network-compat.py", file=sys.stderr)
         return 1
-    # Validate both projects before modifying either. Never reset local work.
+    # Validate every project before modifying any. Never reset local work.
     applied = []
     for repo, patch in pending:
         result = apply(repo, patch)

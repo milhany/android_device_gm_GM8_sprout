@@ -315,3 +315,8 @@ remain pending; the supplied crash stacks specifically prove the power path.
 ```sh
 python3 device/gm/GM8_sprout/tools/tests/input_19_1_test.py --top .
 ```
+
+The subsequent working-boot app-launch log exposed read-only /acct setup,
+unsupported schedtune profiles, missing CPUSETS, DeviceConfig role retries and
+short legacy TCP_INFO parsing. See [RUNTIME-19.1.md](RUNTIME-19.1.md) for the
+paired kernel/device fixes, host validation and remaining hardware checks.

@@ -1,0 +1,98 @@
+diff --git a/src/com/android/networkstack/netlink/TcpSocketTracker.java b/src/com/android/networkstack/netlink/TcpSocketTracker.java
+index 770e85a..af1802c 100644
+--- a/src/com/android/networkstack/netlink/TcpSocketTracker.java
++++ b/src/com/android/networkstack/netlink/TcpSocketTracker.java
+@@ -294,24 +294,47 @@ public class TcpSocketTracker {
+     @NonNull
+     SocketInfo parseSockInfo(@NonNull final ByteBuffer bytes, final int family,
+             final int nlmsgLen, final long time) {
+-        final int remainingDataSize = bytes.position() + nlmsgLen - SOCKDIAG_MSG_HEADER_SIZE;
++        final int dataSize = nlmsgLen - SOCKDIAG_MSG_HEADER_SIZE;
++        if (dataSize < 0 || dataSize > bytes.remaining()) {
++            throw new IllegalArgumentException("Invalid inet_diag message length: " + nlmsgLen);
++        }
++        final int messageEnd = bytes.position() + dataSize;
+         TcpInfo tcpInfo = null;
+         int mark = SocketInfo.INIT_MARK_VALUE;
+-        // Get a tcp_info.
+-        while (bytes.position() < remainingDataSize) {
+-            final RoutingAttribute rtattr =
+-                    new RoutingAttribute(bytes.getShort(), bytes.getShort());
+-            final short dataLen = rtattr.getDataLength();
+-            if (rtattr.rtaType == RoutingAttribute.INET_DIAG_INFO) {
+-                tcpInfo = TcpInfo.parse(bytes, dataLen);
+-            } else if (rtattr.rtaType == RoutingAttribute.INET_DIAG_MARK) {
++        while (bytes.position() < messageEnd) {
++            final int attributeStart = bytes.position();
++            if (messageEnd - attributeStart < RoutingAttribute.HEADER_LENGTH) {
++                throw new IllegalArgumentException("Truncated inet_diag attribute header");
++            }
++            final int attributeLength = Short.toUnsignedInt(bytes.getShort());
++            final int attributeType = Short.toUnsignedInt(bytes.getShort());
++            if (attributeLength < RoutingAttribute.HEADER_LENGTH
++                    || attributeLength > messageEnd - attributeStart) {
++                throw new IllegalArgumentException("Invalid inet_diag attribute length: "
++                        + attributeLength);
++            }
++            final int nextAttribute = attributeStart
++                    + NetlinkConstants.alignedLengthOf(attributeLength);
++            if (nextAttribute > messageEnd) {
++                throw new IllegalArgumentException("Truncated inet_diag attribute padding");
++            }
++            final int dataLength = attributeLength - RoutingAttribute.HEADER_LENGTH;
++            if (attributeType == RoutingAttribute.INET_DIAG_INFO) {
++                // Older kernels legitimately omit the packet-count fields. Skip
++                // that unsupported layout without treating it as corrupt data.
++                tcpInfo = null;
++                if (dataLength >= TcpInfo.SEGS_IN_OFFSET + Integer.BYTES) {
++                    final ByteBuffer info = bytes.duplicate().order(bytes.order());
++                    info.limit(attributeStart + attributeLength);
++                    tcpInfo = TcpInfo.parse(info, dataLength);
++                }
++            } else if (attributeType == RoutingAttribute.INET_DIAG_MARK) {
++                if (dataLength != Integer.BYTES) {
++                    throw new IllegalArgumentException("Invalid inet_diag mark length");
++                }
+                 mark = bytes.getInt();
+-            } else {
+-                // Data provided by kernel will include both valid data and padding data. The data
+-                // len provided from kernel indicates the valid data size. Readers must deduce the
+-                // alignment by themselves.
+-                skipRemainingAttributesBytesAligned(bytes, dataLen);
+             }
++            bytes.position(nextAttribute);
+         }
+         final SocketInfo info = new SocketInfo(tcpInfo, family, mark, time);
+         log("parseSockInfo, " + info);
+@@ -403,31 +426,6 @@ public class TcpSocketTracker {
+         return mTcpPacketsFailRateThreshold;
+     }
+ 
+-    /**
+-     * Method to skip the remaining attributes bytes.
+-     * Corresponds to NLMSG_NEXT in bionic/libc/kernel/uapi/linux/netlink.h.
+-     *
+-     * @param buffer the target ByteBuffer
+-     * @param len the remaining length to skip.
+-     */
+-    private void skipRemainingAttributesBytesAligned(@NonNull final ByteBuffer buffer,
+-            final short len) {
+-        // Data in {@Code RoutingAttribute} is followed after header with size {@Code NLA_ALIGNTO}
+-        // bytes long for each block. Next attribute will start after the padding bytes if any.
+-        // If all remaining bytes after header are valid in a data block, next attr will just start
+-        // after valid bytes.
+-        //
+-        // E.g. With NLA_ALIGNTO(4), an attr struct with length 5 means 1 byte valid data remains
+-        // after header and 3(4-1) padding bytes. Next attr with length 8 will start after the
+-        // padding bytes and contain 4(8-4) valid bytes of data. The next attr start after the
+-        // valid bytes, like:
+-        //
+-        // [HEADER(L=5)][   4-Bytes DATA      ][ HEADER(L=8) ][4 bytes DATA][Next attr]
+-        // [ 5 valid bytes ][3 padding bytes  ][      8 valid bytes        ]   ...
+-        final int cur = buffer.position();
+-        buffer.position(cur + NetlinkConstants.alignedLengthOf(len));
+-    }
+-
+     private void log(final String str) {
+         if (DBG) Log.d(TAG, str);
+     }

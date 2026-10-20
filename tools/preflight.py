@@ -45,7 +45,7 @@ def main():
         config = kernel_config.read_text() if kernel_config.is_file() else ""
         for feature in ("CONFIG_NETFILTER_XT_MATCH_QTAGUID", "CONFIG_NETFILTER_XT_MATCH_QUOTA2",
                         "CONFIG_NETFILTER_XT_MATCH_POLICY", "CONFIG_NETFILTER_XT_TARGET_MARK",
-                        "CONFIG_CGROUP_CPUACCT"):
+                        "CONFIG_CGROUP_CPUACCT", "CONFIG_CPUSETS"):
             if not re.search(r"^" + feature + r"=y$", config, re.M):
                 errors.append(f"Legacy GM8 compatibility requires built-in {feature}.")
 
@@ -62,6 +62,27 @@ def main():
                 not re.search(r"\bbool\s+no_dummy_release\s*;", input_header)):
             errors.append("GM8 key timestamp fix is missing: update kernel/gm/msm8937 "
                           "to the latest lineage-19.1 branch before building.")
+
+    # /acct is a pre-existing mount point on read-only system-as-root.
+    # A non-empty UID triggers a failing pre-mount lchown in Android 12 setup.
+    cgroups_file = device / "configs/cgroups-gm8.json"
+    profiles_file = device / "configs/task-profiles-gm8.json"
+    try:
+        controllers = json.loads(cgroups_file.read_text())["Cgroups"]
+        account = next(c for c in controllers if c["Controller"] == "cpuacct")
+        if (account["Path"] != "/acct" or int(account["Mode"], 8) != 0 or
+                account["UID"] or account["GID"]):
+            errors.append("CPU accounting must preserve the read-only /acct mount point before mount.")
+        if any(c["Controller"] == "schedtune" for c in controllers):
+            errors.append("GM8 HMP kernel does not provide the schedtune controller.")
+        profiles = json.loads(profiles_file.read_text())["Profiles"]
+        for profile in profiles:
+            for action in profile["Actions"]:
+                if (action["Name"] != "JoinCgroup" or
+                        action["Params"]["Controller"] != "cpu"):
+                    errors.append("GM8 performance profiles must use the supported CPU controller.")
+    except (OSError, ValueError, KeyError, StopIteration) as error:
+        errors.append(f"Invalid GM8 cgroup configuration: {error}")
 
     system_props = device / "system.prop"
     if not system_props.is_file() or not re.search(
