@@ -7,7 +7,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "background"
+            "Path": ""
           }
         }
       ]
@@ -19,7 +19,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "system"
+            "Path": ""
           }
         }
       ]
@@ -31,7 +31,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "system-background"
+            "Path": ""
           }
         }
       ]
@@ -43,7 +43,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "foreground"
+            "Path": ""
           }
         }
       ]
@@ -55,7 +55,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "top-app"
+            "Path": ""
           }
         }
       ]
@@ -67,7 +67,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "rt"
+            "Path": ""
           }
         }
       ]
@@ -79,7 +79,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "camera-daemon"
+            "Path": ""
           }
         }
       ]
@@ -91,7 +91,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "nnapi-hal"
+            "Path": ""
           }
         }
       ]
@@ -103,7 +103,7 @@
           "Name": "JoinCgroup",
           "Params": {
             "Controller": "cpu",
-            "Path": "dex2oat"
+            "Path": ""
           }
         }
       ]

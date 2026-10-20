@@ -23,7 +23,9 @@ Kernel commit b0555eee97c41a59830d94134b4c882c75027220 enables CPUSETS, missing
 from the previous defconfig. The real kernel Kconfig expansion confirms
 CPUSETS, CPUACCT and the existing HMP scheduler together. HMP does not supply
 the configured schedtune controller, so vendor performance profiles now join
-the CPU-controller groups created by Android 12 init. Foreground/top-app
+the CPU-controller groups created by Android 12 init. The live Bluetooth
+follow-up exposed zero RT budgets in these child groups; the current profiles
+instead join the CPU-controller root, as detailed below. Foreground/top-app
 cpusets use 0-7; background/system-background/restricted use the existing
 little-cluster numbering 4-7. The camera cpuset configuration is retained.
 Remove the unsupported schedtune descriptor and colocate write. No scheduler
@@ -101,3 +103,7 @@ the pinned MindTheGapps manifest/overlay.
 The next capture confirms the preceding errors are absent in that recording
 and exposes named camera property lookups, Bluetooth alarm initialization
 aborts and sensor wakeups. See [BOOTLOG-20261020.md](BOOTLOG-20261020.md).
+
+The live capture subsequently identifies Bluetooth's FIFO thread permission
+failure and confirms zero child-group RT budgets. The repair and sensor dump
+interpretation are in [BLUETOOTH-RT-19.1.md](BLUETOOTH-RT-19.1.md).

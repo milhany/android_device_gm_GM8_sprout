@@ -76,11 +76,21 @@ def main():
         if any(c["Controller"] == "schedtune" for c in controllers):
             errors.append("GM8 HMP kernel does not provide the schedtune controller.")
         profiles = json.loads(profiles_file.read_text())["Profiles"]
+        expected_profiles = {
+            "HighEnergySaving", "NormalPerformance", "ServicePerformance",
+            "HighPerformance", "MaxPerformance", "RealtimePerformance",
+            "CameraServicePerformance", "NNApiHALPerformance", "Dex2oatPerformance",
+        }
+        if ({p["Name"] for p in profiles} != expected_profiles or
+                len(profiles) != len(expected_profiles)):
+            errors.append("GM8 must override all nine Android CPU performance profiles.")
         for profile in profiles:
-            for action in profile["Actions"]:
-                if (action["Name"] != "JoinCgroup" or
-                        action["Params"]["Controller"] != "cpu"):
-                    errors.append("GM8 performance profiles must use the supported CPU controller.")
+            # Child CFS groups default to zero RT runtime on this 3.18 kernel.
+            # Bluetooth timer callbacks and SurfaceFlinger need SCHED_FIFO.
+            if profile["Actions"] != [{"Name": "JoinCgroup", "Params": {
+                    "Controller": "cpu", "Path": ""}}]:
+                errors.append("GM8 performance profiles must join the CPU root group; "
+                              "unbudgeted child groups reject RT threads.")
     except (OSError, ValueError, KeyError, StopIteration) as error:
         errors.append(f"Invalid GM8 cgroup configuration: {error}")
 
