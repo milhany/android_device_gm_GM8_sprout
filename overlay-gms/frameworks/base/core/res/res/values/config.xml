@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GmsCore is the system configurator in this GApps-required product.
+         Use a product overlay so Lineage's common product overlay cannot
+         replace this designation with org.protonaosp.deviceconfig. -->
+    <string name="config_deviceConfiguratorPackageName" translatable="false">com.google.android.gms</string>
+</resources>

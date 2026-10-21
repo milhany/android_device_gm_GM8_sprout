@@ -44,10 +44,34 @@ framework default is empty. The pinned MindTheGapps sigma revision
 f75a18fd21f0ceaa73b3c2c01bdb257aff976f2f supplies no override, while its system
 GmsCore manifest requests WRITE_DEVICE_CONFIG.
 
-Designate com.google.android.gms through the framework overlay for this
-GApps-required product. Existing system-package, permission and SELinux checks
-remain in force. Verify the resolved resource and permission after rebuilding
-framework resources and rebooting.
+The original device overlay was insufficient: the installed ROM resolved this
+resource to org.protonaosp.deviceconfig and GmsCore still reported
+WRITE_DEVICE_CONFIG: granted=false. Lineage's common PRODUCT_PACKAGE_OVERLAYS
+entry overrides DEVICE_PACKAGE_OVERLAYS, including the original GMS string.
+
+Move only this string into overlay-gms and prepend that directory to
+PRODUCT_PACKAGE_OVERLAYS in lineage_GM8_sprout.mk. The first directory has the
+highest priority; Soong reverses the directory list for aapt2. Keep the overlay
+eligible for auto-RRO, matching the common Lineage overlay, so a generated
+product RRO cannot restore the lower-priority Proton value. Other GM8 resources
+retain their device-overlay priority. SimpleDeviceConfig and its platform
+signature remain unchanged; its boot defaults are not removed.
+
+Existing system-package, permission and SELinux checks remain in force. This
+fix addresses the observed permission denial; the obfuscated GmsCore NPE is a
+separate device validation item, not a proven consequence of that denial.
+Rebuild and sign the complete ROM with the existing release keys, install the
+update and reboot, then verify:
+
+```bat
+adb shell cmd overlay lookup android android:string/config_deviceConfiguratorPackageName
+adb shell dumpsys package com.google.android.gms | findstr /C:"WRITE_DEVICE_CONFIG"
+```
+
+The resolved package must be com.google.android.gms and the installed system
+GmsCore's WRITE_DEVICE_CONFIG grant must be true. Recheck the persistent GMS
+process crashes and permission-denial logs separately. Updating only the
+Dolby APK or boot image cannot change this framework/product overlay.
 
 ## Legacy TCP_INFO
 

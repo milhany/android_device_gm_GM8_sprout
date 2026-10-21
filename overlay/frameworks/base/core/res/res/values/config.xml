@@ -634,8 +634,4 @@
         <item>7,1</item>
     </string-array>
 
-    <!-- Android 12 grants WRITE_DEVICE_CONFIG to the designated system
-         configurator. GmsCore supplies that service in this GApps product. -->
-    <string name="config_deviceConfiguratorPackageName" translatable="false">com.google.android.gms</string>
-
 </resources>

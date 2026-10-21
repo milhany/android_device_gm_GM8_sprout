@@ -24,6 +24,11 @@ else
 $(error GM8_sprout: GApps tree missing. Run device/gm/GM8_sprout/setup-gapps.sh from the Android source root before building)
 endif
 
+# Product overlays outrank DEVICE_PACKAGE_OVERLAYS. Keep this narrow GApps
+# override first, ahead of Lineage's org.protonaosp.deviceconfig designation.
+# Leave it eligible for auto-RRO, just like the common Lineage product overlay.
+PRODUCT_PACKAGE_OVERLAYS := device/gm/GM8_sprout/overlay-gms $(PRODUCT_PACKAGE_OVERLAYS)
+
 # Device-specific applications not supplied by the common phone profile.
 PRODUCT_PACKAGES += \
     Snap \
