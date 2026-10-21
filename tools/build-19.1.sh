@@ -43,6 +43,7 @@ python3 device/gm/GM8_sprout/tools/apply-radio-compat.py
 python3 device/gm/GM8_sprout/tools/apply-wifi-keystore-compat.py
 python3 device/gm/GM8_sprout/tools/apply-legacy-network-compat.py
 python3 device/gm/GM8_sprout/tools/apply-processgroup-compat.py
+python3 device/gm/GM8_sprout/tools/apply-runtime-compat.py
 python3 device/gm/GM8_sprout/tools/fixup-legacy-protobuf.py
 python3 device/gm/GM8_sprout/tools/preflight.py
 
@@ -57,6 +58,11 @@ for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 vendo
 done
 git -C frameworks/opt/telephony diff HEAD -- src/java/com/android/internal/telephony/RadioConfig.java > "${RECORD_DIR}/radio-local.patch"
 git -C packages/modules/Wifi diff HEAD -- service/java/com/android/server/wifi/WifiConfigManager.java service/java/com/android/server/wifi/MacAddressUtil.java > "${RECORD_DIR}/wifi-local.patch"
+for PROJECT in frameworks/base lineage-sdk; do
+    printf '%s ' "${PROJECT}" >> "${RECORD_DIR}/revisions.txt"
+    git -C "${PROJECT}" rev-parse HEAD >> "${RECORD_DIR}/revisions.txt"
+    git -C "${PROJECT}" diff HEAD > "${RECORD_DIR}/${PROJECT//\//_}-local.patch"
+done
 for PROJECT in system/bpf system/netd system/core packages/modules/NetworkStack; do
     printf '%s ' "${PROJECT}" >> "${RECORD_DIR}/revisions.txt"
     git -C "${PROJECT}" rev-parse HEAD >> "${RECORD_DIR}/revisions.txt"

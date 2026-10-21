@@ -1,0 +1,34 @@
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
+@@ -29,6 +29,7 @@
+ import android.annotation.NonNull;
+ import android.annotation.Nullable;
+ import android.app.Fragment;
++import android.content.Context;
+ import android.database.ContentObserver;
+ import android.os.Bundle;
+ import android.os.Parcelable;
+@@ -275,6 +276,7 @@
+
+     @Override
+     public void onDestroyView() {
++        Dependency.get(TunerService.class).removeTunable(this);
+         super.onDestroyView();
+         mStatusBarIconController.removeIconGroup(mDarkIconManager);
+         mAnimationScheduler.removeCallback(this);
+@@ -285,9 +287,14 @@
+
+     @Override
+     public void onTuningChanged(String key, String newValue) {
++        // A queued tuning callback can outlive this Fragment's view.
++        final Context context = getContext();
++        if (context == null || getView() == null) {
++            return;
++        }
+         boolean wasClockBlacklisted = mIsClockBlacklisted;
+         mIsClockBlacklisted = StatusBarIconController.getIconHideList(
+-                getContext(), newValue).contains("clock");
++                context, newValue).contains("clock");
+         if (wasClockBlacklisted && !mIsClockBlacklisted) {
+             showClock(false);
+         }

@@ -1,3 +1,4 @@
 # Legacy vendor configuration names need a system owner and vendor readers.
 system_vendor_config_prop(gm8_legacy_camera_prop)
 system_vendor_config_prop(gm8_legacy_ril_prop)
+system_vendor_config_prop(gm8_legacy_fingerprint_prop)

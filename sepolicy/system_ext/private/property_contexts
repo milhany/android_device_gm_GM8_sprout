@@ -4,6 +4,9 @@ persist.camera.depth.focus.cb u:object_r:gm8_legacy_camera_prop:s0 exact bool
 persist.camera.gyro.disable u:object_r:gm8_legacy_camera_prop:s0 exact bool
 rild.libpath u:object_r:gm8_legacy_ril_prop:s0 exact string
 
+# Stock FPC HAL reads an optional KPI switch; keep its default when absent.
+fpc_kpi u:object_r:gm8_legacy_fingerprint_prop:s0 exact string
+
 # Exact pre-Treble camera properties observed in the 2026-10-20 boot log.
 # Share the exported camera configuration type and existing HAL/daemon readers.
 # Values remain strings to preserve stock decimal, hex and textual settings.
@@ -78,6 +81,11 @@ persist.camera.mobicat u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.ois.disable u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.ois.video u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.pdaf.enable u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.pdaf_dump u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.pdaf_logging u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.pdaf_profiling u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.pdaf_test u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.pdaf.qcom10 u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.perflock.enable u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.pproc.debug.mask u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.raw.dump u:object_r:gm8_legacy_camera_prop:s0 exact string

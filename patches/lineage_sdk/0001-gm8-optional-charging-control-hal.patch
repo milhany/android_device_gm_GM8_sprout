@@ -1,0 +1,13 @@
+--- a/lineage/lib/main/java/org/lineageos/platform/internal/health/ChargingControlController.java
++++ b/lineage/lib/main/java/org/lineageos/platform/internal/health/ChargingControlController.java
+@@ -253,6 +253,10 @@
+     }
+
+     public boolean isChargingModeSupported(int mode) {
++        // The HAL is optional; the constructor probes modes before isSupported().
++        if (mChargingControl == null) {
++            return false;
++        }
+         try {
+             return (mChargingControl.getSupportedMode() & mode) != 0;
+         } catch (RemoteException e) {

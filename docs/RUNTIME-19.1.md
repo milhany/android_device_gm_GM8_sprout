@@ -1,5 +1,8 @@
 # Android 12 runtime follow-up
 
+The GPU 415 first-boot follow-up and status-bar/optional charging-HAL repairs are
+documented in [BOOTLOG-20261021.md](BOOTLOG-20261021.md).
+
 The owner reports working baseband, camera and physical keys. In the submitted
 gm8-acilis-log.txt, Settings draws in 2678 ms while Snapchat installation and
 verification are running. The log contains no Java fatal exception or native

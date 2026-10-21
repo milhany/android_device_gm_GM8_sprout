@@ -3,3 +3,4 @@
 get_prop(hal_camera_server, gm8_legacy_camera_prop)
 get_prop(cameraserver, gm8_legacy_camera_prop)
 get_prop(hal_telephony_server, gm8_legacy_ril_prop)
+get_prop(hal_fingerprint_server, gm8_legacy_fingerprint_prop)
