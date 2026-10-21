@@ -5,6 +5,10 @@ after opening Camera, entering recents and swiping. The attached
 log(20261021-083753).txt contains an earlier boot plus the later incident.
 It is not evidence that the immediately preceding source fixes were installed.
 
+The later focused camera capture narrows another live Keymaster wait to the
+QSEE listener path and identifies three additional camera property labels:
+[camera/Keymaster follow-up](CAMERA-KEYMASTER-20261021.md).
+
 ## Confirmed restart chain
 
 At 16:56:14, Keystore2 reports an IKeystoreAuthorization::onLockScreenEvent

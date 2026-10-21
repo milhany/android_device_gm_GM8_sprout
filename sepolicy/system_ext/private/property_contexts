@@ -73,7 +73,10 @@ persist.camera.liveconnect u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.logsync u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.logsync.interval u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.ltm.filteroff u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.ltm.noip u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.ltm.out u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.ltm.overlap u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.ltm.sw u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.mci.debug u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.mct.debug u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.max.snapshot u:object_r:gm8_legacy_camera_prop:s0 exact string
