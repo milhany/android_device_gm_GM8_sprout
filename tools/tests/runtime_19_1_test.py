@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Test actual patched Java methods and two-project patch application.
+"""Test actual patched Java methods and three-project patch application.
 
 Requires a JDK and --top pointing to a prepared Android 12.1 source tree.
 Extracted real methods use isolated Android/HAL fixtures, not a full platform
-build. Pristine methods must reproduce both reported null-pointer crashes.
+build. Pristine methods must reproduce all three reported null-pointer crashes.
 """
 
 import argparse
@@ -18,6 +18,8 @@ SOURCES = [
      "CollapsedStatusBarFragment.java", "frameworks_base/0001-gm8-statusbar-tuner-view-lifecycle.patch"),
     ("lineage-sdk", "lineage/lib/main/java/org/lineageos/platform/internal/health/"
      "ChargingControlController.java", "lineage_sdk/0001-gm8-optional-charging-control-hal.patch"),
+    ("packages/apps/Trebuchet", "quickstep/src/com/android/quickstep/SystemUiProxy.java",
+     "packages_apps_Trebuchet/0001-gm8-handle-unavailable-recent-tasks.patch"),
 ]
 
 
@@ -132,6 +134,48 @@ public class RuntimeHealthTest {
 '''
 
 
+RECENTS_FIXTURE = r'''
+import java.util.*;
+public class RuntimeRecentsTest {
+    static final int RECENT_IGNORE_UNAVAILABLE = 2;
+    static final String TAG = "fixture";
+    static class RemoteException extends Exception {}
+    static class Log { static void w(String tag, String msg, Exception e) {} }
+    static class GroupedRecentTaskInfo { final int id; GroupedRecentTaskInfo(int value) { id = value; } }
+    interface RecentTasks {
+        GroupedRecentTaskInfo[] getRecentTasks(int max, int flags, int user) throws RemoteException;
+    }
+    RecentTasks mRecentTasks;
+    /* TASKS */
+    static void check(boolean value, String reason) {
+        if (!value) throw new AssertionError(reason);
+    }
+    public static void main(String[] args) {
+        RuntimeRecentsTest p = new RuntimeRecentsTest();
+        check(p.getRecentTasks(10, 0).isEmpty(), "disconnected service");
+        p.mRecentTasks = (max, flags, user) -> null;
+        ArrayList<GroupedRecentTaskInfo> absent = p.getRecentTasks(10, 0);
+        check(absent != null && absent.isEmpty(), "null remote array during reconnect");
+        // The caller receives a fresh mutable list, including failure cases.
+        absent.add(new GroupedRecentTaskInfo(99));
+        check(p.getRecentTasks(10, 0).isEmpty(), "no shared fallback list");
+        p.mRecentTasks = (max, flags, user) -> new GroupedRecentTaskInfo[0];
+        check(p.getRecentTasks(10, 0).isEmpty(), "empty remote list");
+        p.mRecentTasks = (max, flags, user) -> { throw new RemoteException(); };
+        check(p.getRecentTasks(10, 0).isEmpty(), "retain binder-failure fallback");
+        GroupedRecentTaskInfo first = new GroupedRecentTaskInfo(7), second = new GroupedRecentTaskInfo(3);
+        p.mRecentTasks = (max, flags, user) -> {
+            check(max == 42 && flags == RECENT_IGNORE_UNAVAILABLE && user == 11, "IPC arguments");
+            return new GroupedRecentTaskInfo[]{first, second};
+        };
+        ArrayList<GroupedRecentTaskInfo> tasks = p.getRecentTasks(42, 11);
+        check(tasks.size() == 2 && tasks.get(0) == first && tasks.get(1) == second, "order and identity");
+        tasks.remove(0); check(tasks.size() == 1, "retain mutable result");
+    }
+}
+'''
+
+
 def run_java(directory, name, program, fixed):
     source = directory / (name + ".java")
     source.write_text(program)
@@ -173,23 +217,24 @@ def main():
             assert result.returncode == expected, (result.stdout, result.stderr)
 
         run(1, "--check")
-        # Drift in the second project must not leave the first project patched.
-        second = top / SOURCES[1][0] / SOURCES[1][1]
-        second.write_text(pristine[1].replace("    public boolean isChargingModeSupported(int mode) {",
-                                             "    public boolean localModeProbe(int mode) {"))
-        before = second.read_text()
+        # Drift in the last project must not leave either earlier project patched.
+        last = top / SOURCES[2][0] / SOURCES[2][1]
+        last.write_text(pristine[2].replace("    public ArrayList<GroupedRecentTaskInfo> getRecentTasks(",
+                                          "    public ArrayList<GroupedRecentTaskInfo> localTasks("))
+        before = last.read_text()
         run(1)
-        assert (top / SOURCES[0][0] / SOURCES[0][1]).read_text() == pristine[0]
-        assert second.read_text() == before
-        second.write_text(pristine[1])
+        for index in (0, 1):
+            assert (top / SOURCES[index][0] / SOURCES[index][1]).read_text() == pristine[index]
+        assert last.read_text() == before
+        last.write_text(pristine[2])
         run(0); run(0); run(0, "--check")
         for index, (project, path, patch) in enumerate(SOURCES):
             assert (top / project / path).read_text() == patched[index]
             assert (top / project / "unrelated-local.txt").read_text() == "keep local work\n"
         # A sync may reset only one project; preserve the already-applied one.
-        second.write_text(pristine[1])
+        last.write_text(pristine[2])
         run(1, "--check"); run(0); run(0, "--check")
-        assert second.read_text() == patched[1]
+        assert last.read_text() == patched[2]
         assert (top / SOURCES[0][0] / SOURCES[0][1]).read_text() == patched[0]
         version.write_text("PLATFORM_SDK_VERSION := 30\n")
         run(1)
@@ -203,9 +248,13 @@ def main():
             health = health.replace("/* SUPPORTED */", method(texts[1], "public boolean isSupported()"))
             run_java(top, "RuntimeUiTest", ui, fixed)
             run_java(top, "RuntimeHealthTest", health, fixed)
-    print("PASS: real Java methods reproduce both original crashes and pass after repair.")
+            recents = RECENTS_FIXTURE.replace("/* TASKS */", method(texts[2],
+                            "public ArrayList<GroupedRecentTaskInfo> getRecentTasks(int numTasks, int userId)"))
+            run_java(top, "RuntimeRecentsTest", recents, fixed)
+    print("PASS: real Java methods reproduce all three original crashes and pass after repair.")
     print("PASS: active/recreated status bar, stale callbacks, absent/present HAL capabilities.")
-    print("PASS: two-project check/apply/repeat, local work preservation, drift refusal, SDK guard.")
+    print("PASS: null/empty/available recent tasks, binder failures, result mutability and IPC arguments.")
+    print("PASS: three-project check/apply/repeat, local work preservation, drift refusal, SDK guard.")
 
 
 if __name__ == "__main__":

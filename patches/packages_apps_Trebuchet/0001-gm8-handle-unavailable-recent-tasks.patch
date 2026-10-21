@@ -1,0 +1,17 @@
+--- a/quickstep/src/com/android/quickstep/SystemUiProxy.java
++++ b/quickstep/src/com/android/quickstep/SystemUiProxy.java
+@@ -772,8 +772,12 @@
+     public ArrayList<GroupedRecentTaskInfo> getRecentTasks(int numTasks, int userId) {
+         if (mRecentTasks != null) {
+             try {
+-                return new ArrayList<>(Arrays.asList(mRecentTasks.getRecentTasks(numTasks,
+-                        RECENT_IGNORE_UNAVAILABLE, userId)));
++                final GroupedRecentTaskInfo[] tasks = mRecentTasks.getRecentTasks(numTasks,
++                        RECENT_IGNORE_UNAVAILABLE, userId);
++                // A reconnecting or invalidated Shell may not return a task array.
++                if (tasks != null) {
++                    return new ArrayList<>(Arrays.asList(tasks));
++                }
+             } catch (RemoteException e) {
+                 Log.w(TAG, "Failed call getRecentTasks", e);
+             }

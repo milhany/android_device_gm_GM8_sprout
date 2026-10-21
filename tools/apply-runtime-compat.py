@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the SDK 32 status-bar lifecycle and optional charging-HAL repairs."""
+"""Apply the SDK 32 status-bar, optional charging-HAL and recents repairs."""
 
 import argparse
 from pathlib import Path
@@ -24,6 +24,8 @@ def main():
     patches = [
         ("frameworks/base", device / "patches/frameworks_base/0001-gm8-statusbar-tuner-view-lifecycle.patch"),
         ("lineage-sdk", device / "patches/lineage_sdk/0001-gm8-optional-charging-control-hal.patch"),
+        ("packages/apps/Trebuchet", device /
+         "patches/packages_apps_Trebuchet/0001-gm8-handle-unavailable-recent-tasks.patch"),
     ]
 
     def apply(repo, patch, *flags):
@@ -50,7 +52,7 @@ def main():
               "device/gm/GM8_sprout/tools/apply-runtime-compat.py", file=sys.stderr)
         return 1
 
-    # Validate both projects before editing either, preserving unrelated changes.
+    # Validate every project before editing any, preserving unrelated changes.
     applied = []
     for repo, patch in pending:
         result = apply(repo, patch)

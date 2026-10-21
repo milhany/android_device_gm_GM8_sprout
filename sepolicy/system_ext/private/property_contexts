@@ -76,6 +76,7 @@ persist.camera.ltm.filteroff u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.ltm.out u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.mci.debug u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.mct.debug u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.max.snapshot u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.mmstill.logs u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.mobicat u:object_r:gm8_legacy_camera_prop:s0 exact string
 persist.camera.ois.disable u:object_r:gm8_legacy_camera_prop:s0 exact string
@@ -118,3 +119,24 @@ persist.partial.skip u:object_r:gm8_legacy_camera_prop:s0 exact string
 ro.camera.req.fmq.size u:object_r:gm8_legacy_camera_prop:s0 exact string
 ro.camera.res.fmq.size u:object_r:gm8_legacy_camera_prop:s0 exact string
 service.bootanim.zzzz u:object_r:gm8_legacy_camera_prop:s0 exact string
+
+# Additional stock camera reads identified after the 2026-10-21 runtime restart.
+persist.camera.aux.yuv u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.dual.camera u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.facedetect u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.hal3hfr.enable u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.hdr.outcrop u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.imglib.oemfeat1 u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.llnoise u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.ltmforseemore u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.manual.capture u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.max.previewfps u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.max_prev.enable u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.multi_pass u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.offlineraw u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.raw_yuv u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.set.afd u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.thermal.mode u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.camera.zsl.mode u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.capture.burst.exposures u:object_r:gm8_legacy_camera_prop:s0 exact string
+persist.denoise.process.plates u:object_r:gm8_legacy_camera_prop:s0 exact string
