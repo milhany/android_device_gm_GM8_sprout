@@ -67,8 +67,9 @@ cancel/reacquire races and repeated mode changes.
 
 Normal interaction floors are 1094400/902400 kHz, with 250..1500 ms duration
 plus the existing 100 ms idle-notification wait. Framework duration inputs are
-clamped before adding the 100 ms grace interval. Normal launch votes last at
-most 750 ms; they do not force all four primary-cluster cores, the GPU rail,
+clamped before adding the 100 ms grace interval. On the October 24 launch-test
+branch, launch votes last at most 2000 ms (shipping baseline: 750 ms).
+They do not force all four primary-cluster cores, the GPU rail,
 GPU clock or a 10-second GPU idle timeout. Launch CPU floors are bounded at
 1401000/1094400 kHz. Released CPU/GPU defaults remain unchanged.
 
@@ -84,6 +85,10 @@ boundaries replaced by fixtures):
 ```sh
 python3 device/gm/GM8_sprout/tools/tests/power_policy_test.py
 ```
+
+See [LAUNCH-TEST-20261024.md](LAUNCH-TEST-20261024.md) for the separate branch,
+measured motivation, comparison procedure and rollback. The longer launch
+window is not yet an on-device performance or battery-life result.
 
 ## Checks and deployment
 
