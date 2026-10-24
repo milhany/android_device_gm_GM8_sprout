@@ -7,12 +7,12 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 # Setup dalvik vm configs
 $(call inherit-product, frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk)
 
-# Compile app code ahead of time on the Cortex-A53, including new installs
-# and updates. This trades longer installation and additional compiled-code
-# storage for less runtime compilation at launch. Keep post-boot defaults.
+# Use install/cloud and runtime profiles to select app code for compilation.
+# Full speed compilation of large apps can exceed ART's watchdog on this SoC.
+# Match Android 12.1 defaults for installs and idle background optimization.
 PRODUCT_SYSTEM_PROPERTIES += \
-    pm.dexopt.install=speed \
-    pm.dexopt.bg-dexopt=speed
+    pm.dexopt.install=speed-profile \
+    pm.dexopt.bg-dexopt=speed-profile
 
 # Retain the shipping FCM 2 contract, including its 3.18 kernel requirements.
 PRODUCT_PACKAGES += gm8_framework_compatibility_matrix.2.xml
