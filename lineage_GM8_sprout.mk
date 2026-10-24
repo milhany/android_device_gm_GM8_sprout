@@ -44,6 +44,10 @@ PRODUCT_MODEL := GM 8
 PRODUCT_MANUFACTURER := General Mobile
 PRODUCT_CHARACTERISTICS := nosdcard
 
+# Experimental Essential PH-1 (mata) Android 8.1 build fingerprint.
+# This is an identity compatibility test, not a Play certification guarantee.
+BUILD_FINGERPRINT := essential/mata/mata:8.1.0/OPM1.180104.267/399:user/release-keys
+
 PRODUCT_BUILD_PROP_OVERRIDES += \
     PRODUCT_NAME=GM8 \
     TARGET_DEVICE=GM8_sprout
