@@ -1,0 +1,36 @@
+{
+  "upstream": "https://github.com/LineageOS/android_kernel_xiaomi_msm8937.git",
+  "revision": "e24963ba7e7376ad052179723a22b316e73af7d9",
+  "patch_sha256": "97eb95125259e1662677a8dfafce1437d695b05918dcc1dda1b137d815a9210a",
+  "compiler": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+  "hardware_tested": false,
+  "flash_ready": false,
+  "artifacts": {
+    "arch/arm64/boot/Image.gz": "ddf9b4b971c9d4537acc08e2ddfcc399b8fdffb118a23f8e52004df7a4816cb6",
+    "arch/arm64/boot/Image.gz-dtb": "3140b68e8533ad1ddebb0ccbb839d5550660f71b2c1c7e11b54e4db336f2bb64",
+    "arch/arm64/boot/dts/gm/gm8_sprout.dtb": "a0f6864222c7a2b5ba18945e3b1d3b8cdf61f165eeffafca098fccb08c211844",
+    ".config": "8e15d9698860b1f59466a80bc46f6fdf8aff649fd09cb20d0661afde75b47dc9"
+  },
+  "date_utc": "2026-10-25",
+  "candidate_tree": "1e3426ccbb1bc76e9b621327434ffab473797cfe",
+  "validated_targets": [
+    "Image.gz",
+    "dtbs",
+    "Image.gz-dtb"
+  ],
+  "checkpoint": "GM8 power source port; hardware validation pending",
+  "upgrade_baseline_tree": "2ada8247df07c7d9750e6db76b4107edfe5a673f",
+  "upgrade_sha256": "d4f1d59a37b6fcf5140f06817c874014210763202c4ef269afe964e4394d1ffa",
+  "selected_configs": {
+    "CONFIG_GM8_POWER": "y",
+    "CONFIG_GM8_BQ27426_PROFILE_WRITE": "n"
+  },
+  "host_tests": [
+    "JEITA decisions and hysteresis",
+    "temperature failures and charging-enable blockers",
+    "battery-ID conversion, mapping and invalid ADC readings",
+    "compiled DT GPIO/ADC/USB links and single ID channel",
+    "unchanged gauge calibration images",
+    "exact baseline upgrade and conflict rejection"
+  ]
+}

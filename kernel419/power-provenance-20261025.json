@@ -1,0 +1,53 @@
+{
+  "reference_repository": "https://github.com/milhany/android_kernel_gm_msm8937.git",
+  "reference_revision": "44e09019575c012ad5b332250261d162ea5835d5",
+  "files": [
+    {
+      "source": "drivers/power/bq2560x_charger.c",
+      "source_sha256": "ca3f70845746f29d6f1791c1fc18e853f97495a61bd649c8c092f6b772a972e9",
+      "target": "drivers/power/supply/gm8/bq2560x_charger.c"
+    },
+    {
+      "source": "drivers/power/bq2560x.h",
+      "source_sha256": "fa16abb46baffecd1e8bbe49fe8065235f6bb1af97774d901ac345de8c29bc1e",
+      "target": "drivers/power/supply/gm8/bq2560x.h"
+    },
+    {
+      "source": "drivers/power/bq2560x_reg.h",
+      "source_sha256": "f0ed909e47b4bf51e3eadf3499204c7c1b8fa3997f1762c427f0e2ba87be8858",
+      "target": "drivers/power/supply/gm8/bq2560x_reg.h"
+    },
+    {
+      "source": "drivers/power/bq27426_fg.c",
+      "source_sha256": "183dd1d9502f6be6c367f476ebea5ebc2fbeb12da66d40c7aca0f1f743d1f65e",
+      "target": "drivers/power/supply/gm8/bq27426_fg.c"
+    },
+    {
+      "source": "drivers/power/bqfs_cmd_type.h",
+      "source_sha256": "3cf8738458aea14b4b3c3cbb6c3260c20c322b21707c5f4a2e91ded2e8fc2d6f",
+      "target": "drivers/power/supply/gm8/bqfs_cmd_type.h"
+    },
+    {
+      "source": "drivers/power/bq27426_gmfs_scud.h",
+      "source_sha256": "23f13608b5da535c37928e4468853702b389b37e0e44400400e0fb1e3ead72a4",
+      "target": "drivers/power/supply/gm8/bq27426_gmfs_scud.h"
+    },
+    {
+      "source": "drivers/power/bq27426_gmfs_sunwoda.h",
+      "source_sha256": "6a0b14419a115817a2a180e99514995974677511d722c73ab4ad742c7430482a",
+      "target": "drivers/power/supply/gm8/bq27426_gmfs_sunwoda.h"
+    },
+    {
+      "source": "drivers/power/bq27426_gmfs_nvt.h",
+      "source_sha256": "3209c26722b09560eb69760b58f63c6c91827ce2aa716b3bb43641503ca42f86",
+      "target": "drivers/power/supply/gm8/bq27426_gmfs_nvt.h"
+    },
+    {
+      "source": "techpack/xiaomi-msm8937/power_supply/msm_usb_psy.c",
+      "source_sha256": "5adb329d4b1e53a26014a870a20c256770a90b9adaccd93d4dca5c84046abbb1",
+      "reference_revision": "e24963ba7e7376ad052179723a22b316e73af7d9",
+      "target": "drivers/power/supply/gm8/gm8_usb_psy.c",
+      "reference_repository": "https://github.com/LineageOS/android_kernel_xiaomi_msm8937.git"
+    }
+  ]
+}

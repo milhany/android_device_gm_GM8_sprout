@@ -8,12 +8,14 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 
 DEVICE = Path(__file__).resolve().parents[1]
 PORT = DEVICE / "kernel419"
 UPSTREAM = "https://github.com/LineageOS/android_kernel_xiaomi_msm8937.git"
 REVISION = "e24963ba7e7376ad052179723a22b316e73af7d9"
 PATCH = PORT / "0001-gm8-board-bringup.patch"
+POWER_UPGRADE = PORT / "upgrades/d06c76c-power.patch"
 
 
 def run(args, cwd=None, capture=False, env=None):
@@ -34,7 +36,7 @@ def digest(path):
     return h.hexdigest()
 
 
-def source_check(source):
+def source_check(source, quiet=False):
     root = Path(run(["git", "rev-parse", "--show-toplevel"], source, True).strip())
     if root.resolve() != source:
         raise ValueError("--source must be the kernel repository root")
@@ -42,14 +44,44 @@ def source_check(source):
     if head != REVISION:
         raise ValueError(f"Expected pinned upstream {REVISION}; found {head}")
     # This also checks newly added files, without relying on a stale stamp.
-    run(["git", "apply", "--reverse", "--check", PATCH], source)
+    if quiet:
+        subprocess.run(["git", "apply", "--reverse", "--check", str(PATCH)],
+                       cwd=source, check=True, text=True, capture_output=True)
+    else:
+        run(["git", "apply", "--reverse", "--check", PATCH], source)
+
+
+def upgrade_power(source):
+    """Upgrade only an exact d06c76c port, preserving the source/output paths."""
+    if Path(run(["git", "rev-parse", "--show-toplevel"], source, True).strip()).resolve() != source:
+        return False
+    if run(["git", "rev-parse", "HEAD"], source, True).strip() != REVISION:
+        return False
+    with tempfile.TemporaryDirectory(prefix="gm8-port-upgrade-") as directory:
+        env = dict(os.environ, GIT_INDEX_FILE=str(Path(directory) / "index"))
+        run(["git", "read-tree", REVISION], source, env=env)
+        run(["git", "apply", "--cached", PATCH], source, env=env)
+        run(["git", "apply", "--cached", "--reverse", POWER_UPGRADE], source, env=env)
+        baseline = run(["git", "diff", "--cached", "--binary", REVISION],
+                       source, True, env)
+        check = subprocess.run(["git", "apply", "--reverse", "--check", "-"],
+                               input=baseline, cwd=source, text=True, capture_output=True)
+        if check.returncode:
+            return False
+    run(["git", "apply", "--index", "--check", POWER_UPGRADE], source)
+    run(["git", "apply", "--index", POWER_UPGRADE], source)
+    source_check(source)
+    print(f"Upgraded the exact d06c76c checkpoint in place: {source}")
+    return True
 
 
 def prepare(source):
     if source.exists():
         try:
-            source_check(source)
+            source_check(source, quiet=True)
         except (ValueError, subprocess.CalledProcessError) as error:
+            if upgrade_power(source):
+                return
             raise ValueError("Existing source does not match this checkpoint. "
                              "For an older port, keep that checkout and choose a new "
                              "--source directory (for example gm8-kernel419-v2). "
@@ -140,6 +172,8 @@ def build(args, source):
     run(command + [f"-j{args.jobs}", "Image.gz-dtb", "dtbs"], env=env)
     dtb = out / "arch/arm64/boot/dts/gm/gm8_sprout.dtb"
     verify(dtb)
+    run([sys.executable, DEVICE / "tools/tests/test-gm8-power419.py",
+         "--kernel", source, "--dtb", dtb, "--config", out / ".config"], env=env)
     names = ["arch/arm64/boot/Image.gz", "arch/arm64/boot/Image.gz-dtb",
              "arch/arm64/boot/dts/gm/gm8_sprout.dtb", ".config"]
     metadata = {

@@ -52,7 +52,7 @@ the current default branch for the pinned base.
 
 | Area | Required before a phone boot candidate |
 | --- | --- |
-| Charger / fuel gauge | Port GM8 BQ2560x and BQ27426 APIs, USB power-supply integration and regulator bindings. Preserve the actual GM8 battery calibration, JEITA thresholds and thermal mitigation. The Xiaomi drivers are useful API references but contain different machine gates, compatibles and battery data. |
+| Charger / fuel gauge | Source port and host tests now pass for GM8 BQ2560x/BQ27426 plus USB supply. Hardware must still validate battery-ID voltage, temperature, charge limits, unplug/replug, suspend and regulator/IRQ behavior. Profile programming remains disabled. |
 | Touch | Port both actual GM8 Himax and FT8006M variants. Touch is currently disabled in this compile checkpoint. Do not substitute FT8006S firmware. |
 | Fingerprint | Port GM8 FPC and Sunwave GPIO/power/detection behavior, sysfs/proc ABI and wakeup handling. |
 | GPU / memory | Common KGSL header layouts match; verify actual V415 driver behavior, heap availability, cache maintenance and the legacy ION operations used by the vendor binaries. |
@@ -96,7 +96,7 @@ source and build record are described below.
 
 ## Vendor ABI work and validation on 2026-10-25
 
-`validation-20261025.json` records the current cumulative patch, candidate tree,
+`validation-20261025.json` records the preceding vendor-ABI patch, candidate tree,
 full kernel/DTB build hashes and ABI audit. `abi-modern-baseline-20261025.json`
 records the original modern camera stack; `abi-audit-20261025.json` records the
 selected legacy stack after the ION field fix.
@@ -129,6 +129,85 @@ bitfield/anonymous layouts, proprietary binary call usage, secure firmware or
 hardware operation. Matching KGSL/QSEECom headers is not a vendor certification.
 Kernel, appended image and native GM8 DTB were rebuilt with the selected legacy
 camera stack and 32-bit ION handler. Inherited legacy-camera VLA warnings remain.
+
+## GM8 power port on 2026-10-25
+
+The current power checkpoint is recorded in `validation-power-20261025.json`.
+`power-provenance-20261025.json` identifies every imported power source and the
+three byte-identical GM8 gauge calibration images. This is a **source port with
+compile/host checks**, not confirmation that charging works on the phone.
+
+Implemented:
+
+* GM8-specific BQ2560x charger and BQ27426 gauge, independent of Xiaomi machine
+  detection. The original charger policy, JEITA thresholds, adapter fallback
+  and monotonically decreasing thermal mitigation are retained.
+* Converted power-supply descriptors/callbacks, regulator registration, wakeup
+  sources, alarm API and managed provider references to their 4.19 interfaces.
+  IRQ/work lifetime is handled before power supplies and locks are removed.
+* Replaced the removed `qpnp_get_vadc` API with the existing PM8937 IIO voltage
+  channel `VADC_P_MUX2_1_1` (0x11). Removed the duplicate legacy ADC child node;
+  the 4.19 ratiometric channel and its 1:1 prescaling are retained. Voltage is
+  interpreted in microvolts, matching this QCOM VADC provider.
+* Resolved the charge-enable pin through the TLMM phandle/GPIO 25 rather than
+  assuming a global Linux GPIO number. Physical low enables the chip.
+* Added the legacy `usb` power-supply/EXTCON bridge needed by `phy-msm-usb`,
+  retaining deferred DP/DM regulator initialization to avoid a provider cycle.
+  Charger/gauge continue to expose the `battery`/`bms` names used by userspace.
+* Hold charging disabled at initialization until a valid temperature is read;
+  sensor read failure disables charging instead of continuing with stale data.
+  A userspace charging-enable request cannot clear temperature/JEITA blockers.
+* Corrected power-supply reporting to microamp/microvolt/microamp-hour units.
+  Charge-counter reporting uses measured remaining capacity instead of `1`.
+
+The original driver chooses SCUD/NVT/Sunwoda images from measured resistance;
+the legacy DT battery-type A/B strings did not select these images. That
+mapping is preserved. `CONFIG_GM8_BQ27426_PROFILE_WRITE` defaults to **off**:
+automatic gauge profile updates return without programming and the manual
+update attribute returns `-EOPNOTSUPP`. Existing gauge calibration is kept.
+The build helper also checks that profile programming remains disabled.
+
+`tools/tests/test-gm8-power419.py` compiles the **actual** JEITA and battery-ID
+functions in a host harness. I/O/notifications are substituted. Tests cover
+hot/cold boundaries and hysteresis, warm/cool limits, read failure/recovery,
+charging-enable blockers, 30/100/330 kOhm profile mapping and invalid ADC values.
+It also checks compiled DT GPIO/ADC/USB phandles, the unique battery-ID channel,
+unchanged thermal limits, calibration hashes and the disabled programming flag.
+The full kernel, appended image and DTB build passed; a verbose modpost check
+passed. These tests do not measure a real sensor, exercise I2C/register writes
+or establish actual charging safety. Those remain hardware gates.
+
+### Upgrade the already-built v2 checkout
+
+`prepare` can upgrade the **exact d06c76c checkpoint** in place using
+`upgrades/d06c76c-power.patch`. It reconstructs and checks that baseline before
+changing source files, checks the patch against both index and working tree,
+and verifies the final cumulative patch. Unrecognized/conflicting modifications
+are rejected without a reset. Fresh preparation still applies the cumulative
+patch directly. Exact upgrade, repeat preparation and rejection of a modified
+checkout were tested. Existing output can be reused for an incremental build.
+
+After updating the tools checkout to this branch, run on the Ubuntu host:
+
+```sh
+set -o pipefail
+sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$HOME/android:/work" \
+  -v "$HOME/android/gm8-kernel419-tools-v2:/port:ro" \
+  gm8-kernel419-host prepare --source /work/gm8-kernel419-v2
+
+sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$HOME/android:/work" \
+  -v "$HOME/android/gm8-kernel419-tools-v2:/port:ro" \
+  gm8-kernel419-host build --source /work/gm8-kernel419-v2 \
+  --out /work/out-gm8-kernel419-v2 --jobs 32 \
+  2>&1 | tee "$HOME/android/gm8-kernel419-v2-power-build.log"
+```
+
+The existing host image already contains the host test dependencies. `build`
+runs these tests after DTB verification and writes a new build record only
+after they pass. No Android boot image is produced; touch and other hardware
+gates still remain before a phone candidate.
 
 Reproduce the header audit in an environment with LLVM 18 and both kernel
 source trees (including `include/uapi`, architecture UAPI and old staging ION
@@ -170,10 +249,10 @@ sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 
 `prepare` clones the pinned base into a new directory and stages the patch for
 inspection. It does not reset an existing checkout. An existing directory is
-accepted only if its HEAD matches the base and the patch can be reversed cleanly;
-unrelated or partially prepared checkouts fail instead of being overwritten.
-If an older checkpoint was already prepared, choose new source/output directories
-(for example `gm8-kernel419-v2` and `out-gm8-kernel419-v2`) for this revision.
+accepted if its HEAD matches the base and the cumulative patch can be reversed
+cleanly, or if it is the exact supported d06c76c checkpoint for the power upgrade.
+Unrelated, conflicting or partially prepared checkouts fail instead of being
+overwritten. For other older checkpoints, choose new source/output directories.
 
 `build` uses out-of-tree output, checks host tools, applies the defconfig, builds
 `Image.gz-dtb` and `dtbs`, validates board selectors and fixed firmware regions,
