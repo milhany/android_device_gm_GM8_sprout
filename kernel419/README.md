@@ -1,6 +1,6 @@
 # GM8 4.19 board-port checkpoint
 
-Status: **compiles; not boot-tested or flash-ready**. This is a separate
+Status: **compiles; selected legacy vendor UAPIs audited; not boot-tested or flash-ready**. This is a separate
 standalone port experiment. The normal ROM still selects its working 3.18
 kernel, defconfig, compiler and compatibility matrix.
 
@@ -38,6 +38,15 @@ the current default branch for the pinned base.
   the build's section mismatch. Its `arch_initcall` remains in place.
 * Disabled the generic reference FPC driver, whose matching compatible alone
   does not implement the GM8 power/detection and userspace contract.
+* Enabled `CONFIG_ION_LEGACY` for the old allocation/share/import/free ABI and
+  its 32-bit compat handler. This is a partial compatibility layer: the base
+  implementation does not implement old `ION_IOC_SYNC` / `ION_IOC_CUSTOM`.
+* Selected `CONFIG_MSMB_CAMERA_LEGACY` and disabled the modern camera build.
+  The modern sensor-info structure grows `SUB_MODULE_MAX`, changing sensor
+  config ioctl numbers and offsets. The legacy stack preserves the GM8 ABI.
+* Preserved pre-4.12 ION allocation/fd fields inside legacy `msm_frame` using
+  camera-local layouts copied from the pinned GM8 ION header. These fields
+  must not inherit the current fd-based allocator's different structure.
 
 ## Remaining hardware gates
 
@@ -46,7 +55,9 @@ the current default branch for the pinned base.
 | Charger / fuel gauge | Port GM8 BQ2560x and BQ27426 APIs, USB power-supply integration and regulator bindings. Preserve the actual GM8 battery calibration, JEITA thresholds and thermal mitigation. The Xiaomi drivers are useful API references but contain different machine gates, compatibles and battery data. |
 | Touch | Port both actual GM8 Himax and FT8006M variants. Touch is currently disabled in this compile checkpoint. Do not substitute FT8006S firmware. |
 | Fingerprint | Port GM8 FPC and Sunwave GPIO/power/detection behavior, sysfs/proc ABI and wakeup handling. |
-| Audio / camera | Port TAS2560 and GM8 sensor-specific changes; validate legacy camera/audio UAPI with the existing proprietary libraries. |
+| GPU / memory | Common KGSL header layouts match; verify actual V415 driver behavior, heap availability, cache maintenance and the legacy ION operations used by the vendor binaries. |
+| Audio / camera | Legacy camera header ABI now matches the audited GM8 structures. Still port/review sensor-specific changes and TAS2560, then validate actual camera/audio operation. |
+| Video | Two metadata structures have appended fields; test the old codec libraries' handling of payload sizes before declaring compatibility. |
 | Wi-Fi | Build the appropriate 4.19 WLAN driver/module and validate firmware, module signing and vendor HAL compatibility. A 3.18 module cannot be reused. |
 | Other board devices | Review GPIO vibrator, AW LED variants and device-info dependencies. |
 | ROM integration | Separate experimental BoardConfig/compiler/matrix selection; review boot arguments, FCM kernel requirements, DT selection and 64 MiB boot partition limit. |
@@ -57,6 +68,10 @@ current security coverage, improved application speed or blob compatibility.
 This checkpoint deliberately does not package an Android boot image or OTA.
 
 ## Validation on 2026-10-24
+
+This section and `validation-20261024.json` describe the **initial** checkpoint,
+whose patch hash is intentionally different from the current patch. The latest
+source and build record are described below.
 
 * Full ARM64 `Image.gz`, native GM8 `dtbs` and appended `Image.gz-dtb` builds
   passed with LLVM 18.1.3 and GNU cross-binutils. Build hashes are recorded in
@@ -78,6 +93,52 @@ This checkpoint deliberately does not package an Android boot image or OTA.
   it has not itself been built here. Validation used those tools in a local
   Ubuntu 24.04 environment. No phone, Android boot-image or full-ROM validation
   has been performed for 4.19.
+
+## Vendor ABI work and validation on 2026-10-25
+
+`validation-20261025.json` records the current cumulative patch, candidate tree,
+full kernel/DTB build hashes and ABI audit. `abi-modern-baseline-20261025.json`
+records the original modern camera stack; `abi-audit-20261025.json` records the
+selected legacy stack after the ION field fix.
+
+The audit compiles actual UAPI declarations with LLVM 18 for **ARMv7 and
+AArch64**. It compares common ioctl values, named structure sizes/alignment
+and named non-bitfield member offsets. It records missing requests/structures
+and added/removed probes instead of silently treating them as compatible.
+No driver is loaded. Compiler annotations are treated like exported UAPI;
+the freestanding time structures come from kernel UAPI, not Android libc.
+Pointer widths are asserted for both targets. A deliberately modified QSEE
+header was detected through changed ioctl values, structure size and offsets
+on both targets.
+
+Results for the selected stack:
+
+* KGSL: 456 common probes per target, no differences.
+* QSEECom: 159 per target, no differences.
+* Legacy camera v1, sensor, SDK, ISP, subdevice and postprocessing: 1783
+  common probes per target, no differences and no removed probe fields.
+* Supported legacy ION: 19 probes per target, no differences. Old sync/custom
+  requests and `ion_custom_data` remain absent; binary usage must be checked.
+* Video metadata: 172 per target, two size differences. Frame-QP payload grows
+  4 to 20 bytes; output-crop payload grows 36 to 80 bytes. Existing member
+  offsets are unchanged and fields are appended, which may be compatible for
+  prefix readers but is not proof that the old codec libraries accept them.
+
+These checks do **not** validate ioctl handler behavior, general enum values,
+bitfield/anonymous layouts, proprietary binary call usage, secure firmware or
+hardware operation. Matching KGSL/QSEECom headers is not a vendor certification.
+Kernel, appended image and native GM8 DTB were rebuilt with the selected legacy
+camera stack and 32-bit ION handler. Inherited legacy-camera VLA warnings remain.
+
+Reproduce the header audit in an environment with LLVM 18 and both kernel
+source trees (including `include/uapi`, architecture UAPI and old staging ION
+headers):
+
+```sh
+python3 tools/audit-kernel419-abi.py --old /path/to/gm8-kernel318 \
+  --new ~/android/gm8-kernel419 --camera-stack legacy \
+  --output /tmp/gm8-abi-audit.json
+```
 
 ## Reproduce on the build server
 
@@ -111,6 +172,8 @@ sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 inspection. It does not reset an existing checkout. An existing directory is
 accepted only if its HEAD matches the base and the patch can be reversed cleanly;
 unrelated or partially prepared checkouts fail instead of being overwritten.
+If an older checkpoint was already prepared, choose new source/output directories
+(for example `gm8-kernel419-v2` and `out-gm8-kernel419-v2`) for this revision.
 
 `build` uses out-of-tree output, checks host tools, applies the defconfig, builds
 `Image.gz-dtb` and `dtbs`, validates board selectors and fixed firmware regions,

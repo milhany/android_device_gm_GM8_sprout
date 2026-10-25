@@ -17,8 +17,13 @@ PATCH = PORT / "0001-gm8-board-bringup.patch"
 
 
 def run(args, cwd=None, capture=False, env=None):
-    return subprocess.run([str(x) for x in args], cwd=cwd, check=True,
-                          text=True, capture_output=capture, env=env).stdout
+    try:
+        return subprocess.run([str(x) for x in args], cwd=cwd, check=True,
+                              text=True, capture_output=capture, env=env).stdout
+    except subprocess.CalledProcessError as error:
+        if capture and error.stderr:
+            print(error.stderr, end="", file=sys.stderr)
+        raise
 
 
 def digest(path):
@@ -42,7 +47,13 @@ def source_check(source):
 
 def prepare(source):
     if source.exists():
-        source_check(source)
+        try:
+            source_check(source)
+        except (ValueError, subprocess.CalledProcessError) as error:
+            raise ValueError("Existing source does not match this checkpoint. "
+                             "For an older port, keep that checkout and choose a new "
+                             "--source directory (for example gm8-kernel419-v2). "
+                             "No reset was performed.") from error
         print(f"Port patch already present: {source}")
         return
     source.parent.mkdir(parents=True, exist_ok=True)

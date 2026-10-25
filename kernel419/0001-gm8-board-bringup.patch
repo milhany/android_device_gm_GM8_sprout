@@ -5323,10 +5323,10 @@ index 000000000..342868256
 +};
 diff --git a/arch/arm64/configs/gm8_defconfig b/arch/arm64/configs/gm8_defconfig
 new file mode 100644
-index 000000000..1fb9dcf38
+index 000000000..5b2129cc4
 --- /dev/null
 +++ b/arch/arm64/configs/gm8_defconfig
-@@ -0,0 +1,685 @@
+@@ -0,0 +1,687 @@
 +CONFIG_LOCALVERSION="-gm8-4.19-port"
 +# CONFIG_LOCALVERSION_AUTO is not set
 +CONFIG_AUDIT=y
@@ -5743,7 +5743,7 @@ index 000000000..1fb9dcf38
 +CONFIG_MSM_VIDC_3X_GOVERNORS=y
 +CONFIG_MSM_VIDC_3X_V4L2=y
 +CONFIG_MSM_CAMERA=y
-+CONFIG_MSMB_CAMERA=y
++# CONFIG_MSMB_CAMERA_ENABLE is not set
 +CONFIG_MSM_CAMERA_SENSOR=y
 +CONFIG_MSM_CPP=y
 +CONFIG_MSM_CCI=y
@@ -5866,6 +5866,7 @@ index 000000000..1fb9dcf38
 +CONFIG_STAGING=y
 +CONFIG_ASHMEM=y
 +CONFIG_ION=y
++CONFIG_ION_LEGACY=y
 +CONFIG_ION_POOL_AUTO_REFILL=y
 +CONFIG_MSM_EXT_DISPLAY=y
 +CONFIG_QPNP_REVID=y
@@ -6012,6 +6013,7 @@ index 000000000..1fb9dcf38
 +CONFIG_CORESIGHT_DUMMY=y
 +CONFIG_CORESIGHT_REMOTE_ETM=y
 +CONFIG_CORESIGHT_TGU=y
++CONFIG_MSMB_CAMERA_LEGACY=y
 diff --git a/drivers/regulator/cpr-regulator.c b/drivers/regulator/cpr-regulator.c
 index 674af9f5d..208eb1e78 100644
 --- a/drivers/regulator/cpr-regulator.c
@@ -6024,3 +6026,43 @@ index 674af9f5d..208eb1e78 100644
  
  static void __exit cpr_regulator_exit(void)
  {
+diff --git a/techpack/camera-legacy/include/uapi/media/msm_camera-legacy.h b/techpack/camera-legacy/include/uapi/media/msm_camera-legacy.h
+index 10ee4b7c9..39d4fd655 100644
+--- a/techpack/camera-legacy/include/uapi/media/msm_camera-legacy.h
++++ b/techpack/camera-legacy/include/uapi/media/msm_camera-legacy.h
+@@ -730,6 +730,24 @@ struct msm_mem_map_info {
+ #define MSM_PLANE_Y			0
+ #define MSM_PLANE_UV		1
+ 
++/* Preserve pre-4.12 ION fields in the legacy camera ABI. The current ION
++ * allocator's fd-based allocation structure has a different layout.
++ * These layouts originate from drivers/staging/android/uapi/ion.h in the
++ * GM8 3.18 kernel and do not depend on the selected kernel ION allocator.
++ */
++struct msm_camera_ion_allocation_data {
++	size_t len;
++	size_t align;
++	unsigned int heap_id_mask;
++	unsigned int flags;
++	int handle;
++};
++
++struct msm_camera_ion_fd_data {
++	int handle;
++	int fd;
++};
++
+ struct msm_frame {
+ 	struct timespec ts;
+ 	int path;
+@@ -751,8 +769,8 @@ struct msm_frame {
+ 	int stcam_quality_ind;
+ 	uint32_t stcam_conv_value;
+ 
+-	struct ion_allocation_data ion_alloc;
+-	struct ion_fd_data fd_data;
++	struct msm_camera_ion_allocation_data ion_alloc;
++	struct msm_camera_ion_fd_data fd_data;
+ 	int ion_dev_fd;
+ };
+ 
