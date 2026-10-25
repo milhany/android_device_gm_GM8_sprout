@@ -1,0 +1,142 @@
+{
+  "reference_repository": "https://github.com/milhany/android_kernel_gm_msm8937.git",
+  "reference_revision": "44e09019575c012ad5b332250261d162ea5835d5",
+  "hash_scope": "Unmodified 3.18 source bytes before 4.19 adaptation and whitespace cleanup",
+  "files": [
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-adv7533-1080p.dtsi",
+      "source_sha256": "e99a32800ec4a8909414f3ff19b40721251b39197c71acd67e9d53b57958e6b3",
+      "target": "arch/arm64/boot/dts/gm/dsi-adv7533-1080p.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-adv7533-720p.dtsi",
+      "source_sha256": "4da251a7175710b801ea7f548f6b8f988d7215f7c964416bd17264f3bd23f687",
+      "target": "arch/arm64/boot/dts/gm/dsi-adv7533-720p.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-ft8006m-720p-video.dtsi",
+      "source_sha256": "7bbcd872e4f5dd828b2a001951a201fab045e7c1295d00f11a3bd2d3c73e5140",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-ft8006m-720p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-hx83102b-720p-video.dtsi",
+      "source_sha256": "c655b9bea2e481555aa3eacf0359a4341283274b69ca21a7ac7e292dc3729741",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-hx83102b-720p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-hx8394f-720p-video.dtsi",
+      "source_sha256": "ac8e8ace134a132f4f591a8cdeabd6193c1736ebf65a883c51182561de87f909",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-hx8394f-720p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-icn9706-720-1440p-video.dtsi",
+      "source_sha256": "90302da8c7158ecdc40ee8854cf4b1990e58b2df260f7a99221247cb2a8f4f07",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-icn9706-720-1440p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-lead-fl10802-fwvga-video.dtsi",
+      "source_sha256": "bfcaee204b8413bcc95873291050ba7190ac6a6f8ff87976147e514097d0fa93",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-lead-fl10802-fwvga-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-r69006-1080p-cmd.dtsi",
+      "source_sha256": "41ed5dd443601578719a71626341098cf82d857b1e234b813f791c4862805919",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-cmd.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-r69006-1080p-video.dtsi",
+      "source_sha256": "8af77edc7a442c0cab9a66335a58a3cdbb10af160edbaf5ef01dcb3b6516c45e",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-sim-cmd.dtsi",
+      "source_sha256": "4892d53edf0bffd1aef15ec452c5dd07a12b626578522361a53a8d72f70dc5e4",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-sim-cmd.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-sim-video.dtsi",
+      "source_sha256": "961da3665bdcb912b9c1adb0a33ef4aa3d0b3f4a0d64b50e5c9ce995ef4e2d94",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-sim-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-truly-1080p-cmd.dtsi",
+      "source_sha256": "09ee1e6227845cc26606151228ab6f7f683747d23b4c89111856b19248bb51f4",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-cmd.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-truly-1080p-video.dtsi",
+      "source_sha256": "4aeb238c8ec71b4711a6f955cef2a45e8309a04028259de02e57b7fdf55ece5b",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-truly-720p-cmd.dtsi",
+      "source_sha256": "5b9c694a32cdc2c3cf9519256c23391d7eaf297452341106321146103a6ddc5c",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-truly-720p-cmd.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-truly-720p-video.dtsi",
+      "source_sha256": "5b58da9adbd72fca183f56200059a7f79168fda17b53de31047be42e5136a572",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-truly-720p-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/dsi-panel-truly-wuxga-video.dtsi",
+      "source_sha256": "73e8f85396ffd8554946d7a03ce4d362cabb58050460501a25db0baa0a21179f",
+      "target": "arch/arm64/boot/dts/gm/dsi-panel-truly-wuxga-video.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/l2300-audio.dtsi",
+      "source_sha256": "e8de10163b7dbc83f1375681d9e1ceedb01704fb19bc45c9058466134c09ce4f",
+      "target": "arch/arm64/boot/dts/gm/l2300-audio.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8937-audio-mtp.dtsi",
+      "source_sha256": "09a8c1a5dcef54a2761e66f2374932d8b4f0ad5cac240cd094a5bef81dd8778a",
+      "target": "arch/arm64/boot/dts/gm/msm8937-audio-mtp.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8937-camera-sensor-mtp.dtsi",
+      "source_sha256": "5dc04c505b7281908d4a56a9e5ab7284887f60048b7b6f23cc7ede53053719bb",
+      "target": "arch/arm64/boot/dts/gm/msm8937-camera-sensor-mtp.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8937-mdss-panels.dtsi",
+      "source_sha256": "716c5750298e271f48426cb1ae1371b5ddc20040af97147b6b2b16850c6949db",
+      "target": "arch/arm64/boot/dts/gm/msm8937-mdss-panels.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8937-mtp.dtsi",
+      "source_sha256": "7b7342d9f3a38fb4240790e2dd38beed226aa5e99099aeb9768cbe5e27ee7e14",
+      "target": "arch/arm64/boot/dts/gm/msm8937-mtp.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8937-pinctrl.dtsi",
+      "source_sha256": "0980ffc7b50b8091545369a702388b212ce71d010b1a9ce9a31ed94419bea4e7",
+      "target": "arch/arm64/boot/dts/gm/msm8937-pinctrl.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8937-pmi8937-mtp.dtsi",
+      "source_sha256": "4346d5f3f60fb4fdeb8f0b998a7371858aa59175a7d789f81cf041bda2584b4d",
+      "target": "arch/arm64/boot/dts/gm/msm8937-pmi8937-mtp.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8940-mtp.dtsi",
+      "source_sha256": "3fd89332708a7868c6af9c67a10ddb1cdbbcf660d13423fe5c57a0eabf0a433f",
+      "target": "arch/arm64/boot/dts/gm/msm8940-mtp.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8940-pinctrl.dtsi",
+      "source_sha256": "5e28977d87b3b6f6f6d9ae2238481b3f7dd77fff603429f4867acfea348916de",
+      "target": "arch/arm64/boot/dts/gm/msm8940-pinctrl.dtsi"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8940-pmi8937-mtp.dts",
+      "source_sha256": "8202e9382c4ac74d38c73660251d095f0e633a79155e52f44d3d9ea371fdc1d1",
+      "target": "arch/arm64/boot/dts/gm/gm8_sprout.dts"
+    },
+    {
+      "source": "arch/arm/boot/dts/qcom/msm8940-pmi8937-mtp.dtsi",
+      "source_sha256": "3099343b17d466c5e5b022f730dbdf67f7f9ccd8fb1fe3050c97421d4ab39f7f",
+      "target": "arch/arm64/boot/dts/gm/msm8940-pmi8937-mtp.dtsi"
+    }
+  ]
+}

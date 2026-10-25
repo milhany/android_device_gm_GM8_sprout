@@ -1,0 +1,6026 @@
+diff --git a/arch/arm64/Kconfig.platforms b/arch/arm64/Kconfig.platforms
+index c326ced9d..6c74ce3b4 100644
+--- a/arch/arm64/Kconfig.platforms
++++ b/arch/arm64/Kconfig.platforms
+@@ -239,6 +239,13 @@ config ARCH_MSM8940
+ 	  This enables support for the MSM8940 chipset. If you do not
+ 	  wish to build a kernel that runs on this chipset, say 'N' here.
+ 
++config MACH_GM_GM8
++	bool "General Mobile GM8 (L2300) board bring-up"
++	depends on ARCH_MSM8940
++	help
++	  Build the experimental General Mobile GM8 device tree. Board-specific
++	  peripheral drivers still require porting and hardware validation.
++
+ config ARCH_SDM660
+ 	bool "Enable Support for Qualcomm Technologies, Inc. SDM660"
+ 	depends on ARCH_QCOM
+diff --git a/arch/arm64/boot/dts/Makefile b/arch/arm64/boot/dts/Makefile
+index 04a403ef8..2c956f4d7 100644
+--- a/arch/arm64/boot/dts/Makefile
++++ b/arch/arm64/boot/dts/Makefile
+@@ -24,6 +24,7 @@ subdir-y += socionext
+ subdir-y += sprd
+ subdir-y += synaptics
+ subdir-y += ti
++subdir-$(CONFIG_MACH_GM_GM8) += gm
+ subdir-y += xiaomi-msm8937
+ subdir-y += xiaomi-sdm439
+ subdir-y += xilinx
+diff --git a/arch/arm64/boot/dts/gm/Makefile b/arch/arm64/boot/dts/gm/Makefile
+new file mode 100644
+index 000000000..b19cf9af8
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/Makefile
+@@ -0,0 +1,5 @@
++# SPDX-License-Identifier: GPL-2.0-only
++dtb-$(CONFIG_MACH_GM_GM8) += gm8_sprout.dtb
++
++always := $(dtb-y)
++clean-files := *.dtb
+diff --git a/arch/arm64/boot/dts/gm/dsi-adv7533-1080p.dtsi b/arch/arm64/boot/dts/gm/dsi-adv7533-1080p.dtsi
+new file mode 100644
+index 000000000..7994285f1
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-adv7533-1080p.dtsi
+@@ -0,0 +1,75 @@
++/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++		dsi_adv7533_1080p: qcom,mdss_dsi_adv7533_1080p {
++		label = "adv7533 1080p video mode dsi panel";
++		qcom,mdss-dsi-panel-name = "dsi_adv7533_1080p";
++		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-destination = "display_1";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1920>;
++		qcom,mdss-dsi-panel-height = <1080>;
++		qcom,mdss-dsi-h-front-porch = <88>;
++		qcom,mdss-dsi-h-back-porch = <148>;
++		qcom,mdss-dsi-h-pulse-width = <44>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <36>;
++		qcom,mdss-dsi-v-front-porch = <4>;
++		qcom,mdss-dsi-v-pulse-width = <5>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [
++				05 01 00 00 c8 00 02 11 00
++				05 01 00 00 0a 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 00 00 02 28 00
++				05 01 00 00 00 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "non_burst_sync_pulse";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [
++				E6 38 26 00 68 6C 2A 3A 2C 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x02>;
++		qcom,mdss-dsi-t-clk-pre = <0x2B>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 1>, <1 20>;
++		qcom,mdss-pan-physical-width-dimension = <160>;
++		qcom,mdss-pan-physical-height-dimension = <90>;
++		qcom,mdss-dsi-force-clock-lane-hs;
++		qcom,mdss-dsi-always-on;
++		qcom,mdss-dsi-panel-timings-phy-v2 = [1d 1a 03 05 01 03 04 a0
++			1d 1a 03 05 01 03 04 a0
++			1d 1a 03 05 01 03 04 a0
++			1d 1a 03 05 01 03 04 a0
++			1d 1a 03 05 01 03 04 a0];
++		qcom,dba-panel;
++		qcom,bridge-name = "adv7533";
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-adv7533-720p.dtsi b/arch/arm64/boot/dts/gm/dsi-adv7533-720p.dtsi
+new file mode 100644
+index 000000000..b84488c0c
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-adv7533-720p.dtsi
+@@ -0,0 +1,74 @@
++/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++dsi_adv7533_720p: qcom,mdss_dsi_adv7533_720p {
++		label = "adv7533 720p video mode dsi panel";
++		qcom,mdss-dsi-panel-name = "dsi_adv7533_720p";
++		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-destination = "display_1";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1280>;
++		qcom,mdss-dsi-panel-height = <720>;
++		qcom,mdss-dsi-h-front-porch = <110>;
++		qcom,mdss-dsi-h-back-porch = <220>;
++		qcom,mdss-dsi-h-pulse-width = <40>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <20>;
++		qcom,mdss-dsi-v-front-porch = <5>;
++		qcom,mdss-dsi-v-pulse-width = <5>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [
++				05 01 00 00 c8 00 02 11 00
++				05 01 00 00 0a 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 00 00 02 28 00
++				05 01 00 00 00 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "non_burst_sync_pulse";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-panel-timings = [
++				A4 24 18 00 4E 52 1C 28 1C 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x03>;
++		qcom,mdss-dsi-t-clk-pre = <0x20>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 1>, <1 20>;
++		qcom,mdss-pan-physical-width-dimension = <160>;
++		qcom,mdss-pan-physical-height-dimension = <90>;
++		qcom,mdss-dsi-force-clock-lane-hs;
++		qcom,mdss-dsi-always-on;
++		qcom,mdss-dsi-panel-timings-phy-v2 = [1c 19 02 03 01 03 04 a0
++			1c 19 02 03 01 03 04 a0
++			1c 19 02 03 01 03 04 a0
++			1c 19 02 03 01 03 04 a0
++			1c 08 02 03 01 03 04 a0];
++		qcom,dba-panel;
++		qcom,bridge-name = "adv7533";
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-ft8006m-720p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-ft8006m-720p-video.dtsi
+new file mode 100644
+index 000000000..fcf9bd805
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-ft8006m-720p-video.dtsi
+@@ -0,0 +1,88 @@
++/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_ft8006m_720_vid: qcom,mdss_dsi_ft8006m_720p_video {
++		qcom,mdss-dsi-panel-name = "ft8006m 720p video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <720>;
++		qcom,mdss-dsi-panel-height = <1440>;
++		qcom,mdss-dsi-h-front-porch = <240>;
++		qcom,mdss-dsi-h-back-porch = <150>;
++		qcom,mdss-dsi-h-pulse-width = <14>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <37>;
++		qcom,mdss-dsi-v-front-porch = <190>;
++		qcom,mdss-dsi-v-pulse-width = <8>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++        qcom,ulps-enabled;
++                qcom,cont-splash-enabled;
++		qcom,mdss-dsi-lp11-init;
++		qcom,mdss-dsi-post-init-delay = <1>;
++		qcom,mdss-dsi-hfp-power-mode;
++	qcom,mdss-dsi-on-command = [
++
++        05 01 00 00 78 00 02 11 00
++        39 01 00 00 00 00 03 50 5A 0E
++        39 01 00 00 00 00 04 83 AC B4 6D
++        39 01 00 00 00 00 03 50 5A 23
++        39 01 00 00 00 00 07 90 00 00 00 00 2c 00
++        39 01 00 00 00 00 03 50 5A 19
++        39 01 00 00 00 00 02 8F 0F
++        39 01 00 00 00 00 07 90 F0 6F F6 EF 7F AF
++        39 01 00 00 00 00 04 A0 00 2F 32
++        05 01 00 00 0A 00 02 29 00
++
++
++];
++
++		qcom,mdss-dsi-off-command = [
++		05 01 00 00 14 00 02 28 00
++		05 01 00 00 78 00 02 10 00
++		39 01 00 00 00 00 02 04 5A
++                39 01 00 00 FF 00 02 05 5A
++];
++
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [b9 2a 1c 00 54 58 22 2e 23 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x03>;
++		qcom,mdss-dsi-t-clk-pre = <0x24>;
++		qcom,mdss-dsi-bl-min-level = <3>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 1>, <1 20>;
++		//qcom,mdss-pan-physical-width-dimension = <59>;
++		//qcom,mdss-pan-physical-height-dimension = <104>;
++		qcom,panel-supply-entries = <&dsi_panel_pwr_supply_ft8006m>;
++
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-hx83102b-720p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-hx83102b-720p-video.dtsi
+new file mode 100644
+index 000000000..0769f4f5f
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-hx83102b-720p-video.dtsi
+@@ -0,0 +1,103 @@
++/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_hx83102b_720_vid: qcom,mdss_dsi_hx83102b_720p_video {
++		qcom,mdss-dsi-panel-name = "hx83102b 720p video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <720>;
++		qcom,mdss-dsi-panel-height = <1440>;
++		qcom,mdss-dsi-h-front-porch = <200>;
++		qcom,mdss-dsi-h-back-porch = <40>;
++		qcom,mdss-dsi-h-pulse-width = <10>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <16>;
++		qcom,mdss-dsi-v-front-porch = <200>;
++		qcom,mdss-dsi-v-pulse-width = <2>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++        qcom,ulps-enabled;
++                qcom,cont-splash-enabled;
++/*
++		qcom,mdss-dsi-on-command = [05 01 00 00 c8 00 02 11 00
++				39 01 00 00 00 00 03 51 0F FF
++				39 01 00 00 00 00 02 53 2c
++				39 01 00 00 00 00 02 55 01
++				05 01 00 00 c8 00 02 29 00];
++
++*/
++
++	qcom,mdss-dsi-on-command = [39 01 00 00 00 00 04 B9 83 10 2B
++				39 01 00 00 00 00 04 C9 04 0B B8
++				05 01 00 00 78 00 02 11 00
++				39 01 00 00 00 00 03 51 00 00
++				39 01 00 00 00 00 02 53 2c
++				39 01 00 00 00 00 02 55 00
++				05 01 00 00 14 00 02 29 00
++
++];
++
++		qcom,mdss-dsi-off-command = [05 01 00 00 3c 00 02 28 00
++				05 01 00 00 16 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";   //dsi_lp_mode
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-hfp-power-mode;
++		 qcom,esd-check-enabled;
++
++		qcom,mdss-dsi-panel-status-command = [06 01 00 01 05 00 01 0A
++			06 01 00 01 05 00 01 09
++			06 01 00 01 05 00 01 b1];
++			//06 01 00 01 05 00 01 45];
++		qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-panel-status-check-mode = "reg_read";
++		qcom,mdss-dsi-panel-status-read-length = <4 4 4>;   // 1
++		qcom,mdss-dsi-panel-max-error-count = <3>;
++		qcom,mdss-dsi-panel-status-valid-params = <1 3 2>;
++		qcom,mdss-dsi-panel-status-value =<0x9D 0x80 0x73 0x04  0x04 0x2a>;
++		//qcom,mdss-dsi-panel-status-value =<0x9D 0x80 0x73 0x04  0x04 0x2a 0x27 0x27>;
++	//		qcom,mdss-dsi-panel-status-value =<0x9D 0x80 0x73 0x04 0x05 0xB1>;  //9c  04 2a 35 35
++		//qcom,mdss-dsi-panel-status-value =<0x9D 0x80 0x73 0x04>;
++		//qcom,mdss-dsi-panel-status-value = <0x9d>;   //9d  ok
++
++		qcom,mdss-dsi-lp11-init;
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings =   [a4 24 18 00 4c 50 1c 28 1c 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x20>;
++		//qcom,mdss-dsi-t-clk-pre = <0x1D>;
++		qcom,mdss-dsi-bl-min-level = <3>;
++		qcom,mdss-dsi-bl-max-level = <4095>;  //4095
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		/* qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled"; */
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 10>, <1 60>;   //1
++		//qcom,mdss-pan-physical-width-dimension = <59>;
++		//qcom,mdss-pan-physical-height-dimension = <104>;
++
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-hx8394f-720p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-hx8394f-720p-video.dtsi
+new file mode 100644
+index 000000000..c1c60f3a9
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-hx8394f-720p-video.dtsi
+@@ -0,0 +1,133 @@
++/*
++ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++/*---------------------------------------------------------------------------
++ * This file is autogenerated file using gcdb parser. Please do not edit it.
++ * Update input XML file to add a new entry or update variable in this file
++ * VERSION = "1.0"
++ *---------------------------------------------------------------------------*/
++&mdss_mdp {
++	dsi_hx8394f_720p_video: qcom,mdss_dsi_hx8394f_720p_video {
++		qcom,mdss-dsi-panel-name = "hx8394f 720p video mode dsi panel";
++		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-destination = "display_1";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <720>;
++		qcom,mdss-dsi-panel-height = <1280>;
++		qcom,mdss-dsi-h-front-porch = <16>;
++		qcom,mdss-dsi-h-back-porch = <16>;
++		qcom,mdss-dsi-h-pulse-width = <10>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <12>;
++		qcom,mdss-dsi-v-front-porch = <15>;
++		qcom,mdss-dsi-v-pulse-width = <4>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [39 01 00 00 00 00 04 B9 FF 83 94
++				39 01 00 00 00 00 07
++					BA 63 03 68 6B B2 C0
++				39 01 00 00 00 00 0B
++					B1 50 12 72 09 33 54 B1 31 6B 2F
++				39 01 00 00 00 00 07
++					B2 00 80 64 0E 0D 2F
++				39 01 00 00 00 00 16
++					B4 73 74 73 74 73 74 01 0C 86 75
++					00 3F 73 74 73 74 73 74 01 0C 86
++				39 01 00 00 00 00 22
++					D3 00 00 07 07 40 07 10 00 08 10
++					08 00 08 54 15 0E 05 0E 02 15 06
++					05 06 47 44 0A 0A 4B 10 07 07 0E
++					40
++				39 01 00 00 00 00 2D
++					D5 1A 1A 1B 1B 00 01 02 03 04 05
++					06 07 08 09 0A 0B 24 25 18 18 26
++					27 18 18 18 18 18 18 18 18 18 18
++					18 18 18 18 18 18 20 21 18 18 18
++					18
++				39 01 00 00 00 00 2D
++					D6 1A 1A 1B 1B 0B 0A 09 08 07 06
++					05 04 03 02 01 00 21 20 18 18 27
++					26 18 18 18 18 18 18 18 18 18 18
++					18 18 18 18 18 18 25 24 18 18 18
++					18
++				39 01 00 00 00 00 3B
++					E0 00 0C 19 20 23 26 29 28 51 61
++					70 6F 76 86 89 8D 99 9A 95 A1 B0
++					57 55 58 5C 5e 64 6B 7F 00 0C 19
++					20 23 26 29 28 51 61 70 6F 76 86
++					89 8D 99 9A 95 A1 B0 57 55 58 5C
++					5E 64 6B 7F
++				39 01 00 00 00 00 03 C0 1F 31
++				15 01 00 00 00 00 02 CC 0B
++				15 01 00 00 00 00 02 D4 02
++				15 01 00 00 00 00 02 BD 02
++				39 01 00 00 00 00 0D
++					D8 FF FF FF FF FF FF FF FF FF FF
++					FF FF
++				15 01 00 00 00 00 02 BD 00
++				15 01 00 00 00 00 02 BD 01
++				15 01 00 00 00 00 02 B1 00
++				15 01 00 00 00 00 02 BD 00
++				39 01 00 00 00 00 08
++					BF 40 81 50 00 1A FC 01
++				39 01 00 00 00 00 03 B6 7D 7D
++				05 01 00 00 78 00 02 11 00
++				39 01 00 00 00 00 0D
++					B2 00 80 64 0E 0D 2F 00 00 00 00
++					C0 18
++				05 01 00 00 14 00 02 29 00];
++
++		qcom,mdss-dsi-off-command = [05 01 00 00 78 00 02 28 00
++				05 01 00 00 96 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-lane-map = "lane_map_0123";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings
++			= [72 16 0e 00 38 3c 12 1a 10 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x18>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 2>, <1 20>;
++		qcom,mdss-dsi-panel-status-command = [06 01 00 01 05 00 01 D9
++			06 01 00 01 05 00 01 09
++			06 01 00 01 05 00 01 45];
++		qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-panel-status-check-mode = "reg_read";
++		qcom,mdss-dsi-panel-status-read-length = <4 4 3>;
++		qcom,mdss-dsi-panel-status-valid-params = <1 3 2>;
++		qcom,mdss-dsi-panel-status-value =
++			<0x80 0x80 0x73 0x04 0x05 0x0f>,
++			<0x80 0x80 0x73 0x04 0x05 0x1e>;
++		qcom,mdss-dsi-panel-max-error-count = <3>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-icn9706-720-1440p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-icn9706-720-1440p-video.dtsi
+new file mode 100644
+index 000000000..50c98a0ad
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-icn9706-720-1440p-video.dtsi
+@@ -0,0 +1,98 @@
++/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_icn9706_720_1440_vid: qcom,mdss_dsi_icn9706_720_1440p_video {
++		qcom,mdss-dsi-panel-name =
++			"icn9706 720 1440p video mode dsi panel";
++		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
++		qcom,mdss-dsi-panel-destination = "display_1";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <720>;
++		qcom,mdss-dsi-panel-height = <1440>;
++		qcom,mdss-dsi-h-front-porch = <84>;
++		qcom,mdss-dsi-h-back-porch = <84>;
++		qcom,mdss-dsi-h-pulse-width = <24>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <20>;
++		qcom,mdss-dsi-v-front-porch = <24>;
++		qcom,mdss-dsi-v-pulse-width = <8>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-map = "lane_map_0123";
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [8b 1e 14 00 44 48 18 22 19
++						03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x1c>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-on-command = [39 01 00 00 64 00 02 01 00
++			39 01 00 00 00 00 03 f0 5a 5a
++			39 01 00 00 00 00 03 f1 5a 5a
++			39 01 00 00 00 00 03 f0 b4 4b
++			39 01 00 00 00 00 03 b6 10 10
++			39 01 00 00 00 00 15 b4 0a 08 12 10 0e 0c 00 00
++				00 03 00 03 03 03 03 03 03 03 04 06
++			39 01 00 00 00 00 15 b3 0b 09 13 11 0f 0d 00 00
++				00 03 00 03 03 03 03 03 03 03 05 07
++			39 01 00 00 00 00 0d b0 54 32 23 45 44 44 44 44
++				60 01 60 01
++			39 01 00 00 00 00 09 b1 32 84 02 83 15 01 57 01
++			39 01 00 00 00 00 02 b2 33
++			39 01 00 00 00 00 07 bd 54 14 6a 6a 20 19
++			39 01 00 00 00 00 12 b7 01 01 09 11 0d 15 19 0d
++				21 1d 00 00 20 00 02 ff 3c
++			39 01 00 00 00 00 06 b8 23 01 30 34 53
++			39 01 00 00 00 00 05 b9 a1 2c ff c4
++			39 01 00 00 00 00 03 ba 88 23
++			39 01 00 00 00 00 07 c1 16 16 04 0c 10 04
++			39 01 00 00 00 00 03 c2 12 68
++			39 01 00 00 00 00 04 c3 22 31 04
++			39 01 00 00 00 00 06 c7 05 23 6b 41 00
++			39 01 00 00 00 00 27 c8 7c 54 3d 2d 26 16 1b 08
++				25 28 2d 4f 3e 48 3d 3d 35 25 06 7c 54 3d 2d
++				26 16 1b 08 25 28 2d 4f 3e 48 3d 3d 35 25 06
++			39 01 00 00 00 00 09 c6 00 00 68 00 00 60 36 00
++			05 01 00 00 64 00 02 11 00
++			05 01 00 00 32 00 02 29 00];
++
++		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
++			05 01 00 00 32 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,esd-check-enabled;
++		qcom,mdss-dsi-panel-status-check-mode = "bta_check";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 2>, <0 20>, <1 50>;
++		qcom,mdss-dsi-tx-eot-append;
++		qcom,mdss-pan-physical-width-dimension = <63>;
++		qcom,mdss-pan-physical-height-dimension = <112>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-lead-fl10802-fwvga-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-lead-fl10802-fwvga-video.dtsi
+new file mode 100644
+index 000000000..0cc6180a6
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-lead-fl10802-fwvga-video.dtsi
+@@ -0,0 +1,105 @@
++/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_lead_fl10802_fwvga_video: qcom,mdss_dsi_lead_fl10802_fwvga_video {
++		qcom,mdss-dsi-panel-name
++			= "lead fl10802 fwvga video mode dsi panel";
++		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-destination = "display_1";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-pan-physical-height-dimension = <110>;
++		qcom,mdss-pan-physical-width-dimension = <62>;
++		qcom,mdss-dsi-panel-width = <480>;
++		qcom,mdss-dsi-panel-height = <854>;
++		qcom,mdss-dsi-h-front-porch = <94>;
++		qcom,mdss-dsi-h-back-porch = <84>;
++		qcom,mdss-dsi-h-pulse-width = <60>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <12>;
++		qcom,mdss-dsi-v-front-porch = <18>;
++		qcom,mdss-dsi-v-pulse-width = <4>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [
++			29 01 00 00 00 00 04 b9 f1 08 01
++			29 01 00 00 00 00 08
++				b1 2a 1a 1a 87 30 01 ab
++			29 01 00 00 00 00 02 b2 22
++			29 01 00 00 00 00 09
++				b3 01 00 06 06 18 13 39 35
++			29 01 00 00 00 00 12
++				ba 31 00 44 25 91 0a 00 00
++				c1 00 00 00 0d 02 4f b9 ee
++			29 01 00 00 00 00 06
++				e3 09 09 03 03 00
++			29 01 00 00 00 00 02 b4 00
++			29 01 00 00 00 00 03 b5 07 07
++			29 01 00 00 00 00 03 b6 32 32
++			29 01 00 00 00 00 03 b8 64 22
++			29 01 00 00 00 00 02 c7 A0
++			29 01 00 00 00 00 03 c8 10 00
++			29 01 00 00 00 00 02 cc 00
++			29 01 00 00 00 00 02 bc 47
++			29 01 00 00 00 00 34
++				e9 00 00 09 03 65 0a 8a 10
++				01 00 37 0d 0a 8a 37 00 00
++				18 00 00 00 25 09 80 40 00
++				42 60 00 00 00 09 81 50 01
++				53 70 00 00 00 00 00 00 00
++				00 00 00 00 00 00 00
++			29 01 00 00 00 00 13
++				ea 94 00 00 00 08 95 10 07
++				35 10 00 00 00 08 94 00 06
++				24
++			29 01 00 00 00 00 23
++				e0 00 00 11 0f 10 2a 26 34
++				0c 0f 10 14 17 14 16 13 17
++				00 00 11 0f 10 2a 26 34 0c
++				0f 10 14 17 14 16 13 17
++			39 01 00 00 00 00 02 53 24
++			05 01 00 00 78 00 02 11 00
++			05 01 00 00 78 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
++			05 01 00 00 78 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-lane-map = "lane_map_0123";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lp11-init;
++		qcom,mdss-dsi-init-delay-us = <7000>;
++		qcom,mdss-dsi-panel-timings =
++			[87 1c 12 00 42 44 18 20 17 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x1b>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <255>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 10>, <1 20>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-cmd.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-cmd.dtsi
+new file mode 100644
+index 000000000..e2988380c
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-cmd.dtsi
+@@ -0,0 +1,156 @@
++/*
++ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++/*---------------------------------------------------------------------------
++ * This file is autogenerated file using gcdb parser. Please do not edit it.
++ * Update input XML file to add a new entry or update variable in this file
++ * VERSION = "1.0"
++ *---------------------------------------------------------------------------*/
++&mdss_mdp {
++	dsi_r69006_1080p_cmd: qcom,mdss_dsi_r69006_1080p_cmd {
++		qcom,mdss-dsi-panel-name = "r69006 1080p cmd mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1080>;
++		qcom,mdss-dsi-panel-height = <1920>;
++		qcom,mdss-dsi-h-front-porch = <100>;
++		qcom,mdss-dsi-h-back-porch = <82>;
++		qcom,mdss-dsi-h-pulse-width = <20>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <9>;
++		qcom,mdss-dsi-v-front-porch = <3>;
++		qcom,mdss-dsi-v-pulse-width = <15>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [23 01 00 00 00 00 02 B0 00
++			29 01 00 00 00 00 06
++				B3 04 10 00 00 00
++			29 01 00 00 00 00 03
++				B4 0C 00
++			29 01 00 00 00 00 04
++				B6 3B D3 00
++			23 01 00 00 00 00
++				02 C0 00
++			15 01 00 00 00 00
++				02 36 98
++			23 01 00 00 00 00
++				02 CC 04
++			29 01 00 00 00 00 20
++				C1 84 00 10 EF 8B F1 FF
++				FF DF 9C C5 9A 73 8D AD
++				63 FE FF FF CB F8 01 00
++				AA 40 02 C2 01 08 00 01
++			29 01 00 00 00 00 0A
++				CB 0D FE 1F 2C 00 00 00
++				00 00
++			29 01 00 00 00 00 0B
++				C2 01 F7 80 04 63 00 60
++				00 01 30
++			29 01 00 00 00 00 07
++				C3 55 01 00 01 00 00
++			29 01 00 00 00 00 12
++				C4 70 00 00 00 00 00 00
++				00 00 02 01 00 05 01 00
++				00 00
++			29 01 00 00 00 00 0F
++				C6 57 07 4A 07 4A 01 0E
++				01 02 01 02 09 15 07
++			29 01 00 00 00 00 1F
++				C7 00 06 0C 16 27 35 3F
++				4D 33 3C 49 5B 64 66 67
++				00 06 0C 16 27 35 3F 4D
++				33 3C 49 5B 64 66 67
++			29 01 00 00 00 00 14
++				C8 00 00 FE 01 08 E7 00
++				00 FD 02 03 A8 00 00 FC
++				E7 E9 C9 00
++			29 01 00 00 00 00 09
++				C9 1F 68 1F 68 4C 4C C4
++				11
++			29 01 00 00 00 00 11
++				D0 11 01 91 0B D9 19 19
++				00 00 00 19 99 00 00 00
++				00
++			29 01 00 00 00 00 1D
++				D3 1B 3B BB AD A5 33 33
++				33 00 80 AD A8 37 33 33
++				33 33 F7 F2 1F 7D 7C FF
++				0F 99 00 FF FF
++			29 01 00 00 00 00 04
++				D4 57 33 03
++			29 01 00 00 00 00 0C
++				D5 66 00 00 01 32 01 32
++				00 0b 00 0b
++			29 01 00 00 00 00 02 BE 04
++			29 01 00 00 00 00 11
++				CF 40 10 00 00 00 00 32
++				00 00 00 00 00 00 00 00
++				00
++			29 01 00 00 00 00 06
++				DE 00 00 3F FF 10
++			29 01 00 00 00 00 02 E9 00
++			29 01 00 00 00 00 02 F2 00
++			23 01 00 00 00 00 02 D6 01
++			39 01 00 00 00 00 02 35 00
++			39 01 00 00 00 00 02 51 FF
++			39 01 00 00 00 00 02 53 2C
++			39 01 00 00 00 00 02 55 00
++			05 01 00 00 78 00 02 11 00
++			05 01 00 00 14 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 0A 00 02 28 00
++			29 01 00 00 00 00 1d D3 13 3B BB A5 A5 33 33 33
++				00 80 A4 A8 37 33 33 33 33 F7 F2 1F 7D
++				7C FF 0F 99 00 FF FF
++			05 01 00 00 5A 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-te-pin-select = <1>;
++		qcom,mdss-dsi-wr-mem-start = <0x2c>;
++		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
++		qcom,mdss-dsi-te-dcs-command = <1>;
++		qcom,mdss-dsi-te-check-enable;
++		qcom,mdss-dsi-te-using-te-pin;
++		qcom,mdss-dsi-panel-timings = [6E 3F 36 00 5A 4F 38 41 54
++			03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x1e>;
++		qcom,mdss-dsi-t-clk-pre = <0x30>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
++		qcom,mdss-dsi-panel-status-command = [06 01 00 01 05 00 01 0A];
++		qcom,mdss-dsi-panel-status-command-mode = "dsi_lp_mode";
++		qcom,mdss-dsi-panel-status-check-mode = "reg_read";
++		qcom,mdss-dsi-panel-status-read-length = <1>;
++		qcom,mdss-dsi-panel-status-value = <0x1C>;
++		qcom,mdss-dsi-panel-max-error-count = <3>;
++		qcom,mdss-dsi-rx-eot-ignore;
++		qcom,mdss-dsi-tx-eot-append;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-video.dtsi
+new file mode 100644
+index 000000000..7d79d6602
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-r69006-1080p-video.dtsi
+@@ -0,0 +1,135 @@
++/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++/*---------------------------------------------------------------------------
++ * This file is autogenerated file using gcdb parser. Please do not edit it.
++ * Update input XML file to add a new entry or update variable in this file
++ * VERSION = "1.0"
++ *---------------------------------------------------------------------------*/
++&mdss_mdp {
++	dsi_r69006_1080p_video: qcom,mdss_dsi_r69006_1080p_video {
++		qcom,mdss-dsi-panel-name = "r69006 1080p video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1080>;
++		qcom,mdss-dsi-panel-height = <1920>;
++		qcom,mdss-dsi-h-front-porch = <100>;
++		qcom,mdss-dsi-h-back-porch = <82>;
++		qcom,mdss-dsi-h-pulse-width = <20>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <9>;
++		qcom,mdss-dsi-v-front-porch = <3>;
++		qcom,mdss-dsi-v-pulse-width = <15>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [23 01 00 00 00 00 02 B0 00
++			29 01 00 00 00 00 06
++				B3 05 10 00 00 00
++			29 01 00 00 00 00 03 B4 0c 00
++			29 01 00 00 00 00 04 B6 3b c3 00
++			23 01 00 00 00 00 02 C0 00
++			15 01 00 00 00 00 02 36 98
++			23 01 00 00 00 00 02 CC 04
++			29 01 00 00 00 00 20
++				C1 84 00 10 EF 8B
++				F1 FF FF DF 9C C5
++				9A 73 8D AD 63 FE
++				FF FF CB F8 01 00
++				AA 40 00 C2 01 08
++				00 01
++			29 01 00 00 00 00 0A
++				CB 0D FE 1F 2C 00
++				00 00 00 00
++			29 01 00 00 00 00 0B
++				C2 01 F7 80 04 63
++				00 60 00 01 30
++			29 01 00 00 00 00 07
++				C3 55 01 00 01 00
++				00
++			29 01 00 00 00 00 12
++				C4 70 00 00 00 00
++				00 00 00 00 02 01
++				00 05 01 00 00 00
++			29 01 00 00 00 00 0F
++				C6 59 07 4a 07 4a
++				01 0E 01 02 01 02
++				09 15 07
++			29 01 00 00 00 00 1F
++				C7 00 30 32 34 42
++				4E 56 62 44 4A 54
++				62 6B 73 7F 08 30
++				32 34 42 4E 56 62
++				44 4A 54 62 6B 73
++				7F
++			29 01 00 00 00 00 14
++				C8 00 00 00 00 00
++				FC 00 00 00 00 00
++				FC 00 00 00 00 00
++				FC 00
++			29 01 00 00 00 00 09
++				C9 1F 68 1F 68 4C
++				4C C4 11
++			29 01 00 00 00 00 11
++				D0 33 01 91 0B D9
++				19 19 00 00 00 19
++				99 00 00 00 00
++			29 01 00 00 00 00 1D
++				D3 1B 3B BB AD A5
++				33 33 33 00 80 AD
++				A8 6f 6f 33 33 33
++				F7 F2 1F 7D 7C FF
++				0F 99 00 FF FF
++			29 01 00 00 00 00 04
++				D4 57 33 03
++			29 01 00 00 00 00 0C
++				D5 66 00 00 01 27
++				01 27 00 6D 00 6D
++			23 01 00 00 00 00 02 D6 81
++			05 01 00 00 78 00 02 11 00
++			05 01 00 00 78 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 78 00 02 28 00
++			05 01 00 00 96 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-h-sync-pulse = <1>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [7d 25 1d 00 37 33
++			22 27 1e 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x20>;
++		qcom,mdss-dsi-t-clk-pre = <0x2c>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 20>, <0 2>, <1 20>;
++		qcom,mdss-dsi-panel-status-command = [06 01 00 01 05 00 01 0A];
++		qcom,mdss-dsi-panel-status-command-mode = "dsi_lp_mode";
++		qcom,mdss-dsi-panel-status-check-mode = "reg_read";
++		qcom,mdss-dsi-panel-status-read-length = <1>;
++		qcom,mdss-dsi-panel-status-value = <0x1C>;
++		qcom,mdss-dsi-panel-max-error-count = <3>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-sim-cmd.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-sim-cmd.dtsi
+new file mode 100644
+index 000000000..01b733565
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-sim-cmd.dtsi
+@@ -0,0 +1,91 @@
++/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_sim_cmd: qcom,mdss_dsi_sim_cmd{
++		qcom,mdss-dsi-panel-name = "Simulator cmd mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1080>;
++		qcom,mdss-dsi-panel-height = <1920>;
++		qcom,mdss-dsi-h-front-porch = <96>;
++		qcom,mdss-dsi-h-back-porch = <64>;
++		qcom,mdss-dsi-h-pulse-width = <16>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <16>;
++		qcom,mdss-dsi-v-front-porch = <4>;
++		qcom,mdss-dsi-v-pulse-width = <1>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-hor-line-idle = 	<0 40 256>,
++						<40 120 128>,
++						<120 240 64>;
++		qcom,mdss-dsi-panel-timings = [cd 32 22 00 60 64 26 34 29 03
++									04 00];
++		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
++		qcom,mdss-dsi-t-clk-post = <0x03>;
++		qcom,mdss-dsi-t-clk-pre = <0x27>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-te-pin-select = <1>;
++		qcom,mdss-dsi-wr-mem-start = <0x2c>;
++		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
++		qcom,mdss-dsi-te-dcs-command = <1>;
++		qcom,mdss-dsi-te-check-enable;
++		qcom,mdss-dsi-te-using-te-pin;
++		qcom,mdss-dsi-on-command = [29 01 00 00 00 00 02 b0 03
++			05 01 00 00 0a 00 01 00
++			/* Soft reset, wait 10ms */
++			15 01 00 00 0a 00 02 3a 77
++			/* Set Pixel format (24 bpp) */
++			39 01 00 00 0a 00 05 2a 00 00 04 ff
++			/* Set Column address */
++			39 01 00 00 0a 00 05 2b 00 00 05 9f
++			/* Set page address */
++			15 01 00 00 0a 00 02 35 00
++			/* Set tear on */
++			39 01 00 00 0a 00 03 44 00 00
++			/* Set tear scan line */
++			15 01 00 00 0a 00 02 51 ff
++			/* write display brightness */
++			15 01 00 00 0a 00 02 53 24
++			 /* write control brightness */
++			15 01 00 00 0a 00 02 55 00
++			/* CABC brightness */
++			05 01 00 00 78 00 01 11
++			/* exit sleep mode, wait 120ms */
++			05 01 00 00 10 00 01 29];
++			/* Set display on, wait 16ms */
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
++					05 01 00 00 78 00 02 10 00];
++		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
++		qcom,panel-ack-disabled;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-sim-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-sim-video.dtsi
+new file mode 100644
+index 000000000..e5a5ee8f0
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-sim-video.dtsi
+@@ -0,0 +1,56 @@
++/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_sim_vid: qcom,mdss_dsi_sim_video {
++		qcom,mdss-dsi-panel-name = "Simulator video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <640>;
++		qcom,mdss-dsi-panel-height = <480>;
++		qcom,mdss-dsi-h-front-porch = <8>;
++		qcom,mdss-dsi-h-back-porch = <8>;
++		qcom,mdss-dsi-h-pulse-width = <8>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <6>;
++		qcom,mdss-dsi-v-front-porch = <6>;
++		qcom,mdss-dsi-v-pulse-width = <2>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-on-command = [32 01 00 00 00 00 02 00 00];
++		qcom,mdss-dsi-off-command = [22 01 00 00 00 00 02 00 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [00 00 00 00 00 00 00 00 00 00 00 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x1b>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-reset-sequence = <1 0>, <0 0>, <1 0>;
++		qcom,panel-ack-disabled;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-cmd.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-cmd.dtsi
+new file mode 100644
+index 000000000..51bb891f9
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-cmd.dtsi
+@@ -0,0 +1,94 @@
++/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_truly_1080_cmd: qcom,mdss_dsi_truly_1080p_cmd {
++		qcom,mdss-dsi-panel-name = "truly 1080p cmd mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1080>;
++		qcom,mdss-dsi-panel-height = <1920>;
++		qcom,mdss-dsi-h-front-porch = <96>;
++		qcom,mdss-dsi-h-back-porch = <64>;
++		qcom,mdss-dsi-h-pulse-width = <16>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <16>;
++		qcom,mdss-dsi-v-front-porch = <4>;
++		qcom,mdss-dsi-v-pulse-width = <1>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-te-pin-select = <1>;
++		qcom,mdss-dsi-te-dcs-command = <1>;
++		qcom,mdss-dsi-te-check-enable;
++		qcom,mdss-dsi-te-using-te-pin;
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [e6 38 26 00 68 6e 2a 3c 44 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x02>;
++		qcom,mdss-dsi-t-clk-pre = <0x2d>;
++		qcom,mdss-dsi-tx-eot-append;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-on-command = [23 01 00 00 00 00 02 d6 01
++			15 01 00 00 00 00 02 35 00
++			15 01 00 00 00 00 02 51 ff
++			15 01 00 00 00 00 02 53 2c
++			15 01 00 00 00 00 02 55 00
++			05 01 00 00 78 00 02 11 00
++			23 01 00 00 00 00 02 b0 04
++			29 01 00 00 00 00 07 b3 04 00 00 00 00 00
++			29 01 00 00 00 00 03 b6 3a d3
++			29 01 00 00 00 00 03 c0 00 00
++			29 01 00 00 00 00 23 c1 84 60 10 eb ff 6f ce ff ff 17 02
++				58 73 ae b1 20 c6 ff ff 1f f3 ff 5f 10 10 10 10 00 02 01
++				22 22 00 01
++			29 01 00 00 00 00 08 c2 31 f7 80 06 08 00 00
++			29 01 00 00 00 00 17 c4 70 00 00 00 00 04 00 00 00 0c 06
++				00 00 00 00 00 04 00 00 00 0c 06
++			29 01 00 00 00 00 29 c6 78 69 00 69 00 69 00 00 00 00 00
++				69 00 69 00 69 10 19 07 00 78 00 69 00 69 00 69 00 00 00
++				00 00 69 00 69 00 69 10 19 07
++			29 01 00 00 00 00 0a cb 31 fc 3f 8c 00 00 00 00 c0
++			23 01 00 00 00 00 02 cc 0b
++			29 01 00 00 00 00 0b d0 11 81 bb 1e 1e 4c 19 19 0c 00
++			29 01 00 00 00 00 1a d3 1b 33 bb bb b3 33 33 33 00 01 00
++				a0 d8 a0 0d 4e 4e 33 3b 22 72 07 3d bf 33
++			29 01 00 00 00 00 08 d5 06 00 00 01 51 01 32
++			29 01 00 00 00 00 1f c7 01 0a 11 18 26 33 3e 50 38 42 52
++				60 67 6e 77 01 0a 11 18 26 33 3e 50 38 42 52 60 67 6e 77
++			29 01 00 00 14 00 14 c8 01 00 00 00 00 fc 00 00 00 00
++				00 fc 00 00 00 00 00 fc 00
++			05 01 00 00 14 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 14 00 02 28 00
++				 05 01 00 00 78 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
++		qcom,mdss-dsi-post-init-delay = <1>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-video.dtsi
+new file mode 100644
+index 000000000..86da03fcf
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-truly-1080p-video.dtsi
+@@ -0,0 +1,89 @@
++/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_truly_1080_vid: qcom,mdss_dsi_truly_1080p_video {
++		qcom,mdss-dsi-panel-name = "truly 1080p video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1080>;
++		qcom,mdss-dsi-panel-height = <1920>;
++		qcom,mdss-dsi-h-front-porch = <96>;
++		qcom,mdss-dsi-h-back-porch = <64>;
++		qcom,mdss-dsi-h-pulse-width = <16>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <16>;
++		qcom,mdss-dsi-v-front-porch = <4>;
++		qcom,mdss-dsi-v-pulse-width = <1>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [e6 38 26 00 68 6e 2a 3c 44 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x02>;
++		qcom,mdss-dsi-t-clk-pre = <0x2d>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-on-command = [15 01 00 00 00 00 02 35 00
++			15 01 00 00 00 00 02 51 ff
++			15 01 00 00 00 00 02 53 2c
++			15 01 00 00 00 00 02 55 00
++			05 01 00 00 78 00 02 11 00
++			23 01 00 00 00 00 02 b0 00
++			29 01 00 00 00 00 07 b3 14 00 00 00 00 00
++			29 01 00 00 00 00 03 b6 3a d3
++			29 01 00 00 00 00 03 c0 00 00
++			29 01 00 00 00 00 23 c1 84 60 10 eb ff 6f ce ff ff 17 02
++				58 73 ae b1 20 c6 ff ff 1f f3 ff 5f 10 10 10 10 00 02 01
++				22 22 00 01
++			29 01 00 00 00 00 08 c2 31 f7 80 06 08 00 00
++			29 01 00 00 00 00 17 c4 70 00 00 00 00 04 00 00 00 0c 06
++				00 00 00 00 00 04 00 00 00 0c 06
++			29 01 00 00 00 00 29 c6 00 69 00 69 00 69 00 00 00 00 00
++				69 00 69 00 69 10 19 07 00 01 00 69 00 69 00 69 00 00 00
++				00 00 69 00 69 00 69 10 19 07
++			29 01 00 00 00 00 0a cb 31 fc 3f 8c 00 00 00 00 c0
++			23 01 00 00 00 00 02 cc 0b
++			29 01 00 00 00 00 0b d0 11 81 bb 1e 1e 4c 19 19 0c 00
++			29 01 00 00 00 00 1a d3 1b 33 bb bb b3 33 33 33 00 01 00
++				a0 d8 a0 0d 4e 4e 33 3b 22 72 07 3d bf 33
++			29 01 00 00 00 00 08 d5 06 00 00 01 51 01 32
++			29 01 00 00 00 00 1f c7 01 0a 11 18 26 33 3e 50 38 42 52
++				60 67 6e 77 01 0a 11 18 26 33 3e 50 38 42 52 60 67 6e 77
++			29 01 00 00 14 00 14 c8 01 00 00 00 00 fc 00 00 00 00
++				00 fc 00 00 00 00 00 fc 00
++			05 01 00 00 14 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 14 00 02 28 00
++				 05 01 00 00 78 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
++		qcom,mdss-dsi-tx-eot-append;
++		qcom,mdss-dsi-post-init-delay = <1>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-truly-720p-cmd.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-truly-720p-cmd.dtsi
+new file mode 100644
+index 000000000..8749e9923
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-truly-720p-cmd.dtsi
+@@ -0,0 +1,255 @@
++/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_truly_720_cmd: qcom,mdss_dsi_truly_720p_cmd {
++		qcom,mdss-dsi-panel-name = "truly 720p cmd mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <720>;
++		qcom,mdss-dsi-panel-height = <1280>;
++		qcom,mdss-dsi-h-front-porch = <100>;
++		qcom,mdss-dsi-h-back-porch = <100>;
++		qcom,mdss-dsi-h-pulse-width = <6>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <32>;
++		qcom,mdss-dsi-v-front-porch = <32>;
++		qcom,mdss-dsi-v-pulse-width = <2>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [87 2c 12 00 40 44 16 1e 17 03
++			04 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x1b>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-te-pin-select = <1>;
++		qcom,mdss-dsi-te-dcs-command = <1>;
++		qcom,mdss-dsi-te-check-enable;
++		qcom,mdss-dsi-te-using-te-pin;
++		qcom,mdss-dsi-on-command = [29 01 00 00 00 00 06 f0 55 aa 52
++				08 00
++			29 01 00 00 00 00 03 b1 78 21
++			23 01 00 00 00 00 02 b6 0f
++			29 01 00 00 00 00 03 bc 00 00
++			29 01 00 00 00 00 06 bd 02 67 20 20 00
++			29 01 00 00 00 00 0b e7 f2 e6 d8 cc bf b2 a5 99 99 95
++			29 01 00 00 00 00 0b e8 f2 e6 d8 cc bf b2 a5 99 99 95
++			29 01 00 00 00 00 06 f0 55 aa 52 08 01
++			29 01 00 00 00 00 03 bc a0 00
++			29 01 00 00 00 00 03 bd a0 00
++			23 01 00 00 00 00 02 ca 01
++			23 01 00 00 00 00 02 c0 0c
++			23 01 00 00 00 00 02 be 4e
++			29 01 00 00 00 00 03 b3 38 38
++			29 01 00 00 00 00 03 b4 11 11
++			29 01 00 00 00 00 03 b6 05 05
++			29 01 00 00 00 00 03 b9 45 45
++			29 01 00 00 00 00 03 ba 25 25
++			29 01 00 00 00 00 03 c4 11 11
++			23 01 00 00 00 00 02 c6 66
++			29 01 00 00 00 00 06 f0 55 aa 52 08 02
++			23 01 00 00 00 00 02 ee 00
++			29 01 00 00 00 00 11 b0 00 37 00 48 00 69 00 8a 00 ab 00
++				cb 00 eb 01 1c
++			29 01 00 00 00 00 11 b1 01 41 01 7c 01 aa 01 f3 02 2d 02
++				2e 02 63 02 9d
++			29 01 00 00 00 00 11 b2 02 c3 02 f6 03 19 03 54 03 85 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 b3 03 e0 03 e8
++			29 01 00 00 00 00 11 bc 00 37 00 48 00 69 00 8a 00 ab 00
++				cb 00 eb 01 1c
++			29 01 00 00 00 00 11 bd 01 41 01 7c 01 aa 01 f3 02 2d 02
++				2e 02 63 02 9d
++			29 01 00 00 00 00 11 be 02 c3 02 f6 03 19 03 54 03 85 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 bf 03 e0 03 e8
++			29 01 00 00 00 00 11 b4 00 d1 00 d7 00 e4 00 f1 00 fe 01
++				12 01 26 01 48
++			29 01 00 00 00 00 11 b5 01 64 01 95 01 bd 02 01 02 36 02
++				38 02 6c 02 a7
++			29 01 00 00 00 00 11 b6 02 ce 03 04 03 2b 03 5b 03 89 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 b7 03 e0 03 e8
++			29 01 00 00 00 00 11 c0 00 d1 00 d7 00 e4 00 f1 00 fe 01
++				12 01 26 01 48
++			29 01 00 00 00 00 11 c1 01 64 01 95 01 bd 02 01 02 36 02
++				38 02 6c 02 a7
++			29 01 00 00 00 00 11 c2 02 ce 03 04 03 2b 03 5b 03 89 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 c3 03 e0 03 e8
++			29 01 00 00 00 00 11 b8 00 37 00 45 00 61 00 7d 00 9a 00
++				bb 00 dc 01 0b
++			29 01 00 00 00 00 11 b9 01 31 01 6e 01 9e 01 ea 02 24 02
++				25 02 58 02 90
++			29 01 00 00 00 00 11 ba 02 b4 02 e4 03 04 03 44 03 7f 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 bb 03 e0 03 e8
++			29 01 00 00 00 00 11 c4 00 37 00 45 00 61 00 7d 00 9a 00
++				bb 00 dc 01 0b
++			29 01 00 00 00 00 11 c5 01 31 01 6e 01 9e 01 ea 02 24 02
++				25 02 58 02 90
++			29 01 00 00 00 00 11 c6 02 b4 02 e4 03 04 03 44 03 7f 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 c7 03 e0 03 e8
++			29 01 00 00 00 00 06 f0 55 aa 52 08 06
++			29 01 00 00 00 00 03 b0 29 2a
++			29 01 00 00 00 00 03 b1 10 12
++			29 01 00 00 00 00 03 b2 14 16
++			29 01 00 00 00 00 03 b3 18 1a
++			29 01 00 00 00 00 03 b4 02 04
++			29 01 00 00 00 00 03 b5 34 34
++			29 01 00 00 00 00 03 b6 34 2e
++			29 01 00 00 00 00 03 b7 2e 2e
++			29 01 00 00 00 00 03 b8 34 00
++			29 01 00 00 00 00 03 b9 34 34
++			29 01 00 00 00 00 03 ba 34 34
++			29 01 00 00 00 00 03 bb 01 34
++			29 01 00 00 00 00 03 bc 2e 2e
++			29 01 00 00 00 00 03 bd 2e 34
++			29 01 00 00 00 00 03 be 34 34
++			29 01 00 00 00 00 03 bf 05 03
++			29 01 00 00 00 00 03 c0 1b 19
++			29 01 00 00 00 00 03 c1 17 15
++			29 01 00 00 00 00 03 c2 13 11
++			29 01 00 00 00 00 03 c3 2a 29
++			29 01 00 00 00 00 03 e5 2e 2e
++			29 01 00 00 00 00 03 c4 29 2a
++			29 01 00 00 00 00 03 c5 1b 19
++			29 01 00 00 00 00 03 c6 17 15
++			29 01 00 00 00 00 03 c7 13 11
++			29 01 00 00 00 00 03 c8 01 05
++			29 01 00 00 00 00 03 c9 34 34
++			29 01 00 00 00 00 03 ca 34 2e
++			29 01 00 00 00 00 03 cb 2e 2e
++			29 01 00 00 00 00 03 cc 34 03
++			29 01 00 00 00 00 03 cd 34 34
++			29 01 00 00 00 00 03 ce 34 34
++			29 01 00 00 00 00 03 cf 02 34
++			29 01 00 00 00 00 03 d0 2e 2e
++			29 01 00 00 00 00 03 d1 2e 34
++			29 01 00 00 00 00 03 d2 34 34
++			29 01 00 00 00 00 03 d3 04 00
++			29 01 00 00 00 00 03 d4 10 12
++			29 01 00 00 00 00 03 d5 14 16
++			29 01 00 00 00 00 03 d6 18 1a
++			29 01 00 00 00 00 03 d7 2a 29
++			29 01 00 00 00 00 03 e6 2e 2e
++			29 01 00 00 00 00 06 d8 00 00 00 54 00
++			29 01 00 00 00 00 06 d9 00 15 00 00 00
++			23 01 00 00 00 00 02 e7 00
++			29 01 00 00 00 00 06 f0 55 aa 52 08 03
++			29 01 00 00 00 00 03 b1 00 00
++			29 01 00 00 00 00 03 b0 00 00
++			29 01 00 00 00 00 06 b2 05 00 00 00 00
++			29 01 00 00 00 00 06 b3 05 00 00 00 00
++			29 01 00 00 00 00 06 b4 05 00 00 00 00
++			29 01 00 00 00 00 06 b5 05 00 17 00 00
++			29 01 00 00 00 00 06 b6 12 00 19 00 00
++			29 01 00 00 00 00 06 b7 12 00 19 00 00
++			29 01 00 00 00 00 06 b8 12 00 19 00 00
++			29 01 00 00 00 00 06 b9 12 00 19 00 00
++			29 01 00 00 00 00 06 ba 57 00 00 00 00
++			29 01 00 00 00 00 06 bb 57 00 00 00 00
++			29 01 00 00 00 00 06 bc 75 00 1a 00 00
++			29 01 00 00 00 00 06 bd 53 00 1a 00 00
++			29 01 00 00 00 00 05 c0 00 34 00 00
++			29 01 00 00 00 00 05 c1 00 34 00 00
++			29 01 00 00 00 00 05 c2 00 34 00 00
++			29 01 00 00 00 00 05 c3 00 34 00 00
++			23 01 00 00 00 00 02 c4 20
++			23 01 00 00 00 00 02 c5 00
++			23 01 00 00 00 00 02 c6 00
++			23 01 00 00 00 00 02 c7 00
++			29 01 00 00 00 00 06 f0 55 aa 52 08 05
++			23 01 00 00 00 00 02 ed 30
++			29 01 00 00 00 00 03 b0 17 06
++			23 01 00 00 00 00 02 b8 08
++			29 01 00 00 00 00 06 bd 03 07 00 03 00
++			29 01 00 00 00 00 03 b1 17 06
++			23 01 00 00 00 00 02 b9 00
++			29 01 00 00 00 00 03 b2 00 00
++			23 01 00 00 00 00 02 ba 00
++			29 01 00 00 00 00 03 b3 17 06
++			23 01 00 00 00 00 02 bb 0a
++			29 01 00 00 00 00 03 b4 17 06
++			29 01 00 00 00 00 03 b5 17 06
++			29 01 00 00 00 00 03 b6 14 03
++			29 01 00 00 00 00 03 b7 00 00
++			23 01 00 00 00 00 02 bc 02
++			23 01 00 00 00 00 02 e5 06
++			23 01 00 00 00 00 02 e6 06
++			23 01 00 00 00 00 02 e7 00
++			23 01 00 00 00 00 02 e8 06
++			23 01 00 00 00 00 02 e9 06
++			23 01 00 00 00 00 02 ea 06
++			23 01 00 00 00 00 02 eb 00
++			23 01 00 00 00 00 02 ec 00
++			23 01 00 00 00 00 02 c0 07
++			23 01 00 00 00 00 02 c1 80
++			23 01 00 00 00 00 02 c2 a4
++			23 01 00 00 00 00 02 c3 05
++			23 01 00 00 00 00 02 c4 00
++			23 01 00 00 00 00 02 c5 02
++			23 01 00 00 00 00 02 c6 22
++			23 01 00 00 00 00 02 c7 03
++			29 01 00 00 00 00 03 c8 05 30
++			29 01 00 00 00 00 03 c9 01 31
++			29 01 00 00 00 00 03 ca 03 21
++			29 01 00 00 00 00 03 cb 01 20
++			29 01 00 00 00 00 06 d1 00 05 09 07 10
++			29 01 00 00 00 00 06 d2 10 05 0e 03 10
++			29 01 00 00 00 00 06 d3 20 00 48 07 10
++			29 01 00 00 00 00 06 d4 30 00 43 07 10
++			23 01 00 00 00 00 02 d0 00
++			29 01 00 00 00 00 04 cc 00 00 3e
++			29 01 00 00 00 00 04 cd 00 00 3e
++			29 01 00 00 00 00 04 ce 00 00 02
++			29 01 00 00 00 00 04 cf 00 00 02
++			23 01 00 00 00 00 02 6f 11
++			23 01 00 00 00 00 02 f3 01
++			15 01 00 00 00 00 02 51 ff
++			15 01 00 00 00 00 02 53 2c
++			15 01 00 00 00 00 02 55 03
++			15 01 00 00 c8 00 02 35 00
++			05 01 00 00 78 00 02 11 00
++			05 01 00 00 0a 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 14 00 02 28 00
++				 05 01 00 00 78 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
++		qcom,mdss-dsi-tx-eot-append;
++		qcom,mdss-dsi-lp11-init;
++		qcom,mdss-dsi-post-init-delay = <1>;
++		qcom,mdss-dsi-wr-mem-start = <0x2c>;
++		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-truly-720p-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-truly-720p-video.dtsi
+new file mode 100644
+index 000000000..bdf37095e
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-truly-720p-video.dtsi
+@@ -0,0 +1,249 @@
++/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_truly_720_vid: qcom,mdss_dsi_truly_720p_video {
++		qcom,mdss-dsi-panel-name = "truly 720p video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <720>;
++		qcom,mdss-dsi-panel-height = <1280>;
++		qcom,mdss-dsi-h-front-porch = <100>;
++		qcom,mdss-dsi-h-back-porch = <100>;
++		qcom,mdss-dsi-h-pulse-width = <6>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <32>;
++		qcom,mdss-dsi-v-front-porch = <32>;
++		qcom,mdss-dsi-v-pulse-width = <2>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [87 2c 12 00 40 44 16 1e 17 03
++			04 00];
++		qcom,mdss-dsi-t-clk-post = <0x04>;
++		qcom,mdss-dsi-t-clk-pre = <0x1b>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-on-command = [29 01 00 00 00 00 06 f0 55 aa 52
++				08 00
++			29 01 00 00 00 00 03 b1 78 21
++			23 01 00 00 00 00 02 b6 0f
++			29 01 00 00 00 00 03 bc 00 00
++			29 01 00 00 00 00 06 bd 02 b0 1e 1e 00
++			29 01 00 00 00 00 0b e7 f2 e6 d8 cc bf b2 a5 99 99 95
++			29 01 00 00 00 00 0b e8 f2 e6 d8 cc bf b2 a5 99 99 95
++			29 01 00 00 00 00 06 f0 55 aa 52 08 01
++			29 01 00 00 00 00 03 bc a0 00
++			29 01 00 00 00 00 03 bd a0 00
++			23 01 00 00 00 00 02 ca 01
++			23 01 00 00 00 00 02 c0 0c
++			23 01 00 00 00 00 02 be 4e
++			29 01 00 00 00 00 03 b3 38 38
++			29 01 00 00 00 00 03 b4 11 11
++			29 01 00 00 00 00 03 b6 05 05
++			29 01 00 00 00 00 03 b9 45 45
++			29 01 00 00 00 00 03 ba 25 25
++			29 01 00 00 00 00 03 c4 11 11
++			23 01 00 00 00 00 02 c6 66
++			29 01 00 00 00 00 06 f0 55 aa 52 08 02
++			23 01 00 00 00 00 02 ee 00
++			29 01 00 00 00 00 11 b0 00 37 00 48 00 69 00 8a 00 ab 00
++				cb 00 eb 01 1c
++			29 01 00 00 00 00 11 b1 01 41 01 7c 01 aa 01 f3 02 2d 02
++				2e 02 63 02 9d
++			29 01 00 00 00 00 11 b2 02 c3 02 f6 03 19 03 54 03 85 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 b3 03 e0 03 e8
++			29 01 00 00 00 00 11 bc 00 37 00 48 00 69 00 8a 00 ab 00
++				cb 00 eb 01 1c
++			29 01 00 00 00 00 11 bd 01 41 01 7c 01 aa 01 f3 02 2d 02
++				2e 02 63 02 9d
++			29 01 00 00 00 00 11 be 02 c3 02 f6 03 19 03 54 03 85 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 bf 03 e0 03 e8
++			29 01 00 00 00 00 11 b4 00 d1 00 d7 00 e4 00 f1 00 fe 01
++				12 01 26 01 48
++			29 01 00 00 00 00 11 b5 01 64 01 95 01 bd 02 01 02 36 02
++				38 02 6c 02 a7
++			29 01 00 00 00 00 11 b6 02 ce 03 04 03 2b 03 5b 03 89 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 b7 03 e0 03 e8
++			29 01 00 00 00 00 11 c0 00 d1 00 d7 00 e4 00 f1 00 fe 01
++				12 01 26 01 48
++			29 01 00 00 00 00 11 c1 01 64 01 95 01 bd 02 01 02 36 02
++				38 02 6c 02 a7
++			29 01 00 00 00 00 11 c2 02 ce 03 04 03 2b 03 5b 03 89 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 c3 03 e0 03 e8
++			29 01 00 00 00 00 11 b8 00 37 00 45 00 61 00 7d 00 9a 00
++				bb 00 dc 01 0b
++			29 01 00 00 00 00 11 b9 01 31 01 6e 01 9e 01 ea 02 24 02
++				25 02 58 02 90
++			29 01 00 00 00 00 11 ba 02 b4 02 e4 03 04 03 44 03 7f 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 bb 03 e0 03 e8
++			29 01 00 00 00 00 11 c4 00 37 00 45 00 61 00 7d 00 9a 00
++				bb 00 dc 01 0b
++			29 01 00 00 00 00 11 c5 01 31 01 6e 01 9e 01 ea 02 24 02
++				25 02 58 02 90
++			29 01 00 00 00 00 11 c6 02 b4 02 e4 03 04 03 44 03 7f 03
++				b2 03 c1 03 d1
++			29 01 00 00 00 00 05 c7 03 e0 03 e8
++			29 01 00 00 00 00 06 f0 55 aa 52 08 06
++			29 01 00 00 00 00 03 b0 29 2a
++			29 01 00 00 00 00 03 b1 10 12
++			29 01 00 00 00 00 03 b2 14 16
++			29 01 00 00 00 00 03 b3 18 1a
++			29 01 00 00 00 00 03 b4 02 04
++			29 01 00 00 00 00 03 b5 34 34
++			29 01 00 00 00 00 03 b6 34 2e
++			29 01 00 00 00 00 03 b7 2e 2e
++			29 01 00 00 00 00 03 b8 34 00
++			29 01 00 00 00 00 03 b9 34 34
++			29 01 00 00 00 00 03 ba 34 34
++			29 01 00 00 00 00 03 bb 01 34
++			29 01 00 00 00 00 03 bc 2e 2e
++			29 01 00 00 00 00 03 bd 2e 34
++			29 01 00 00 00 00 03 be 34 34
++			29 01 00 00 00 00 03 bf 05 03
++			29 01 00 00 00 00 03 c0 1b 19
++			29 01 00 00 00 00 03 c1 17 15
++			29 01 00 00 00 00 03 c2 13 11
++			29 01 00 00 00 00 03 c3 2a 29
++			29 01 00 00 00 00 03 e5 2e 2e
++			29 01 00 00 00 00 03 c4 29 2a
++			29 01 00 00 00 00 03 c5 1b 19
++			29 01 00 00 00 00 03 c6 17 15
++			29 01 00 00 00 00 03 c7 13 11
++			29 01 00 00 00 00 03 c8 01 05
++			29 01 00 00 00 00 03 c9 34 34
++			29 01 00 00 00 00 03 ca 34 2e
++			29 01 00 00 00 00 03 cb 2e 2e
++			29 01 00 00 00 00 03 cc 34 03
++			29 01 00 00 00 00 03 cd 34 34
++			29 01 00 00 00 00 03 ce 34 34
++			29 01 00 00 00 00 03 cf 02 34
++			29 01 00 00 00 00 03 d0 2e 2e
++			29 01 00 00 00 00 03 d1 2e 34
++			29 01 00 00 00 00 03 d2 34 34
++			29 01 00 00 00 00 03 d3 04 00
++			29 01 00 00 00 00 03 d4 10 12
++			29 01 00 00 00 00 03 d5 14 16
++			29 01 00 00 00 00 03 d6 18 1a
++			29 01 00 00 00 00 03 d7 2a 29
++			29 01 00 00 00 00 03 e6 2e 2e
++			29 01 00 00 00 00 06 d8 00 00 00 54 00
++			29 01 00 00 00 00 06 d9 00 15 00 00 00
++			23 01 00 00 00 00 02 e7 00
++			29 01 00 00 00 00 06 f0 55 aa 52 08 03
++			29 01 00 00 00 00 03 b1 00 00
++			29 01 00 00 00 00 03 b0 00 00
++			29 01 00 00 00 00 06 b2 05 00 00 00 00
++			29 01 00 00 00 00 06 b3 05 00 00 00 00
++			29 01 00 00 00 00 06 b4 05 00 00 00 00
++			29 01 00 00 00 00 06 b5 05 00 17 00 00
++			29 01 00 00 00 00 06 b6 12 00 19 00 00
++			29 01 00 00 00 00 06 b7 12 00 19 00 00
++			29 01 00 00 00 00 06 b8 12 00 19 00 00
++			29 01 00 00 00 00 06 b9 12 00 19 00 00
++			29 01 00 00 00 00 06 ba 57 00 00 00 00
++			29 01 00 00 00 00 06 bb 57 00 00 00 00
++			29 01 00 00 00 00 06 bc 75 00 1a 00 00
++			29 01 00 00 00 00 06 bd 53 00 1a 00 00
++			29 01 00 00 00 00 05 c0 00 34 00 00
++			29 01 00 00 00 00 05 c1 00 34 00 00
++			29 01 00 00 00 00 05 c2 00 34 00 00
++			29 01 00 00 00 00 05 c3 00 34 00 00
++			23 01 00 00 00 00 02 c4 20
++			23 01 00 00 00 00 02 c5 00
++			23 01 00 00 00 00 02 c6 00
++			23 01 00 00 00 00 02 c7 00
++			29 01 00 00 00 00 06 f0 55 aa 52 08 05
++			23 01 00 00 00 00 02 ed 30
++			29 01 00 00 00 00 03 b0 17 06
++			23 01 00 00 00 00 02 b8 08
++			29 01 00 00 00 00 06 bd 03 07 00 03 00
++			29 01 00 00 00 00 03 b1 17 06
++			23 01 00 00 00 00 02 b9 00
++			29 01 00 00 00 00 03 b2 00 00
++			23 01 00 00 00 00 02 ba 00
++			29 01 00 00 00 00 03 b3 17 06
++			23 01 00 00 00 00 02 bb 0a
++			29 01 00 00 00 00 03 b4 17 06
++			29 01 00 00 00 00 03 b5 17 06
++			29 01 00 00 00 00 03 b6 14 03
++			29 01 00 00 00 00 03 b7 00 00
++			23 01 00 00 00 00 02 bc 02
++			23 01 00 00 00 00 02 e5 06
++			23 01 00 00 00 00 02 e6 06
++			23 01 00 00 00 00 02 e7 00
++			23 01 00 00 00 00 02 e8 06
++			23 01 00 00 00 00 02 e9 06
++			23 01 00 00 00 00 02 ea 06
++			23 01 00 00 00 00 02 eb 00
++			23 01 00 00 00 00 02 ec 00
++			23 01 00 00 00 00 02 c0 07
++			23 01 00 00 00 00 02 c1 80
++			23 01 00 00 00 00 02 c2 a4
++			23 01 00 00 00 00 02 c3 05
++			23 01 00 00 00 00 02 c4 00
++			23 01 00 00 00 00 02 c5 02
++			23 01 00 00 00 00 02 c6 22
++			23 01 00 00 00 00 02 c7 03
++			29 01 00 00 00 00 03 c8 05 30
++			29 01 00 00 00 00 03 c9 01 31
++			29 01 00 00 00 00 03 ca 03 21
++			29 01 00 00 00 00 03 cb 01 20
++			29 01 00 00 00 00 06 d1 00 05 09 07 10
++			29 01 00 00 00 00 06 d2 10 05 0e 03 10
++			29 01 00 00 00 00 06 d3 20 00 48 07 10
++			29 01 00 00 00 00 06 d4 30 00 43 07 10
++			23 01 00 00 00 00 02 d0 00
++			29 01 00 00 00 00 04 cc 00 00 3e
++			29 01 00 00 00 00 04 cd 00 00 3e
++			29 01 00 00 00 00 04 ce 00 00 02
++			29 01 00 00 00 00 04 cf 00 00 02
++			23 01 00 00 00 00 02 6f 11
++			23 01 00 00 00 00 02 f3 01
++			15 01 00 00 00 00 02 51 ff
++			15 01 00 00 00 00 02 53 2c
++			15 01 00 00 00 00 02 55 03
++			15 01 00 00 c8 00 02 35 00
++			05 01 00 00 78 00 02 11 00
++			05 01 00 00 0a 00 02 29 00];
++		qcom,mdss-dsi-off-command = [05 01 00 00 14 00 02 28 00
++				 05 01 00 00 78 00 02 10 00];
++		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
++		qcom,mdss-dsi-tx-eot-append;
++		qcom,mdss-dsi-lp11-init;
++		qcom,mdss-dsi-post-init-delay = <1>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/dsi-panel-truly-wuxga-video.dtsi b/arch/arm64/boot/dts/gm/dsi-panel-truly-wuxga-video.dtsi
+new file mode 100644
+index 000000000..b0d13d0da
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/dsi-panel-truly-wuxga-video.dtsi
+@@ -0,0 +1,59 @@
++/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&mdss_mdp {
++	dsi_truly_wuxga_vid: qcom,mdss_dsi_truly_wuxga_video {
++		qcom,mdss-dsi-panel-name = "truly wuxga video mode dsi panel";
++		qcom,mdss-dsi-panel-type = "dsi_video_mode";
++		qcom,mdss-dsi-panel-framerate = <60>;
++		qcom,mdss-dsi-virtual-channel-id = <0>;
++		qcom,mdss-dsi-stream = <0>;
++		qcom,mdss-dsi-panel-width = <1920>;
++		qcom,mdss-dsi-panel-height = <1200>;
++		qcom,mdss-dsi-h-front-porch = <96>;
++		qcom,mdss-dsi-h-back-porch = <64>;
++		qcom,mdss-dsi-h-pulse-width = <16>;
++		qcom,mdss-dsi-h-sync-skew = <0>;
++		qcom,mdss-dsi-v-back-porch = <16>;
++		qcom,mdss-dsi-v-front-porch = <4>;
++		qcom,mdss-dsi-v-pulse-width = <1>;
++		qcom,mdss-dsi-h-left-border = <0>;
++		qcom,mdss-dsi-h-right-border = <0>;
++		qcom,mdss-dsi-v-top-border = <0>;
++		qcom,mdss-dsi-v-bottom-border = <0>;
++		qcom,mdss-dsi-bpp = <24>;
++		qcom,mdss-dsi-underflow-color = <0xff>;
++		qcom,mdss-dsi-border-color = <0>;
++		qcom,mdss-dsi-h-sync-pulse = <0>;
++		qcom,mdss-dsi-traffic-mode = "burst_mode";
++		qcom,mdss-dsi-bllp-eof-power-mode;
++		qcom,mdss-dsi-bllp-power-mode;
++		qcom,mdss-dsi-lane-0-state;
++		qcom,mdss-dsi-lane-1-state;
++		qcom,mdss-dsi-lane-2-state;
++		qcom,mdss-dsi-lane-3-state;
++		qcom,mdss-dsi-panel-timings = [f3 3a 26 00 6c 6e
++						2c 3e 2f 03 04 00];
++		qcom,mdss-dsi-t-clk-post = <0x02>;
++		qcom,mdss-dsi-t-clk-pre = <0x2d>;
++		qcom,mdss-dsi-bl-min-level = <1>;
++		qcom,mdss-dsi-bl-max-level = <4095>;
++		qcom,mdss-dsi-dma-trigger = "trigger_sw";
++		qcom,mdss-dsi-mdp-trigger = "none";
++		qcom,mdss-dsi-on-command = [32 01 00 00 00 00 02 00 00];
++		qcom,mdss-dsi-off-command = [22 01 00 00 00 00 02 00 00];
++		qcom,mdss-dsi-on-command-state = "dsi_hs_mode";
++		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
++		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
++		qcom,mdss-dsi-reset-sequence = <1 200>, <0 200>, <1 200>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/gm8-blsp1-qup1.dtsi b/arch/arm64/boot/dts/gm/gm8-blsp1-qup1.dtsi
+new file mode 100644
+index 000000000..eb73cc837
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/gm8-blsp1-qup1.dtsi
+@@ -0,0 +1,34 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/* GM8 uses BLSP1 QUP1 for its TPS65132 panel-bias controller. */
++/ {
++	aliases {
++		i2c1 = &i2c_1;
++	};
++};
++
++&soc {
++	i2c_1: i2c@78b5000 {
++		compatible = "qcom,i2c-msm-v2";
++		#address-cells = <1>;
++		#size-cells = <0>;
++		reg-names = "qup_phys_addr";
++		reg = <0x78b5000 0x600>;
++		interrupt-names = "qup_irq";
++		interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
++		qcom,master-id = <86>;
++		qcom,clk-freq-out = <400000>;
++		qcom,clk-freq-in = <19200000>;
++		clock-names = "iface_clk", "core_clk";
++		clocks = <&gcc GCC_BLSP1_AHB_CLK>,
++			 <&gcc GCC_BLSP1_QUP1_I2C_APPS_CLK>;
++		dmas = <&dma_blsp1 8 64 0x20000020 0x20>,
++			<&dma_blsp1 9 32 0x20000020 0x20>;
++		dma-names = "tx", "rx";
++		pinctrl-names = "i2c_active", "i2c_sleep";
++		pinctrl-0 = <&i2c_1_active>;
++		pinctrl-1 = <&i2c_1_sleep>;
++		qcom,noise-rjct-scl = <0>;
++		qcom,noise-rjct-sda = <0>;
++		status = "okay";
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/gm8-ramoops.dtsi b/arch/arm64/boot/dts/gm/gm8-ramoops.dtsi
+new file mode 100644
+index 000000000..a655242a6
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/gm8-ramoops.dtsi
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/* Reservation matches the verified GM8 3.18 diagnostic board tree. */
++/ {
++	reserved-memory {
++		gm8_ramoops: ramoops@9ff00000 {
++			compatible = "ramoops";
++			reg = <0x0 0x9ff00000 0x0 0x100000>;
++			record-size = <0x40000>;
++			console-size = <0x80000>;
++			pmsg-size = <0x40000>;
++			ecc-size = <16>;
++			no-map;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/gm8_sprout.dts b/arch/arm64/boot/dts/gm/gm8_sprout.dts
+new file mode 100644
+index 000000000..20d0a58fa
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/gm8_sprout.dts
+@@ -0,0 +1,277 @@
++/*
++ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++/dts-v1/;
++
++#include "../vendor-legacy/qcom/msm8940.dtsi"
++#include "gm8-blsp1-qup1.dtsi"
++#include "msm8940-pmi8937-mtp.dtsi"
++
++/ {
++	model = "General Mobile GM8 (L2300) 4.19 bring-up";
++	compatible = "gm,gm8-sprout", "qcom,msm8940-mtp", "qcom,msm8940", "qcom,mtp";
++	qcom,board-id= <8 0>;
++	qcom,pmic-id = <0x10019 0x0 0x0 0x0>;
++};
++
++&pm8937_mpps {
++	mpp@a100 { /*MPP_02 for ADC*/
++		status = "okay";
++	};
++};
++
++&pm8937_vadc {
++	chan@11 {
++		label = "batt_rid";
++		reg = <0x11>;
++		qcom,decimation = <0>;
++		qcom,pre-div-channel-scaling = <0>;
++		qcom,calibration-type = "ratiometric"; //absolute 625mV or 1.25V
++		qcom,scale-function = <0>;//0 means c raw adc code to volt, 2 is for tempratue
++		qcom,hw-settle-time = <2>;//2 means 200ms
++		qcom,fast-avg-setup = <0>;//0 with only one average measurement
++
++		/delete-property/ qcom,vadc-thermal-node;
++		status = "okay";
++	};
++};
++
++&i2c_3 {
++     status = "ok";
++     clock-frequency = <400000>;
++     himax@48 {
++           compatible = "himax,hxcommon";
++           reg = <0x48>;
++           interrupt-parent = <&tlmm>;
++           interrupts = <65 0x2>;
++           //avdd-supply = <&pm8937_l6>;
++           //vcc_i2c-supply = <&pm8937_l5>;
++           /* pins used by touchscreen */
++           pinctrl-names = "pmx_ts_active",
++                             "pmx_ts_suspend",
++                             "pmx_ts_release";
++           pinctrl-0 = <&ts_int_active &ts_reset_active>;
++           pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
++           pinctrl-2 = <&ts_release>;
++           himax,rst-gpio = <&tlmm 64 0x00>;
++           himax,irq-gpio = <&tlmm 65 0x02>;
++           himax,display-coords = <0 720 0 1440>;
++           himax,panel-coords = <0 720 0 1440>;
++           report_type = <1>;
++     };
++
++     focaltech@38{
++           compatible = "focaltech,fts";
++           reg = <0x38>;
++           interrupt-parent = <&tlmm>;
++           interrupts = <65 0x02>;
++           focaltech,reset-gpio = <&tlmm 64 0x01>;
++           focaltech,irq-gpio = <&tlmm 65 0x02>;
++           focaltech,max-touch-number = <10>;
++           focaltech,display-coords = <0 0 720 1440>;
++
++           //focaltech,have-key;
++           //focaltech,key-number = <3>;
++           //focaltech,keys = <139 102 158>;
++           //focaltech,key-y-coord = <2000>;
++           //focaltech,key-x-coords = <200 600 800>;
++     };
++};
++
++&i2c_3 {
++			awinic@45 {
++				compatible = "awinic,aw2013";
++				reg = <0x45>;
++				aw2013,blue {
++				aw2013,name = "blue";
++				aw2013,id = <0>;
++				aw2013,max-brightness = <150>;
++				aw2013,max-current = <1>;
++				aw2013,rise-time-ms = <2>;
++				aw2013,hold-time-ms = <1>;
++				aw2013,fall-time-ms = <2>;
++				aw2013,off-time-ms = <3>;
++
++				aw2023,name = "blue";
++				aw2023,id = <0>;
++				aw2023,imax = <2>;
++				aw2023,led-current = <3>;
++				aw2023,max-brightness = <150>;
++				aw2023,rise-time-ms = <6>;
++				aw2023,hold-time-ms = <0>;
++				aw2023,fall-time-ms = <6>;
++				aw2023,off-time-ms = <4>;
++				};
++
++				aw2013,green {
++				aw2013,name = "green";
++				aw2013,id = <1>;
++				aw2013,max-brightness = <150>;
++				aw2013,max-current = <1>;
++				aw2013,rise-time-ms = <2>;
++				aw2013,hold-time-ms = <1>;
++				aw2013,fall-time-ms = <2>;
++				aw2013,off-time-ms = <3>;
++
++				aw2023,name = "green";
++				aw2023,id = <1>;
++				aw2023,imax = <2>;
++				aw2023,led-current = <3>;
++				aw2023,max-brightness = <150>;
++				aw2023,rise-time-ms = <6>;
++				aw2023,hold-time-ms = <0>;
++				aw2023,fall-time-ms = <6>;
++				aw2023,off-time-ms = <4>;
++				};
++
++				aw2013,red {
++				aw2013,name = "red";
++				aw2013,id = <2>;
++				aw2013,max-brightness = <150>;
++				aw2013,max-current = <1>;
++				aw2013,rise-time-ms = <1>;//2 to 1
++				aw2013,hold-time-ms = <1>;//1 to 1
++				aw2013,fall-time-ms = <1>; //2 to 1
++				aw2013,off-time-ms = <5>; //3 to 5
++
++				aw2023,name = "red";
++				aw2023,id = <2>;
++				aw2023,imax = <2>;
++				aw2023,led-current = <3>;
++				aw2023,max-brightness = <150>;
++				aw2023,rise-time-ms = <10>;
++				aw2023,hold-time-ms = <0>;
++				aw2023,fall-time-ms = <10>;
++				aw2023,off-time-ms = <6>;
++				};
++
++				aw2013,orange {
++				aw2013,name = "orange";
++				aw2013,id = <3>;
++				aw2013,max-brightness = <255>;
++				aw2013,max-current = <1>;
++				aw2013,rise-time-ms = <2>;
++				aw2013,hold-time-ms = <1>;
++				aw2013,fall-time-ms = <2>;
++				aw2013,off-time-ms = <3>;
++
++				aw2023,name = "orange";
++				aw2023,id = <3>;
++				aw2023,imax = <2>;
++				aw2023,led-current = <3>;
++				aw2023,max-brightness = <255>;
++				aw2023,rise-time-ms = <6>;
++				aw2023,hold-time-ms = <0>;
++				aw2023,fall-time-ms = <6>;
++				aw2023,off-time-ms = <4>;
++				};
++            };
++};
++&i2c_5 {
++	status = "ok";
++
++        bq27426@55 {
++            compatible = "ti,bq27426";
++            reg = <0x55>;
++            interrupt-parent = <&tlmm>;
++            interrupts = <62 2>;
++            pinctrl-names = "default";
++            pinctrl-0 = <&bq_int_default>;
++
++            vdd-supply = <&pm8937_l16>;
++            ti,battery-type-b = "feimaotui_3080mah";
++            ti,battery-type-a = "guangyu_3080mah";
++            ti,batt-profile-select;
++            qcom,batt_id-vadc = <&pm8937_vadc>;
++            ti,profile-a-rid-kohm = <22>;
++            ti,profile-b-rid-kohm = <110>;
++            ti,batt-id-vref-uv = <1800000>;
++            ti,batt-id-rpullup-kohm = <68>;
++
++            agassiz,force-select-profile-b;
++        };
++
++
++	bq2560x_otg_supply: bq2560x@6B {
++            compatible = "ti,bq25601-charger";
++            reg = <0x6B>;
++            interrupt-parent = <&tlmm>;
++            interrupts = <61 2>;
++            pinctrl-names = "default";
++            pinctrl-0 = <&smb_int_default>;
++
++            regulator-name = "bq2560x_otg_vreg";
++
++
++            ti,bq2560x,chip-enable-gpio = <25>;
++            ti,bq2560x,usb-vlim = <4500>;
++            ti,bq2560x,usb-ilim = <500>;
++            ti,bq2560x,usb-vreg = <4400>;
++            ti,bq2560x,usb-ichg = <500>;
++
++            ti,bq2560x,ta-vlim = <4500>;
++            ti,bq2560x,ta-ilim = <2000>;
++            ti,bq2560x,ta-vreg = <4400>;
++            ti,bq2560x,ta-ichg = <1980>;
++
++            ti,bq2560x,precharge-current = <256>;
++            ti,bq2560x,termination-current = <60>;
++            ti,bq2560x,boost-voltage = <4998>;
++            ti,bq2560x,boost-current = <500>;
++            ti,bq2560x,enable_term;
++            ti,bq2560x,stat-pin-ctrl = <3>;
++            ti,bq2560x,vac-ovp-threshold = <6200>;
++
++            ti,bq2560x,jeita-hot-degc = <550>;
++            ti,bq2560x,jeita-warm-degc = <450>;
++            ti,bq2560x,jeita-cool-degc = <100>;
++            ti,bq2560x,jeita-cool-xiaomi-degc = <100>;
++            ti,bq2560x,jeita-cold-degc = <0>;
++
++            ti,bq2560x,jeita-hot-hysteresis = <50>;
++            ti,bq2560x,jeita-cold-hysteresis = <0>;
++
++            ti,bq2560x,jeita-cool-ma = <900>;
++            ti,bq2560x,jeita-cool-xiaomi-ma = <900>;
++            ti,bq2560x,jeita-cool-mv = <4400>;
++            ti,bq2560x,jeita-warm-ma = <900>;
++            ti,bq2560x,jeita-warm-mv = <4400>;
++
++            ti,bq2560x,software-jeita-supported;
++
++            qcom,thermal-mitigation = <1980 1500 1000 500 0>;
++        };
++};
++
++&usb_otg{
++
++	interrupts = <0 134 0>,<0 140 0>;
++	interrupt-names = "core_irq", "async_irq";
++
++	qcom,hsusb-otg-mode = <3>;
++	qcom,usbid-gpio = <&tlmm 41 0x00>;
++	pinctrl-names = "default";
++	pinctrl-0 = <&usbid_default>;
++	//qcom,hsusb-otg-mode = <3>;
++	vbus_otg-supply = <&bq2560x_otg_supply>;
++	qcom,hsusb-otg-phy-init-seq = <0x39 0x81 0x37 0x82 0xffffffff>;
++ };
++#include "l2300-audio.dtsi" //merge from L2300 android O
++
++/* Preserve the GM8 bootloader's complete external-firmware reservation. */
++&other_ext_mem {
++	reg = <0x0 0x84a00000 0x0 0x1e00000>;
++};
++
++/* Use the native 4.19 DT binding instead of 3.18 ramoops module parameters. */
++#include "gm8-ramoops.dtsi"
+diff --git a/arch/arm64/boot/dts/gm/l2300-audio.dtsi b/arch/arm64/boot/dts/gm/l2300-audio.dtsi
+new file mode 100644
+index 000000000..31405070b
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/l2300-audio.dtsi
+@@ -0,0 +1,259 @@
++/*
++ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++
++&tlmm {
++/* BEGIN DTS2016111100296, Added by cwx405453, 2016/11/10 */
++	/* add spk-box pinctrl */
++/*
++	audio_box_id_pin {
++		box_id_default: box_default {
++			mux {
++				pins = "gpio39", "gpio131", "gpio55", "gpio57", "gpio60", "gpio61";
++				function = "gpio";
++			};
++			config {
++				pins = "gpio39", "gpio131", "gpio55", "gpio57", "gpio60", "gpio61";
++				drive-strength = <2>;
++				bias-disable;
++			};
++		};
++		box_id_sleep: box_sleep {
++			mux {
++				pins = "gpio39", "gpio131", "gpio55", "gpio57", "gpio60", "gpio61";
++				function = "gpio";
++			};
++			config {
++				pins = "gpio39", "gpio131", "gpio55", "gpio57", "gpio60", "gpio61";
++				drive-strength = <2>;
++				bias-disable;
++			};
++		};
++	}; */
++/* END DTS2016111100296, Added by cwx405453, 2016/11/10 */
++	quin-mi2s-lines {
++		quin_mi2s_act: quin_mi2s_act {
++			mux {
++				pins = "gpio85", "gpio86", "gpio88";
++				function = "pri_mi2s";
++			};
++
++			config {
++				pins = "gpio85", "gpio86", "gpio88";
++				drive-strength = <8>;
++			};
++		};
++
++		quin_mi2s_sus: qui_mi2s_sus {
++			mux {
++				pins = "gpio85", "gpio86", "gpio88";
++				function = "pri_mi2s";
++			};
++
++			config {
++				pins = "gpio85", "gpio86", "gpio88";
++				drive-strength = <2>;
++				bias-pull-down;
++			};
++		};
++	};
++/*
++	sec-tlmm-lines {
++		sec_tlmm_lines_act: sec_tlmm_lines_act {
++			mux {
++				pins = "gpio94", "gpio95", "gpio12", "gpio13";
++				function = "sec_mi2s";
++			};
++
++			config {
++				pins = "gpio94", "gpio95", "gpio12", "gpio13";
++				drive-strength = <8>;
++			};
++		};
++
++		sec_tlmm_lines_sus: sec_tlmm_lines_sus {
++			mux {
++				pins = "gpio94", "gpio95", "gpio12", "gpio13";
++				function = "sec_mi2s";
++			};
++
++			config {
++				pins = "gpio94", "gpio95", "gpio12", "gpio13";
++				drive-strength = <2>;
++				bias-pull-down;
++			};
++		};
++	};
++*/
++	quin-mi2s-ws-lines {
++		quin_mi2s_ws_act: quin_mi2s_ws_act {
++			mux {
++				pins = "gpio87";
++				function = "pri_mi2s_ws";
++			};
++
++			config {
++				pins = "gpio87";
++				drive-strength = <8>;
++			};
++		};
++
++		quin_mi2s_ws_sus: quin_mi2s_ws_sus {
++			mux {
++				pins = "gpio87";
++				function = "pri_mi2s_ws";
++			};
++
++			config {
++				pins = "gpio87";
++				drive-strength = <2>;
++				bias-pull-down;
++			};
++		};
++	};
++
++	tas_reset_active: tas_reset_active {
++		mux {
++			pins = "gpio1";
++			function =  "gpio";
++		};
++		config {
++			pins = "gpio1";
++			num-grp-pins = <1>;
++			drive-strength = <6>;
++			bias-pull-up;
++		};
++	};
++
++	tas_reset_sleep: tas_reset_sleep {
++			mux {
++			pins = "gpio1";
++				function =  "gpio";
++			};
++			config {
++			pins = "gpio1";
++				num-grp-pins = <1>;
++				drive-strength = <2>;
++				bias-disable;
++		};
++	};
++};
++
++&i2c_2 {
++	/delete-node/ wsa881x-i2c-codec@e;
++	/delete-node/ wsa881x-i2c-codec@44;
++	/delete-node/ wsa881x-i2c-codec@f;
++	/delete-node/ wsa881x-i2c-codec@45;
++
++	tas2560@4c {
++		compatible = "ti,tas2560";
++		reg = <0x4c>;
++		ti,load = <1>;   /* 0, 8Ohm; 1, 6Ohm; 2, 4Ohm */
++		ti,pll = <0>;
++		ti,asi-format = <0>; /* 0, i2S; 1, DSP;  */
++		ti,ppg = <0>; /* 0, 0dB default; 1\uff0c enable -2dB */
++		i2c-pull-up;
++		vdd-supply = <&pm8937_l6>;
++		vcc_i2c-supply = <&pm8937_l6>;
++		ti,reset-gpio = <&tlmm 1 0>;
++		ti,irq-gpio = <&tlmm 97 0>;
++		pinctrl-names = "tas_active","tas_suspend";
++		pinctrl-0 = <&tas_reset_active>;
++		pinctrl-1 = <&tas_reset_sleep>;
++	};
++};
++
++&int_codec {
++	/delete-property/ qcom,cdc-us-euro-gpios;
++
++	compatible = "qcom,msm8952-audio-codec";
++	qcom,model = "msm8952-snd-card-mtp";
++
++	reg = <0xc051000 0x4>,
++		<0xc051004 0x4>,
++		<0xc055000 0x4>,
++		<0xc052000 0x4>;
++	reg-names = "csr_gp_io_mux_mic_ctl",
++		"csr_gp_io_mux_spkr_ctl",
++		"csr_gp_io_lpaif_pri_pcm_pri_mode_muxsel",
++		"csr_gp_io_mux_quin_ctl";
++
++	qcom,msm-ext-pa = "quinary";
++	qcom,msm-mclk-freq = <9600000>;
++	qcom,msm-mbhc-hphl-swh = <1>;
++	qcom,msm-mbhc-gnd-swh = <1>;
++	qcom,msm-hs-micbias-type = "external";
++	qcom,msm-micbias1-ext-cap;
++	//qcom,msm-micbias2-ext-cap;
++	qcom,smartpa-name = "tas2560";
++	qcom,smartpa-num = <1>;
++	qcom,audio-routing =
++		"RX_BIAS", "MCLK",
++		"SPK_RX_BIAS", "MCLK",
++		"INT_LDO_H", "MCLK",
++		"MIC BIAS External", "Handset Mic",
++		"MIC BIAS External2", "Headset Mic",
++                "MIC BIAS External", "Secondary Mic",
++		"AMIC1", "MIC BIAS External",
++		"AMIC2", "MIC BIAS External2",
++                "AMIC3", "MIC BIAS External";
++
++	//qcom,hdmi-dba-codec-rx;
++
++	qcom,msm-gpios =
++		"pri_i2s",
++		"quin_i2s";
++	//	"quat_i2s";
++	qcom,pinctrl-names =
++		"all_off",
++		"pri_i2s_act",
++		"quin_i2s_act",
++		"pri_i2s_quin_i2s_act";
++		//"quat_i2s_act",
++		//"quat_i2s_pri_i2s_act",
++		//"quin_i2s_quat_i2s_act",
++		//"quin_i2s_quat_i2s_pri_i2s_act";
++	pinctrl-names =
++		"all_off",
++		"pri_i2s_act",
++		"quin_i2s_act",
++		"pri_i2s_quin_i2s_act";
++		//"quat_i2s_act",
++		//"quat_i2s_pri_i2s_act",
++		//"quin_i2s_quat_i2s_act",
++		//"quin_i2s_quat_i2s_pri_i2s_act";
++	pinctrl-0 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus
++		&quin_mi2s_sus &quin_mi2s_ws_sus >;
++	pinctrl-1 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act
++		&quin_mi2s_sus &quin_mi2s_ws_sus >;
++	pinctrl-2 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus
++		&quin_mi2s_act &quin_mi2s_ws_act >;
++	pinctrl-3 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act
++		&quin_mi2s_act &quin_mi2s_ws_act >;
++//	pinctrl-4 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus
++//		&quin_mi2s_sus &quin_mi2s_ws_sus >;
++//	pinctrl-5 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act
++//		&quin_mi2s_sus &quin_mi2s_ws_sus >;
++//	pinctrl-6 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus
++//		&quin_mi2s_act &quin_mi2s_ws_act >;
++//	pinctrl-7 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act
++//		&quin_mi2s_act &quin_mi2s_ws_act >;
++
++	/* Inherit asoc-platform from the 4.19 sound-card definition. */
++
++	/* Inherit asoc-platform-names from the 4.19 sound-card definition. */
++
++	/* Inherit asoc-cpu from the 4.19 sound-card definition. */
++
++	/* Inherit asoc-cpu-names from the 4.19 sound-card definition. */
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8937-audio-mtp.dtsi b/arch/arm64/boot/dts/gm/msm8937-audio-mtp.dtsi
+new file mode 100644
+index 000000000..264198cca
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8937-audio-mtp.dtsi
+@@ -0,0 +1,34 @@
++/*
++ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&int_codec {
++	status = "okay";
++	qcom,model = "msm8952-snd-card-mtp";
++	qcom,msm-hs-micbias-type = "external";
++};
++
++&msm_digital_codec {
++	status = "okay";
++};
++
++&pmic_analog_codec {
++	status = "okay";
++};
++
++&wsa881x_i2c_f {
++	status = "okay";
++};
++
++&wsa881x_i2c_45 {
++	status = "okay";
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8937-camera-sensor-mtp.dtsi b/arch/arm64/boot/dts/gm/msm8937-camera-sensor-mtp.dtsi
+new file mode 100644
+index 000000000..10f1adde8
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8937-camera-sensor-mtp.dtsi
+@@ -0,0 +1,399 @@
++/*
++ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&soc {
++	flash_GPIO:flashlight@0 {
++		compatible = "qcom,leds-back-gpio-flash";
++		status = "okay";
++		pinctrl-names = "flash_default", "flash_sleep";
++		pinctrl-0 = <&rear_flash_led_enable>;
++		pinctrl-1 = <&rear_flash_led_disable>;
++		qcom,flash-en = <&tlmm 33 0>;
++		qcom,flash-now = <&tlmm 34 0>;
++		qcom,op-seq = "flash_en", "flash_now";
++		qcom,torch-seq-val = <0 1>;
++		qcom,flash-seq-val = <1 0>;
++		qcom,max-current = <800>;
++		qcom,duration = <1280>;
++		qcom,current = <400>;
++		linux,name = "flashlight-back";
++		linux,default-trigger = "flashlight-trigger";
++	};
++
++	led_flash_back: qcom,camera-flash@0 {
++		cell-index = <0>;
++		compatible = "qcom,camera-flash";
++		qcom,flash-type = <3>;
++		qcom,flash-source = <&flash_GPIO>;
++		qcom,torch-source = <&flash_GPIO>;
++	};
++
++	flash_front_GPIO:flashlight@2 {
++		compatible = "qcom,leds-back-gpio-flash";
++		status = "okay";
++		pinctrl-names = "flash_default", "flash_sleep";
++		pinctrl-0 = <&front_flash_led_enable>;
++		pinctrl-1 = <&front_flash_led_disable>;
++		qcom,flash-en = <&tlmm 50 0>;
++		qcom,flash-now = <&tlmm 126 0>;
++		qcom,op-seq = "flash_en", "flash_now";
++		qcom,torch-seq-val = <1 0>;
++		qcom,flash-seq-val = <1 1>;
++		qcom,max-current = <800>;
++		qcom,duration = <1280>;
++		qcom,current = <400>;
++		linux,name = "flashlight-front";
++		linux,default-trigger = "F_flashlight-trigger";
++	};
++
++	led_flash_front: qcom,camera-flash@2 {
++		cell-index = <2>;
++		compatible = "qcom,camera-flash";
++		qcom,flash-type = <3>;
++		qcom,flash-source = <&flash_front_GPIO>;
++		qcom,torch-source = <&flash_front_GPIO>;
++	};
++};
++
++&cci {
++	actuator0: qcom,actuator@0 {
++		cell-index = <0>;
++		reg = <0x0>;
++		compatible = "qcom,actuator";
++		qcom,cci-master = <0>;
++		cam_vaf-supply = <&pm8937_l17>;
++		qcom,cam-vreg-name = "cam_vaf";
++		qcom,cam-vreg-min-voltage = <2850000>;
++		qcom,cam-vreg-max-voltage = <2850000>;
++		qcom,cam-vreg-op-mode = <80000>;
++	};
++
++       eeprom0: qcom,eeprom@0 {
++		cell-index = <0>;
++		compatible = "qcom,eeprom";
++		qcom,cci-master = <0>;
++		reg = <0x0>;
++                qcom,eeprom-name = "s5k3l8_truly_l2300";
++		qcom,slave-addr = <0xa0>;
++		qcom,num-blocks = <1>;
++		qcom,page0 = <0 0x0 2 0 1 0>;
++		qcom,poll0 = <0 0x0 2 0 1 0>;
++		qcom,mem0 = <0x0BF8 0x0000 2 0 1 0>;
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vio-supply = <&pm8937_l6>;
++		cam_vaf-supply = <&pm8937_l17>;
++		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vaf";
++		qcom,cam-vreg-min-voltage = <1200000 1800000 2850000>;
++		qcom,cam-vreg-max-voltage = <1200000 1800000 2850000>;
++		qcom,cam-vreg-op-mode = <200000 200000 100000>;
++		pinctrl-names = "cam_default", "cam_suspend";
++		pinctrl-0 = <&cam_sensor_mclk0_default
++				&cam_sensor_rear_default>;
++		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_sleep>;
++		gpios = <&tlmm 26 0>,
++			<&tlmm 36 0>,
++			<&tlmm 99 0>;
++		qcom,gpio-reset = <1>;
++		qcom,gpio-vana = <2>;
++		qcom,gpio-req-tbl-num = <0 1 2>;
++		qcom,gpio-req-tbl-flags = <1 0 0>;
++		qcom,gpio-req-tbl-label = "CAMIF_MCLK0",
++			"CAM_RESET0",
++			"CAM_VANA0";
++		qcom,cam-power-seq-type = "sensor_gpio",
++					  "sensor_gpio",
++					  "sensor_vreg",
++					  "sensor_vreg",
++					  "sensor_vreg",
++					  "sensor_clk",
++					  "sensor_gpio";
++		qcom,cam-power-seq-val =  "sensor_gpio_reset",
++					  "sensor_gpio_vana",
++					  "cam_vdig",
++					  "cam_vio",
++					  "cam_vaf",
++					  "sensor_cam_mclk",
++					  "sensor_gpio_reset";
++		qcom,cam-power-seq-cfg-val = <0 1 1 1 1 24000000 1>;
++		qcom,cam-power-seq-delay = <1 1 1 0 5 1 18>;
++		status = "ok";
++		clocks = <&gcc clk_mclk0_clk_src>,
++				<&gcc clk_gcc_camss_mclk0_clk>;
++		clock-names = "cam_src_clk", "cam_clk";
++		qcom,clock-rates = <19200000 0>;
++	};
++
++
++        eeprom1: qcom,eeprom@1 {
++		cell-index = <1>;
++		compatible = "qcom,eeprom";
++		qcom,cci-master = <0>;
++		reg = <0x1>;
++                qcom,eeprom-name = "s5k3l8_holitech_l2300";
++		qcom,slave-addr = <0xa0>;
++		qcom,num-blocks = <1>;
++		qcom,page0 = <0 0x0 2 0 1 0>;
++		qcom,poll0 = <0 0x0 2 0 1 0>;
++		qcom,mem0 = <0x0AF9 0x0000 2 0 1 0>;
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vio-supply = <&pm8937_l6>;
++		cam_vaf-supply = <&pm8937_l17>;
++		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vaf";
++		qcom,cam-vreg-min-voltage = <1200000 1800000 2850000>;
++		qcom,cam-vreg-max-voltage = <1200000 1800000 2850000>;
++		qcom,cam-vreg-op-mode = <200000 200000 100000>;
++		pinctrl-names = "cam_default", "cam_suspend";
++		pinctrl-0 = <&cam_sensor_mclk0_default
++				&cam_sensor_rear_default>;
++		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_sleep>;
++		gpios = <&tlmm 26 0>,
++			<&tlmm 36 0>,
++			<&tlmm 99 0>;
++		qcom,gpio-reset = <1>;
++		qcom,gpio-vana = <2>;
++		qcom,gpio-req-tbl-num = <0 1 2>;
++		qcom,gpio-req-tbl-flags = <1 0 0>;
++		qcom,gpio-req-tbl-label = "CAMIF_MCLK0",
++			"CAM_RESET0",
++			"CAM_VANA0";
++		qcom,cam-power-seq-type = "sensor_gpio",
++					  "sensor_gpio",
++					  "sensor_vreg",
++					  "sensor_vreg",
++					  "sensor_vreg",
++					  "sensor_clk",
++					  "sensor_gpio";
++		qcom,cam-power-seq-val =  "sensor_gpio_reset",
++					  "sensor_gpio_vana",
++					  "cam_vdig",
++					  "cam_vio",
++					  "cam_vaf",
++					  "sensor_cam_mclk",
++					  "sensor_gpio_reset";
++		qcom,cam-power-seq-cfg-val = <0 1 1 1 1 24000000 1>;
++		qcom,cam-power-seq-delay = <1 1 1 0 5 1 18>;
++		status = "ok";
++		clocks = <&gcc clk_mclk0_clk_src>,
++				<&gcc clk_gcc_camss_mclk0_clk>;
++		clock-names = "cam_src_clk", "cam_clk";
++		qcom,clock-rates = <19200000 0>;
++	};
++
++    eeprom2: qcom,eeprom@2 {
++		cell-index = <2>;
++		compatible = "qcom,eeprom";
++		reg = <0x2>;
++		qcom,eeprom-name = "s5k3l8_truly1_l2300";
++		qcom,slave-addr = <0xa8>;
++		qcom,cci-master = <1>;
++		qcom,i2c-freq-mode = <1>;
++		qcom,num-blocks = <1>;
++
++		qcom,page0 = <0 0x0 2 0x0 1 0>;
++		qcom,poll0 = <0 0x0 2 0x0 1 0>;
++		qcom,mem0 = <0x0719 0x0 2 0x0 1 0>;
++
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vio-supply = <&pm8937_l6>;
++		qcom,cam-vreg-name = "cam_vdig", "cam_vio";
++		qcom,cam-vreg-min-voltage = <1200000 1800000>;
++		qcom,cam-vreg-max-voltage = <1200000 1800000>;
++		qcom,cam-vreg-op-mode = <200000 200000>;
++		//qcom,gpio-no-mux = <0>;
++		pinctrl-names = "cam_default", "cam_suspend";
++		pinctrl-0 = <&cam_sensor_mclk2_default
++				&cam_sensor_front1_default>;
++		pinctrl-1 = <&cam_sensor_mclk2_sleep
++				&cam_sensor_front1_sleep>;
++		gpios = <&tlmm 28 0>,
++			<&tlmm 40 0>,
++			<&tlmm 99 0>;
++		qcom,gpio-reset = <1>;
++		qcom,gpio-vana = <2>;
++		qcom,gpio-req-tbl-num = <0 1 2>;
++		qcom,gpio-req-tbl-flags = <1 0 0>;
++		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
++                       "CAM_RESET2",
++                       "CAM_VANA2";
++
++		qcom,cam-power-seq-type = "sensor_gpio",
++								"sensor_gpio",
++								"sensor_vreg",
++								"sensor_vreg",
++								/*"sensor_vreg",*/
++								"sensor_clk",
++								"sensor_gpio";
++		qcom,cam-power-seq-val =  "sensor_gpio_reset",
++								"sensor_gpio_vana",
++								"cam_vdig",
++								"cam_vio",
++								/*"cam_vaf",*/
++								"sensor_cam_mclk",
++								"sensor_gpio_reset";
++		qcom,cam-power-seq-cfg-val = <0 1 1 1 /*1*/ 24000000 1>;
++		qcom,cam-power-seq-delay = <1 1 1 0 /*5*/ 1 18>;
++
++		qcom,sensor-position = <1>;
++		qcom,sensor-mode = <1>;
++		status = "ok";
++		clocks = <&gcc clk_mclk2_clk_src>,
++				<&gcc clk_gcc_camss_mclk2_clk>;
++		clock-names = "cam_src_clk", "cam_clk";
++		qcom,clock-rates = <19200000 0>;
++	};
++
++    eeprom3: qcom,eeprom@3 {
++		cell-index = <3>;
++		compatible = "qcom,eeprom";
++		reg = <0x3>;
++		qcom,eeprom-name = "s5k3l8_holitech1_l2300";
++		qcom,slave-addr = <0xa8>;
++		qcom,cci-master = <1>;
++		qcom,i2c-freq-mode = <1>;
++		qcom,num-blocks = <1>;
++
++		qcom,page0 = <0 0x0 2 0x0 1 0>;
++		qcom,poll0 = <0 0x0 2 0x0 1 0>;
++		qcom,mem0 = <0x0711 0x0 2 0x0 1 0>;
++
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vio-supply = <&pm8937_l6>;
++		qcom,cam-vreg-name = "cam_vdig", "cam_vio";
++		qcom,cam-vreg-min-voltage = <1200000 1800000>;
++		qcom,cam-vreg-max-voltage = <1200000 1800000>;
++		qcom,cam-vreg-op-mode = <200000 200000>;
++		//qcom,gpio-no-mux = <0>;
++		pinctrl-names = "cam_default", "cam_suspend";
++		pinctrl-0 = <&cam_sensor_mclk2_default
++				&cam_sensor_front1_default>;
++		pinctrl-1 = <&cam_sensor_mclk2_sleep
++				&cam_sensor_front1_sleep>;
++		gpios = <&tlmm 28 0>,
++			<&tlmm 40 0>,
++			<&tlmm 99 0>;
++		qcom,gpio-reset = <1>;
++		qcom,gpio-vana = <2>;
++		qcom,gpio-req-tbl-num = <0 1 2>;
++		qcom,gpio-req-tbl-flags = <1 0 0>;
++		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
++                       "CAM_RESET2",
++                       "CAM_VANA2";
++
++		qcom,cam-power-seq-type = "sensor_gpio",
++								"sensor_gpio",
++								"sensor_vreg",
++								"sensor_vreg",
++								/*"sensor_vreg",*/
++								"sensor_clk",
++								"sensor_gpio";
++		qcom,cam-power-seq-val =  "sensor_gpio_reset",
++								"sensor_gpio_vana",
++								"cam_vdig",
++								"cam_vio",
++								/*"cam_vaf",*/
++								"sensor_cam_mclk",
++								"sensor_gpio_reset";
++		qcom,cam-power-seq-cfg-val = <0 1 1 1 /*1*/ 24000000 1>;
++		qcom,cam-power-seq-delay = <1 1 1 0 /*5*/ 1 18>;
++
++		qcom,sensor-position = <1>;
++		qcom,sensor-mode = <1>;
++		status = "ok";
++		clocks = <&gcc clk_mclk2_clk_src>,
++				<&gcc clk_gcc_camss_mclk2_clk>;
++		clock-names = "cam_src_clk", "cam_clk";
++		qcom,clock-rates = <19200000 0>;
++	};
++
++	qcom,camera@0 {
++		cell-index = <0>;
++		compatible = "qcom,camera";
++		reg = <0x0>;
++		qcom,csiphy-sd-index = <0>;
++		qcom,csid-sd-index = <0>;
++		qcom,mount-angle = <270>;
++		qcom,led-flash-src = <&led_flash_back>;
++		qcom,eeprom-src = <&eeprom0 &eeprom1>;
++		qcom,actuator-src = <&actuator0>;
++		cam_vdig-supply = <&pm8937_l23>;
++		//cam_vana-supply = <&pm8937_l22>;
++		cam_vio-supply = <&pm8937_l6>;
++		cam_vaf-supply = <&pm8937_l17>;
++		qcom,cam-vreg-name = "cam_vdig","cam_vio","cam_vaf";
++		qcom,cam-vreg-min-voltage = <1200000 0 2850000>;
++		qcom,cam-vreg-max-voltage = <1200000 0 2850000>;
++		qcom,cam-vreg-op-mode = <100000 0 800000>;
++		pinctrl-names = "cam_default", "cam_suspend";
++		pinctrl-0 = <&cam_sensor_mclk0_default
++				&cam_sensor_rear_default>;
++		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_sleep>;
++		gpios = <&tlmm 26 0>,
++			<&tlmm 36 0>,
++			<&tlmm 99 0>;
++		qcom,gpio-reset = <1>;
++		qcom,gpio-vana = <2>;
++		qcom,gpio-req-tbl-num = <0 1 2>;
++		qcom,gpio-req-tbl-flags = <1 0 0>;
++		qcom,gpio-req-tbl-label = "CAMIF_MCLK0",
++			"CAM_RESET0",
++			"CAM_VANA0";
++		qcom,sensor-position = <0>;
++		qcom,sensor-mode = <0>;
++		qcom,cci-master = <0>;
++		status = "ok";
++		clocks = <&gcc clk_mclk0_clk_src>,
++				<&gcc clk_gcc_camss_mclk0_clk>;
++		clock-names = "cam_src_clk", "cam_clk";
++		qcom,clock-rates = <24000000 0>;
++	};
++
++	qcom,camera@2 {
++		cell-index = <2>;
++		compatible = "qcom,camera";
++		reg = <0x2>;
++		qcom,csiphy-sd-index = <1>;
++		qcom,csid-sd-index = <1>;
++		qcom,eeprom-src = <&eeprom2 &eeprom3>;
++		qcom,led-flash-src = <&led_flash_front>;
++		qcom,mount-angle = <270>;
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vio-supply = <&pm8937_l6>;
++		qcom,cam-vreg-name = "cam_vdig", "cam_vio";
++		qcom,cam-vreg-min-voltage = <1200000 1800000>;
++		qcom,cam-vreg-max-voltage = <1200000 1800000>;
++		qcom,cam-vreg-op-mode = <200000 200000>;
++		pinctrl-names = "cam_default", "cam_suspend";
++		pinctrl-0 = <&cam_sensor_mclk2_default
++				&cam_sensor_front1_default>;
++		pinctrl-1 = <&cam_sensor_mclk2_sleep
++				&cam_sensor_front1_sleep>;
++		gpios = <&tlmm 28 0>,
++			<&tlmm 40 0>,
++			<&tlmm 99 0>;
++		qcom,gpio-reset = <1>;
++		qcom,gpio-vana = <2>;
++		qcom,gpio-req-tbl-num = <0 1 2>;
++		qcom,gpio-req-tbl-flags = <1 0 0>;
++		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
++                       "CAM_RESET2",
++                       "CAM_VANA2";
++		qcom,sensor-position = <1>;
++		qcom,sensor-mode = <1>;
++		qcom,cci-master = <1>;
++		status = "ok";
++		clocks = <&gcc clk_mclk2_clk_src>,
++				<&gcc clk_gcc_camss_mclk2_clk>;
++		clock-names = "cam_src_clk", "cam_clk";
++		qcom,clock-rates = <24000000 0>;
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8937-mdss-panels.dtsi b/arch/arm64/boot/dts/gm/msm8937-mdss-panels.dtsi
+new file mode 100644
+index 000000000..3a19ad1d4
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8937-mdss-panels.dtsi
+@@ -0,0 +1,78 @@
++/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include "dsi-panel-sim-video.dtsi"
++#include "dsi-panel-sim-cmd.dtsi"
++#include "dsi-panel-truly-1080p-video.dtsi"
++#include "dsi-panel-truly-1080p-cmd.dtsi"
++#include "dsi-panel-r69006-1080p-cmd.dtsi"
++#include "dsi-panel-r69006-1080p-video.dtsi"
++#include "dsi-panel-hx8394f-720p-video.dtsi"
++#include "dsi-adv7533-1080p.dtsi"
++#include "dsi-adv7533-720p.dtsi"
++#include "dsi-panel-truly-720p-video.dtsi"
++#include "dsi-panel-truly-wuxga-video.dtsi"
++#include "dsi-panel-truly-720p-cmd.dtsi"
++#include "dsi-panel-lead-fl10802-fwvga-video.dtsi"
++#include "dsi-panel-icn9706-720-1440p-video.dtsi"
++#include "dsi-panel-ft8006m-720p-video.dtsi"
++#include "dsi-panel-hx83102b-720p-video.dtsi"
++
++&soc {
++	dsi_panel_pwr_supply: dsi_panel_pwr_supply {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		qcom,panel-supply-entry@0 {
++			reg = <0>;
++			qcom,supply-name = "vdd";
++			qcom,supply-min-voltage = <2850000>;
++			qcom,supply-max-voltage = <2850000>;
++			qcom,supply-enable-load = <100000>;
++			qcom,supply-disable-load = <100>;
++		};
++
++		qcom,panel-supply-entry@1 {
++			reg = <1>;
++			qcom,supply-name = "vddio";
++			qcom,supply-min-voltage = <1800000>;
++			qcom,supply-max-voltage = <1800000>;
++			qcom,supply-enable-load = <100000>;
++			qcom,supply-disable-load = <100>;
++		};
++
++	};
++
++
++	dsi_panel_pwr_supply_ft8006m: dsi_panel_pwr_supply_ft8006m {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		qcom,panel-supply-entry@0 {
++			reg = <0>;
++			qcom,supply-name = "vdd";
++			qcom,supply-min-voltage = <2850000>;
++			qcom,supply-max-voltage = <2850000>;
++			qcom,supply-enable-load = <100000>;
++			qcom,supply-disable-load = <100>;
++		};
++
++		qcom,panel-supply-entry@1 {
++			reg = <1>;
++			qcom,supply-name = "vddio";
++			qcom,supply-min-voltage = <1800000>;
++			qcom,supply-max-voltage = <1800000>;
++			qcom,supply-enable-load = <100000>;
++			qcom,supply-disable-load = <100>;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8937-mtp.dtsi b/arch/arm64/boot/dts/gm/msm8937-mtp.dtsi
+new file mode 100644
+index 000000000..3f4a5c2f8
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8937-mtp.dtsi
+@@ -0,0 +1,403 @@
++/*
++ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include "msm8937-pinctrl.dtsi"
++#include "msm8937-camera-sensor-mtp.dtsi"
++
++/*
++&flash_led {
++	compatible = "qcom,qpnp-flash-led";
++	reg = <0xd300 0x100>;
++	pinctrl-names = "flash_led_enable","flash_led_disable";
++	pinctrl-0 = <&rear_flash_led_enable>;
++	pinctrl-1 = <&rear_flash_led_disable>;
++	qcom,follow-otst2-rb-disabled;
++};
++
++&wled {
++	qcom,cons-sync-write-delay-us = <1000>;
++};
++*/
++
++&soc {
++	gpio_keys {
++		compatible = "gpio-keys";
++		input-name = "gpio-keys";
++		pinctrl-names = "tlmm_gpio_key_active","tlmm_gpio_key_suspend";
++		pinctrl-0 = <&gpio_key_active>;
++		pinctrl-1 = <&gpio_key_suspend>;
++/*
++		camera_focus {
++			label = "camera_focus";
++			gpios = <&tlmm 128 0x1>;
++			linux,input-type = <1>;
++			linux,code = <0x210>;
++			debounce-interval = <15>;
++		};
++
++		camera_snapshot {
++			label = "camera_snapshot";
++			gpios = <&tlmm 127 0x1>;
++			linux,input-type = <1>;
++			linux,code = <0x2fe>;
++			debounce-interval = <15>;
++		};
++*/
++		vol_up {
++			label = "volume_up";
++			gpios = <&tlmm 91 0x1>;
++			linux,input-type = <1>;
++			linux,code = <115>;
++			debounce-interval = <15>;
++		};
++	};
++/*
++	hbtp {
++		compatible = "qcom,hbtp-input";
++		vcc_dig-supply = <&pm8937_l5>;
++		qcom,dig-load = <15000>;
++		qcom,dig-vtg-min = <1800000>;
++		qcom,dig-vtg-max = <1800000>;
++	};
++*/
++
++        vibrator_gpio {
++                compatible = "qcom,vibrator-gpio";
++                qcom,vibrator-timeout-ms = <15000>;
++                qcom,vib-gpio_one = <&tlmm 128 0x00>;
++                ///qcom,vib-gpio_two = <&tlmm 9 0x00>;
++                label = "vibrator";
++        };
++
++	SUNWAVE_sw9651{
++        compatible = "qcom,fingerprint";
++        interrupt-parent = <&tlmm>;
++        interrupt = <124 0x0>;
++        vcc_spi_supply = <&pm8937_l6>;
++        vcc_ana_supply = <&pm8937_l6>;
++        vdd_io-supply = <&pm8937_l6>;
++	    vcc_vana-supply = <&pm8937_l22>;
++        qcom,reset-gpio  = <&tlmm 132 0>;
++        qcom,irq-gpio = <&tlmm 124 0>;
++        //qcom,pwr-gpio = <&tlmm 128 0>;
++     };
++     fpc1020 {
++		status = "ok";
++		compatible = "fpc,fpc1020";
++		interrupt-parent = <&tlmm>;
++		interrupts = <124 0x0>;
++		fpc,gpio_rst    = <&tlmm 132 0x0>;
++		fpc,gpio_irq    = <&tlmm 124 0x0>;
++		fpc,gpio_pwr    = <&tlmm 128 0x0>;
++		vcc_spi-supply  = <&pm8937_l6>;
++		vdd_io-supply   = <&pm8937_l6>;
++		vdd_ana-supply  = <&pm8937_l6>;
++
++		pinctrl-names = "fpc1020_reset_reset",
++			"fpc1020_reset_active",
++			"fpc1020_irq_active";
++
++		pinctrl-0 = <&msm_gpio_132>;
++		pinctrl-1 = <&msm_gpio_132_output_high>;
++		pinctrl-2 = <&msm_gpio_124>;
++	};
++};
++
++&i2c_1{ /* BLSP1 QUP2 */
++	tps65132@3e {
++		compatible = "ti,tps65132";
++		reg = <0x3e>;
++		i2c-pwr-supply = <&pm8937_l6>;
++		/*ti,en-gpio-lpm;*/
++		pinctrl-names = "default";
++		pinctrl-0 = <&tps65132_en_default>;
++
++		regulators {
++			tps65132_pos: pos-boost {
++				regulator-name = "tps65132-pos";
++				regulator-min-microvolt = <5300000>;
++				regulator-max-microvolt = <6000000>;
++				ti,discharge-enable;
++				ti,enable-time = <800>;
++				ti,current-limit = <200000>;
++				ti,en-gpio = <&tlmm 12 0>;
++			};
++
++			tps65132_neg: neg-boost {
++				regulator-name = "tps65132-neg";
++				regulator-min-microvolt = <5300000>;
++				regulator-max-microvolt = <6000000>;
++				ti,discharge-enable;
++				ti,enable-time = <800>;
++				ti,current-limit = <80000>;
++				ti,en-gpio = <&tlmm 13 0>;
++			};
++		};
++	};
++};
++
++&blsp1_uart2 {
++	status = "ok";
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart_console_active>;
++};
++/*
++&pmi_haptic{
++	qcom,wave-play-rate-us = <4165>;
++	qcom,actuator-type = "lra";
++	qcom,lra-auto-res-mode="qwd";
++	qcom,lra-high-z="opt1";
++	qcom,lra-res-cal-period = <4>;
++	qcom,correct-lra-drive-freq;
++	qcom,misc-trim-error-rc19p2-clk-reg-present;
++};
++*/
++&spi_3 { /* BLSP1 QUP3 */
++	maxim_sti@0 {
++		status = "disabled";
++		compatible = "maxim,maxim_sti";
++		reg = <0>;
++		interrupt-parent = <&tlmm>;
++		interrupts = <65 0>;
++		spi-max-frequency = <16000000>;
++		avdd-supply = <&pm8937_l10>;
++		dvdd-supply = <&pm8937_l5>;
++		maxim_sti,irq-gpio = <&tlmm 65 0x00>;
++		maxim_sti,reset-gpio = <&tlmm 64 0x00>;
++		maxim_sti,touch_fusion = "/vendor/bin/touch_fusion";
++		maxim_sti,config_file = "/etc/firmware/qtc800s.cfg";
++		maxim_sti,fw_name = "qtc800s.bin";
++		pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
++			"pmx_ts_release";
++		pinctrl-0 = <&ts_int_active &ts_reset_active>;
++		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
++		pinctrl-2 = <&ts_release>;
++	};
++};
++
++&i2c_5 { /* BLSP2 QUP1 */
++	nq@28 {
++		compatible = "qcom,nq-nci";
++		reg = <0x28>;
++		qcom,nq-irq = <&tlmm 17 0x00>;
++		qcom,nq-ven = <&tlmm 16 0x00>;
++		qcom,nq-firm = <&tlmm 130 0x00>;
++		qcom,nq-clkreq = <&pm8937_gpios 5 0x00>;
++		interrupt-parent = <&tlmm>;
++		qcom,clk-src = "BBCLK2";
++		interrupts = <17 0>;
++		interrupt-names = "nfc_irq";
++		pinctrl-names = "nfc_active", "nfc_suspend";
++		pinctrl-0 = <&gm8_nfc_int_active &gm8_nfc_disable_active>;
++		pinctrl-1 = <&gm8_nfc_int_suspend &gm8_nfc_disable_suspend>;
++		clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
++		clock-names = "ref_clk";
++	};
++};
++
++&sdhc_1 {
++	/* device core power supply */
++	vdd-supply = <&pm8937_l8>;
++	qcom,vdd-voltage-level = <2900000 2900000>;
++	qcom,vdd-current-level = <200 570000>;
++
++	/* device communication power supply */
++	vdd-io-supply = <&pm8937_l5>;
++	qcom,vdd-io-always-on;
++	qcom,vdd-io-lpm-sup;
++	qcom,vdd-io-voltage-level = <1800000 1800000>;
++	qcom,vdd-io-current-level = <200 325000>;
++
++	pinctrl-names = "active", "sleep";
++	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on &sdc1_rclk_on>;
++	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off &sdc1_rclk_off>;
++
++	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000 192000000
++								384000000>;
++	qcom,nonremovable;
++	qcom,bus-speed-mode = "HS400_1p8v", "HS200_1p8v", "DDR_1p8v";
++
++	status = "ok";
++};
++
++&sdhc_2 {
++	/* device core power supply */
++	vdd-supply = <&pm8937_l11>;
++	qcom,vdd-voltage-level = <2950000 2950000>;
++	qcom,vdd-current-level = <15000 800000>;
++
++	/* device communication power supply */
++	vdd-io-supply = <&pm8937_l12>;
++	qcom,vdd-io-voltage-level = <1800000 2950000>;
++	qcom,vdd-io-current-level = <200 22000>;
++
++	pinctrl-names = "active", "sleep";
++	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
++	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
++
++	#address-cells = <0>;
++	interrupt-parent = <&sdhc_2>;
++	interrupts = <0 1 2>;
++	#interrupt-cells = <1>;
++	interrupt-map-mask = <0xffffffff>;
++	interrupt-map = <0 &intc 0 125 0
++		1 &intc 0 221 0
++		2 &tlmm 67 0>;
++	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
++	cd-gpios = <&tlmm 67 0x0>;
++
++	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000
++								200000000>;
++	qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50", "SDR104";
++
++	status = "ok";
++};
++
++&pm8937_gpios {
++	gpio@c400 {
++		qcom,mode = <0>;
++		qcom,output-type = <0>;
++		qcom,pull = <0>;
++		qcom,vin-sel = <2>;
++		qcom,out-strength = <3>;
++		qcom,src-sel = <0>;
++		qcom,master-en = <1>;
++		status = "okay";
++	};
++};
++
++#include "msm8937-mdss-panels.dtsi"
++
++&mdss_mdp {
++	qcom,mdss-pref-prim-intf = "dsi";
++};
++
++&mdss_dsi {
++	hw-config = "single_dsi";
++};
++
++&mdss_dsi0 {
++
++	/delete-property/ lab-supply;
++	/delete-property/ ibb-supply;
++
++	qcom,dsi-pref-prim-pan = <&dsi_ft8006m_720_vid>;
++	pinctrl-names = "mdss_default", "mdss_sleep";
++	pinctrl-0 = <&mdss_dsi_active>;
++	pinctrl-1 = <&mdss_dsi_suspend>;
++
++	qcom,platform-reset-gpio = <&tlmm 60 0>;
++
++	lab-supply = <&tps65132_pos>;
++	ibb-supply = <&tps65132_neg>;
++};
++/*
++&mdss_dsi1 {
++	status = "disabled";
++	qcom,dsi-pref-prim-pan = <&dsi_truly_1080_vid>;
++	pinctrl-names = "mdss_default", "mdss_sleep";
++	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
++	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
++
++	qcom,platform-te-gpio = <&tlmm 24 0>;
++	qcom,platform-enable-gpio = <&tlmm 99 0>;
++	qcom,platform-reset-gpio = <&tlmm 60 0>;
++	qcom,platform-bklight-en-gpio = <&tlmm 98 0>;
++};
++*/
++&dsi_panel_pwr_supply {
++	qcom,panel-supply-entry@2 {
++		reg = <2>;
++		qcom,supply-name = "lab";
++		qcom,supply-min-voltage = <6000000>;
++		qcom,supply-max-voltage = <6000000>;
++		qcom,supply-enable-load = <200>;
++		qcom,supply-disable-load = <0>;
++	};
++
++	qcom,panel-supply-entry@3 {
++		reg = <3>;
++		qcom,supply-name = "ibb";
++		qcom,supply-min-voltage = <6000000>;
++		qcom,supply-max-voltage = <6000000>;
++		qcom,supply-enable-load = <40>;
++		qcom,supply-disable-load = <0>;
++	};
++};
++
++&dsi_panel_pwr_supply_ft8006m {
++	qcom,panel-supply-entry@2 {
++		reg = <2>;
++		qcom,supply-name = "lab";
++		qcom,supply-min-voltage = <5500000>;
++		qcom,supply-max-voltage = <5500000>;
++		qcom,supply-enable-load = <200>;
++		qcom,supply-disable-load = <0>;
++	};
++
++	qcom,panel-supply-entry@3 {
++		reg = <3>;
++		qcom,supply-name = "ibb";
++		qcom,supply-min-voltage = <5500000>;
++		qcom,supply-max-voltage = <5500000>;
++		qcom,supply-enable-load = <40>;
++		qcom,supply-disable-load = <0>;
++	};
++};
++
++&dsi_hx83102b_720_vid {
++	//qcom,esd-check-enabled;
++	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
++};
++
++&dsi_truly_1080_vid {
++	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
++	qcom,mdss-dsi-pan-enable-dynamic-fps;
++	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
++};
++
++&dsi_truly_1080_cmd {
++	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
++	qcom,ulps-enabled;
++	qcom,partial-update-enabled;
++	qcom,panel-roi-alignment = <2 2 4 2 1080 2>;
++};
++
++&dsi_truly_720_vid {
++	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
++	qcom,mdss-dsi-pan-enable-dynamic-fps;
++	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
++};
++
++/* PM8937 GPIO configuration */
++&pm8937_gpios {
++	gpio@c100 {
++		qcom,mode = <0>;
++		qcom,vin-sel = <3>;
++		status = "okay";
++	};
++};
++
++&tlmm {
++	tps65132-en-pin {
++		qcom,pins = "gpio12", "gpio13";
++		qcom,num-grp-pins = <2>;
++		label = "tps65132_en_pins";
++		qcom,pin-func = <0>;
++
++		tps65132_en_default: en-default {
++			drive-strength = <2>;
++			bias-pull-down;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8937-pinctrl.dtsi b/arch/arm64/boot/dts/gm/msm8937-pinctrl.dtsi
+new file mode 100644
+index 000000000..3483635db
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8937-pinctrl.dtsi
+@@ -0,0 +1,1648 @@
++/*
++ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++&soc {
++	tlmm: pinctrl@1000000 {
++		compatible = "qcom,msm8937-pinctrl";
++		reg = <0x1000000 0x300000>;
++		interrupts = <0 208 0>;
++		gpio-controller;
++		#gpio-cells = <2>;
++		interrupt-controller;
++		#interrupt-cells = <2>;
++		smb_int_pin {
++		smb_int_default: smb_int_default {
++			mux {
++				pins = "gpio61";
++				function ="gpio";
++			};
++			config {
++				pins = "gpio61";
++				drive-strength = <2>;   /* 2 MA */
++				bias-pull-up;           /* PULL UP*/
++			};
++		};
++
++		smb_int_sleep: smb_int_sleep {
++			mux {
++				pins = "gpio61";
++				function ="gpio";
++			};
++			config {
++				pins = "gpio61";
++				drive-strength = <2>;   /* 2 MA */
++				bias-pull-up;           /* PULL UP*/
++			};
++		};
++
++		bq_int_default: bq_int_default {
++			mux {
++				pins = "gpio62";
++				function ="gpio";
++			};
++			config {
++				pins = "gpio62";
++				drive-strength = <2>;   /* 2 MA */
++				bias-pull-up;           /* PULL UP*/
++			};
++		};
++		};
++
++		usb-id-pin {
++			usbid_default: cd-on{
++				mux {
++				       pins = "gpio41";
++				       function = "gpio";
++				};
++				config {
++				       pins = "gpio41";
++				       drive-strength = <8>;
++				       bias-pull-up;
++				       input-enable;
++				};
++			};
++		};
++		pmx-uartconsole {
++			uart_console_active: uart_console_active {
++				mux {
++					pins = "gpio4", "gpio5";
++					function = "blsp_uart2";
++				};
++
++				config {
++					pins = "gpio4", "gpio5";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++
++			uart_console_sleep: uart_console_sleep {
++				mux {
++					pins = "gpio4", "gpio5";
++					function = "blsp_uart2";
++				};
++
++				config {
++					pins = "gpio4", "gpio5";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++
++		};
++
++                i2c_1 {
++                        i2c_1_active: i2c_1_active {
++                                /* active state */
++                                mux {
++                                        pins = "gpio2", "gpio3";
++                                        function = "blsp_i2c1";
++                                };
++
++                                config {
++                                        pins = "gpio2", "gpio3";
++                                        drive-strength = <2>;
++                                        bias-disable;
++                                };
++                        };
++
++                        i2c_1_sleep: i2c_1_sleep {
++                                /* suspended state */
++                                mux {
++                                        pins = "gpio2", "gpio3";
++                                        function = "gpio";
++                                };
++
++                                config {
++                                        pins = "gpio2", "gpio3";
++                                        drive-strength = <2>;
++                                        bias-disable;
++                                        output-high;
++                                };
++                        };
++                };
++
++		i2c_2 {
++			i2c_2_active: i2c_2_active {
++				/* active state */
++				mux {
++					pins = "gpio6", "gpio7";
++					function = "blsp_i2c2";
++				};
++
++				config {
++					pins = "gpio6", "gpio7";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++
++			i2c_2_sleep: i2c_2_sleep {
++				/* suspended state */
++				mux {
++					pins = "gpio6", "gpio7";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio6", "gpio7";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++		};
++
++		i2c_3 {
++			i2c_3_active: i2c_3_active {
++				/* active state */
++				mux {
++					pins = "gpio10", "gpio11";
++					function = "blsp_i2c3";
++				};
++
++				config {
++					pins = "gpio10", "gpio11";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++
++			i2c_3_sleep: i2c_3_sleep {
++				/* suspended state */
++				mux {
++					pins = "gpio10", "gpio11";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio10", "gpio11";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++		};
++
++		i2c_5 {
++			i2c_5_active: i2c_5_active {
++				/* active state */
++				mux {
++					pins = "gpio18", "gpio19";
++					function = "blsp_i2c5";
++				};
++
++				config {
++					pins = "gpio18", "gpio19";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++
++			i2c_5_sleep: i2c_5_sleep {
++				/* suspended state */
++				mux {
++					pins = "gpio18", "gpio19";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio18", "gpio19";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++		};
++
++		pmx_rd_nfc_int {
++			/*qcom,pins = <&gp 17>;*/
++			pins = "gpio17";
++			qcom,pin-func = <0>;
++			qcom,num-grp-pins = <1>;
++			label = "pmx_nfc_int";
++
++			gm8_nfc_int_active: active {
++				drive-strength = <6>;
++				bias-pull-up;
++			};
++
++			gm8_nfc_int_suspend: suspend {
++				drive-strength = <6>;
++				bias-pull-up;
++			};
++		};
++
++		pmx_nfc_reset {
++			/*qcom,pins = <&gp 16>;*/
++			pins = "gpio16";
++			qcom,pin-func = <0>;
++			qcom,num-grp-pins = <1>;
++			label = "pmx_nfc_disable";
++
++			gm8_nfc_disable_active: active {
++				drive-strength = <6>;
++				bias-pull-up;
++			};
++
++			gm8_nfc_disable_suspend: suspend {
++				drive-strength = <6>;
++				bias-disable;
++			};
++		};
++
++		tlmm_pmi_flash_led {
++			rear_flash_led_enable: rear_flash_led_enable {
++				mux {
++					pins = "gpio33","gpio34";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio33","gpio34";
++					drive-strength = <16>;
++					output-low;
++				};
++			};
++
++			rear_flash_led_disable: rear_flash_led_disable {
++				mux {
++					pins = "gpio33","gpio34";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio33","gpio34";
++					drive-strength = <2>;
++					output-low;
++				};
++			};
++
++			front_flash_led_enable: front_flash_led_enable {
++				mux {
++					pins = "gpio50","gpio126";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio50","gpio126";
++					drive-strength = <16>;
++					output-low;
++				};
++			};
++
++			front_flash_led_disable: front_flash_led_disable {
++				mux {
++					pins = "gpio50","gpio126";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio50","gpio126";
++					drive-strength = <2>;
++					output-low;
++				};
++			};
++		};
++
++		spi3 {
++			spi3_default: spi3_default {
++				/* active state */
++				mux {
++					/* MOSI, MISO, CLK */
++					pins = "gpio8", "gpio9", "gpio11";
++					function = "blsp_spi3";
++				};
++
++				config {
++					pins = "gpio8", "gpio9", "gpio11";
++					drive-strength = <12>; /* 12 MA */
++					bias-disable = <0>; /* No PULL */
++				};
++			};
++
++			spi3_sleep: spi3_sleep {
++				/* suspended state */
++				mux {
++					/* MOSI, MISO, CLK */
++					pins = "gpio8", "gpio9", "gpio11";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio8", "gpio9", "gpio11";
++					drive-strength = <2>; /* 2 MA */
++					bias-pull-down; /* PULL Down */
++				};
++			};
++
++			spi3_cs0_active: cs0_active {
++				/* CS */
++				mux {
++					pins = "gpio10";
++					function = "blsp_spi3";
++				};
++
++				config {
++					pins = "gpio10";
++					drive-strength = <2>;
++					bias-disable = <0>;
++				};
++			};
++
++			spi3_cs0_sleep: cs0_sleep {
++				/* CS */
++				mux {
++					pins = "gpio10";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio10";
++					drive-strength = <2>;
++					bias-disable = <0>;
++				};
++			};
++		};
++
++		wcnss_pmux_5wire {
++			/* Active configuration of bus pins */
++			wcnss_default: wcnss_default {
++				wcss_wlan2 {
++					pins = "gpio76";
++					function = "wcss_wlan2";
++				};
++				wcss_wlan1 {
++					pins = "gpio77";
++					function = "wcss_wlan1";
++				};
++				wcss_wlan0 {
++					pins = "gpio78";
++					function = "wcss_wlan0";
++				};
++				wcss_wlan {
++					pins = "gpio79", "gpio80";
++					function = "wcss_wlan";
++				};
++
++				config {
++					pins = "gpio76", "gpio77",
++					       "gpio78", "gpio79",
++					       "gpio80";
++					drive-strength = <6>; /* 6 MA */
++					bias-pull-up; /* PULL UP */
++				};
++			};
++
++			wcnss_sleep: wcnss_sleep {
++				wcss_wlan2 {
++					pins = "gpio76";
++					function = "wcss_wlan2";
++				};
++				wcss_wlan1 {
++					pins = "gpio77";
++					function = "wcss_wlan1";
++				};
++				wcss_wlan0 {
++					pins = "gpio78";
++					function = "wcss_wlan0";
++				};
++				wcss_wlan {
++					pins = "gpio79", "gpio80";
++					function = "wcss_wlan";
++				};
++
++				config {
++					pins = "gpio76", "gpio77",
++					       "gpio78", "gpio79",
++					       "gpio80";
++					drive-strength = <2>; /* 2 MA */
++					bias-pull-down; /* PULL Down */
++				};
++			};
++		};
++
++		wcnss_pmux_gpio: wcnss_pmux_gpio {
++			wcnss_gpio_default: wcnss_gpio_default {
++				/* Active configuration of bus pins */
++				mux {
++					/* Uses general purpose pins */
++					pins = "gpio76", "gpio77",
++					       "gpio78", "gpio79",
++					       "gpio80";
++					       function = "gpio";
++
++				};
++
++				config {
++					pins = "gpio76", "gpio77",
++					       "gpio78", "gpio79",
++					       "gpio80";
++					drive-strength = <6>; /* 6 MA */
++					bias-pull-up; /* PULL UP */
++				};
++			};
++		};
++
++		blsp2_uart1_active: blsp2_uart1_active {
++			mux {
++				pins = "gpio16", "gpio17", "gpio18", "gpio19";
++				function = "blsp_uart5";
++			};
++
++			config {
++				pins = "gpio16", "gpio17", "gpio18", "gpio19";
++				drive-strength = <2>;
++				bias-disable;
++			};
++		};
++
++		blsp2_uart1_sleep: blsp2_uart1_sleep {
++			mux {
++				pins = "gpio16", "gpio17", "gpio18", "gpio19";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio16", "gpio17", "gpio18", "gpio19";
++				drive-strength = <2>;
++				bias-disable;
++			};
++		};
++
++		pmx_adv7533_int: pmx_adv7533_int {
++			adv7533_int_active: adv7533_int_active {
++				mux {
++					pins = "gpio126";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio126";
++					drive-strength = <16>;
++					bias-disable;
++				};
++			};
++
++			adv7533_int_suspend: adv7533_int_suspend {
++				mux {
++					pins = "gpio126";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio126";
++					drive-strength = <16>;
++					bias-disable;
++				};
++			};
++
++		};
++
++		pmx_mdss: pmx_mdss {
++			mdss_dsi_active: mdss_dsi_active {
++				mux {
++					pins = "gpio60";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio60";
++					drive-strength = <8>; /* 8 mA */
++					bias-disable = <0>; /* no pull */
++					output-high;
++				};
++			};
++			mdss_dsi_suspend: mdss_dsi_suspend {
++				mux {
++					pins = "gpio60";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio60";
++					drive-strength = <2>; /* 2 mA */
++					bias-disable = <0>;
++				};
++			};
++		};
++
++		pmx_mdss_te {
++			mdss_te_active: mdss_te_active {
++				mux {
++					pins = "gpio24";
++					function = "mdp_vsync";
++				};
++				config {
++					pins = "gpio24";
++					drive-strength = <2>; /* 8 mA */
++					bias-pull-down; /* pull down*/
++				};
++			};
++
++			mdss_te_suspend: mdss_te_suspend {
++				mux {
++					pins = "gpio24";
++					function = "mdp_vsync";
++				};
++				config {
++					pins = "gpio24";
++					drive-strength = <2>; /* 2 mA */
++					bias-pull-down; /* pull down */
++				};
++			};
++		};
++
++		usbc_int_default: usbc_int_default {
++			mux {
++				pins = "gpio97", "gpio131";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio97", "gpio131";
++				drive-strength = <2>;
++				bias-pull-up;
++			};
++		};
++
++		tlmm_gpio_key {
++			gpio_key_active: gpio_key_active {
++				mux {
++					pins = "gpio91";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio91";
++					drive-strength = <2>;
++					bias-pull-up;
++				};
++			};
++
++			gpio_key_suspend: gpio_key_suspend {
++				mux {
++					pins = "gpio91";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio91";
++					drive-strength = <2>;
++					bias-pull-up;
++				};
++			};
++		};
++
++        /*add for fingerprint start*/
++        msm_gpio_132:msm_gpio_132 {
++            mux{
++                pins="gpio132";
++                function= "gpio";
++            };
++            config {
++                pins= "gpio132";
++                drive-strength = <2>;
++                bias-disable;
++                output-low;
++            };
++        };
++
++        msm_gpio_132_output_high:msm_gpio_132_output_high {
++            mux {
++                pins = "gpio132";
++                function = "gpio";
++
++            };
++            config{
++                pins = "gpio132";
++                drive-strength = <2>;
++                bias-disable;
++                output-high;
++            };
++        };
++
++        msm_gpio_124:msm_gpio_124{
++            mux{
++                pins = "gpio124";
++                function = "gpio";
++            };
++            config{
++                pins = "gpio124";
++                drive-strength=<2>;
++                bias-pull-down;
++            };
++        };
++
++        /*add for fingerprint end*/
++
++		/* add pingrp for touchscreen */
++		pmx_ts_int_active {
++			ts_int_active: ts_int_active {
++				mux {
++					pins = "gpio65";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio65";
++					drive-strength = <8>;
++					bias-pull-up;
++				};
++			};
++		};
++
++		pmx_ts_int_suspend {
++			ts_int_suspend: ts_int_suspend {
++				mux {
++					pins = "gpio65";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio65";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++		};
++
++		pmx_ts_reset_active {
++			ts_reset_active: ts_reset_active {
++				mux {
++					pins = "gpio64";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio64";
++					drive-strength = <8>;
++					bias-pull-up;
++				};
++			};
++		};
++
++		pmx_ts_reset_suspend {
++			ts_reset_suspend: ts_reset_suspend {
++				mux {
++					pins = "gpio64";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio64";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++		};
++
++		pmx_ts_release {
++			ts_release: ts_release {
++				mux {
++					pins = "gpio65", "gpio64";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio65", "gpio64";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++		};
++
++		pmx_qdsd_clk {
++			qdsd_clk_sdcard: clk_sdcard {
++				config {
++					pins = "qdsd_clk";
++					bias-disable; /* NO pull */
++					drive-strength = <16>; /* 16 MA */
++				};
++			};
++			qdsd_clk_trace: clk_trace {
++				config {
++					pins = "qdsd_clk";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_clk_swdtrc: clk_swdtrc {
++				config {
++					pins = "qdsd_clk";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_clk_spmi: clk_spmi {
++				config {
++					pins = "qdsd_clk";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_qdsd_cmd {
++			qdsd_cmd_sdcard: cmd_sdcard {
++				config {
++					pins = "qdsd_cmd";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_cmd_trace: cmd_trace {
++				config {
++					pins = "qdsd_cmd";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_cmd_swduart: cmd_uart {
++				config {
++					pins = "qdsd_cmd";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_cmd_swdtrc: cmd_swdtrc {
++				config {
++					pins = "qdsd_cmd";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++
++			qdsd_cmd_jtag: cmd_jtag {
++				config {
++					pins = "qdsd_cmd";
++					bias-disable; /* NO pull */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_cmd_spmi: cmd_spmi {
++				config {
++					pins = "qdsd_cmd";
++					bias-pull-down; /* pull down */
++					drive-strength = <10>; /* 10 MA */
++				};
++			};
++		};
++
++		pmx_qdsd_data0 {
++			qdsd_data0_sdcard: data0_sdcard {
++				config {
++					pins = "qdsd_data0";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data0_trace: data0_trace {
++				config {
++					pins = "qdsd_data0";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data0_swduart: data0_uart {
++				config {
++					pins = "qdsd_data0";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data0_swdtrc: data0_swdtrc {
++				config {
++					pins = "qdsd_data0";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data0_jtag: data0_jtag {
++				config {
++					pins = "qdsd_data0";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data0_spmi: data0_spmi {
++				config {
++					pins = "qdsd_data0";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_qdsd_data1 {
++			qdsd_data1_sdcard: data1_sdcard {
++				config {
++					pins = "qdsd_data1";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data1_trace: data1_trace {
++				config {
++					pins = "qdsd_data1";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data1_swduart: data1_uart {
++				config {
++					pins = "qdsd_data1";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data1_swdtrc: data1_swdtrc {
++				config {
++					pins = "qdsd_data1";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data1_jtag: data1_jtag {
++				config {
++					pins = "qdsd_data1";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_qdsd_data2 {
++			qdsd_data2_sdcard: data2_sdcard {
++				config {
++					pins = "qdsd_data2";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data2_trace: data2_trace {
++				config {
++					pins = "qdsd_data2";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data2_swduart: data2_uart {
++				config {
++					pins = "qdsd_data2";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data2_swdtrc: data2_swdtrc {
++				config {
++					pins = "qdsd_data2";
++					bias-pull-down; /* pull down */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data2_jtag: data2_jtag {
++				config {
++					pins = "qdsd_data2";
++					bias-pull-up; /* pull up */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++		};
++
++		pmx_qdsd_data3 {
++			qdsd_data3_sdcard: data3_sdcard {
++				config {
++					pins = "qdsd_data3";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data3_trace: data3_trace {
++				config {
++					pins = "qdsd_data3";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++			qdsd_data3_swduart: data3_uart {
++				config {
++					pins = "qdsd_data3";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data3_swdtrc: data3_swdtrc {
++				config {
++					pins = "qdsd_data3";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data3_jtag: data3_jtag {
++				config {
++					pins = "qdsd_data3";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++			qdsd_data3_spmi: data3_spmi {
++				config {
++					pins = "qdsd_data3";
++					bias-pull-down; /* pull down */
++					drive-strength = <8>; /* 8 MA */
++				};
++			};
++		};
++
++		pmx_sdc1_rclk {
++			sdc1_rclk_on: sdc1_rclk_on {
++				config {
++					pins = "sdc1_rclk";
++					bias-pull-down; /* pull down */
++				};
++			};
++
++			sdc1_rclk_off: sdc1_rclk_off {
++				config {
++					pins = "sdc1_rclk";
++					bias-pull-down; /* pull down */
++				};
++			};
++		};
++
++		wcd9xxx_intr {
++			wcd_intr_default: wcd_intr_default{
++				mux {
++					pins = "gpio73";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio73";
++					drive-strength = <2>; /* 2 mA */
++					bias-pull-down; /* pull down */
++					input-enable;
++				};
++			};
++		};
++
++		cdc_reset_ctrl {
++			cdc_reset_sleep: cdc_reset_sleep {
++				mux {
++					pins = "gpio68";
++					function = "gpio";
++				};
++				config {
++					pins = "gpio68";
++					drive-strength = <16>;
++					bias-disable;
++					output-low;
++				};
++			};
++			cdc_reset_active:cdc_reset_active {
++				mux {
++					pins = "gpio68";
++					function = "gpio";
++				};
++				config {
++					pins = "gpio68";
++					drive-strength = <16>;
++					bias-pull-down;
++					output-high;
++				};
++			};
++		};
++
++		cdc-pdm-2-lines {
++			cdc_pdm_lines_2_act: pdm_lines_2_on {
++				mux {
++					pins = "gpio70", "gpio71", "gpio72";
++					function = "cdc_pdm0";
++				};
++
++				config {
++					pins = "gpio70", "gpio71", "gpio72";
++					drive-strength = <8>;
++				};
++			};
++
++			cdc_pdm_lines_2_sus: pdm_lines_2_off {
++				mux {
++					pins = "gpio70", "gpio71", "gpio72";
++					function = "cdc_pdm0";
++				};
++
++				config {
++					pins = "gpio70", "gpio71", "gpio72";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++		};
++
++		cdc-pdm-lines {
++			cdc_pdm_lines_act: pdm_lines_on {
++				mux {
++					pins = "gpio69", "gpio73", "gpio74";
++					function = "cdc_pdm0";
++				};
++
++				config {
++					pins = "gpio69", "gpio73", "gpio74";
++					drive-strength = <8>;
++				};
++			};
++			cdc_pdm_lines_sus: pdm_lines_off {
++				mux {
++					pins = "gpio69", "gpio73", "gpio74";
++					function = "cdc_pdm0";
++				};
++
++				config {
++					pins = "gpio69", "gpio73", "gpio74";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++		};
++
++		cross-conn-det {
++			cross_conn_det_act: lines_on {
++				mux {
++					pins = "gpio63";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio63";
++					drive-strength = <8>;
++					output-low;
++					bias-pull-down;
++				};
++			};
++
++			cross_conn_det_sus: lines_off {
++				mux {
++					pins = "gpio63";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio63";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++		};
++
++		/* WSA VI sense */
++		wsa-vi {
++			wsa_vi_on: wsa_vi_on {
++				mux {
++					pins = "gpio94", "gpio95";
++					function = "wsa_io";
++				};
++
++				config {
++					pins = "gpio94", "gpio95";
++					drive-strength = <8>; /* 8 MA */
++					bias-disable; /* NO pull */
++				};
++			};
++
++			wsa_vi_off: wsa_vi_off {
++				mux {
++					pins = "gpio94", "gpio95";
++					function = "wsa_io";
++				};
++
++				config {
++					pins = "gpio94", "gpio95";
++					drive-strength = <2>; /* 2 MA */
++					bias-pull-down;
++				};
++			};
++		};
++
++		/* WSA Reset */
++		wsa_reset {
++			wsa_reset_on: wsa_reset_on {
++				mux {
++					pins = "gpio96";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio96";
++					drive-strength = <2>; /* 2 MA */
++					output-high;
++				};
++			};
++
++			wsa_reset_off: wsa_reset_off {
++				mux {
++					pins = "gpio96";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio96";
++					drive-strength = <2>; /* 2 MA */
++					output-low;
++				};
++			};
++		};
++
++		/* WSA CLK */
++		wsa_clk {
++			wsa_clk_on: wsa_clk_on {
++				mux {
++					pins = "gpio25";
++					function = "pri_mi2s_mclk_a";
++				};
++
++				config {
++					pins = "gpio25";
++					drive-strength = <8>; /* 8 MA */
++					output-high;
++				};
++			};
++
++			wsa_clk_off: wsa_clk_off {
++				mux {
++					pins = "gpio25";
++					function = "pri_mi2s_mclk_a";
++				};
++
++				config {
++					pins = "gpio25";
++					drive-strength = <2>; /* 2 MA */
++					output-low;
++					bias-pull-down;
++				};
++			};
++		};
++		pri-tlmm-lines {
++			pri_tlmm_lines_act: pri_tlmm_lines_act {
++				mux {
++					pins = "gpio85", "gpio88";
++					function = "pri_mi2s";
++				};
++
++				config {
++					pins = "gpio85", "gpio88";
++					drive-strength = <8>;
++				};
++			};
++
++			pri_tlmm_lines_sus: pri_tlmm_lines_sus {
++				mux {
++					pins = "gpio85", "gpio88";
++					function = "pri_mi2s";
++				};
++
++				config {
++					pins = "gpio85", "gpio88";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++		};
++
++		pri-tlmm-ws-lines {
++			pri_tlmm_ws_act: pri_tlmm_ws_act {
++				mux {
++					pins = "gpio87";
++					function = "pri_mi2s_ws";
++				};
++
++				config {
++					pins = "gpio87";
++					drive-strength = <8>;
++				};
++			};
++
++			pri_tlmm_ws_sus: pri_tlmm_ws_sus {
++				mux {
++					pins = "gpio87";
++					function = "pri_mi2s_ws";
++				};
++
++				config {
++					pins = "gpio87";
++					drive-strength = <2>;
++					bias-pull-down;
++				};
++			};
++		};
++
++		pmx_sdc1_clk {
++			sdc1_clk_on: sdc1_clk_on {
++				config {
++					pins = "sdc1_clk";
++					bias-disable; /* NO pull */
++					drive-strength = <16>; /* 16 MA */
++				};
++			};
++
++			sdc1_clk_off: sdc1_clk_off {
++				config {
++					pins = "sdc1_clk";
++					bias-disable; /* NO pull */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_sdc1_cmd {
++			sdc1_cmd_on: sdc1_cmd_on {
++				config {
++					pins = "sdc1_cmd";
++					bias-pull-up; /* pull up */
++					drive-strength = <10>; /* 10 MA */
++				};
++			};
++
++			sdc1_cmd_off: sdc1_cmd_off {
++				config {
++					pins = "sdc1_cmd";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_sdc1_data {
++			sdc1_data_on: sdc1_data_on {
++				config {
++					pins = "sdc1_data";
++					bias-pull-up; /* pull up */
++					drive-strength = <10>; /* 10 MA */
++				};
++			};
++
++			sdc1_data_off: sdc1_data_off {
++				config {
++					pins = "sdc1_data";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		sdhc2_cd_pin {
++			sdc2_cd_on: cd_on {
++				mux {
++					pins = "gpio67";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio67";
++					drive-strength = <2>;
++					bias-pull-up;
++				};
++			};
++
++			sdc2_cd_off: cd_off {
++				mux {
++					pins = "gpio67";
++					function = "gpio";
++				};
++
++				config {
++					pins = "gpio67";
++					drive-strength = <2>;
++					bias-disable;
++				};
++			};
++		};
++
++		pmx_sdc2_clk {
++			sdc2_clk_on: sdc2_clk_on {
++				config {
++					pins = "sdc2_clk";
++					drive-strength = <16>; /* 16 MA */
++					bias-disable; /* NO pull */
++				};
++			};
++
++			sdc2_clk_off: sdc2_clk_off {
++				config {
++					pins = "sdc2_clk";
++					bias-disable; /* NO pull */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_sdc2_cmd {
++			sdc2_cmd_on: sdc2_cmd_on {
++				config {
++					pins = "sdc2_cmd";
++					bias-pull-up; /* pull up */
++					drive-strength = <16>; /* 16 MA */
++				};
++			};
++
++			sdc2_cmd_off: sdc2_cmd_off {
++				config {
++					pins = "sdc2_cmd";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			};
++		};
++
++		pmx_sdc2_data {
++			sdc2_data_on: sdc2_data_on {
++				config {
++					pins = "sdc2_data";
++					bias-pull-up; /* pull up */
++					drive-strength = <16>; /* 16 MA */
++				};
++			};
++
++			sdc2_data_off: sdc2_data_off {
++				config {
++					pins = "sdc2_data";
++					bias-pull-up; /* pull up */
++					drive-strength = <2>; /* 2 MA */
++				};
++			 };
++		};
++
++		cci {
++			cci0_active: cci0_active {
++				/* cci0 active state */
++				mux {
++					/* CLK, DATA */
++					pins = "gpio29", "gpio30";
++					function = "cci_i2c";
++				};
++
++				config {
++					pins = "gpio29", "gpio30";
++					drive-strength = <2>; /* 2 MA */
++					bias-disable; /* No PULL */
++				};
++			};
++
++			cci0_suspend: cci0_suspend {
++				/* cci0 suspended state */
++				mux {
++					/* CLK, DATA */
++					pins = "gpio29", "gpio30";
++					function = "cci_i2c";
++				};
++
++				config {
++					pins = "gpio29", "gpio30";
++					drive-strength = <2>; /* 2 MA */
++					bias-disable; /* No PULL */
++				};
++			};
++
++			cci1_active: cci1_active {
++				/* cci1 active state */
++				mux {
++					/* CLK, DATA */
++					pins = "gpio31", "gpio32";
++					function = "cci_i2c";
++				};
++
++				config {
++					pins = "gpio31", "gpio32";
++					drive-strength = <2>; /* 2 MA */
++					bias-disable; /* No PULL */
++				};
++			};
++
++			cci1_suspend: cci1_suspend {
++				/* cci1 suspended state */
++				mux {
++					/* CLK, DATA */
++					pins = "gpio31", "gpio32";
++					function = "cci_i2c";
++				};
++
++				config {
++					pins = "gpio31", "gpio32";
++					drive-strength = <2>; /* 2 MA */
++					bias-disable; /* No PULL */
++				};
++			};
++		};
++
++		/*sensors */
++		cam_sensor_mclk0_default: cam_sensor_mclk0_default {
++			/* MCLK0 */
++			mux {
++				/* CLK, DATA */
++				pins = "gpio26";
++				function = "cam_mclk";
++			};
++
++			config {
++				pins = "gpio26";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_mclk0_sleep: cam_sensor_mclk0_sleep {
++			/* MCLK0 */
++			mux {
++				/* CLK, DATA */
++				pins = "gpio26";
++				function = "cam_mclk";
++			};
++
++			config {
++				pins = "gpio26";
++				bias-pull-down; /* PULL DOWN */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_rear_default: cam_sensor_rear_default {
++			/* RESET, STANDBY */
++			mux {
++				pins = "gpio36", "gpio35";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio36","gpio35";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_rear_sleep: cam_sensor_rear_sleep {
++			/* RESET, STANDBY */
++			mux {
++				pins = "gpio36","gpio35";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio36","gpio35";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_rear_vdig: cam_sensor_rear_vdig {
++			/* VDIG */
++			mux {
++				pins = "gpio62";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio62";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_rear_vdig_sleep: cam_sensor_rear_vdig_sleep {
++			/* VDIG */
++			mux {
++				pins = "gpio62";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio62";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_mclk1_default: cam_sensor_mclk1_default {
++			/* MCLK1 */
++			mux {
++				/* CLK, DATA */
++				pins = "gpio27";
++				function = "cam_mclk";
++			};
++
++			config {
++				pins = "gpio27";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_mclk1_sleep: cam_sensor_mclk1_sleep {
++			/* MCLK1 */
++			mux {
++				/* CLK, DATA */
++				pins = "gpio27";
++				function = "cam_mclk";
++			};
++
++			config {
++				pins = "gpio27";
++				bias-pull-down; /* PULL DOWN */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_front_default: cam_sensor_front_default {
++			/* RESET, STANDBY */
++			mux {
++				pins = "gpio38","gpio50";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio38","gpio50";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_front_sleep: cam_sensor_front_sleep {
++			/* RESET, STANDBY */
++			mux {
++				pins = "gpio38","gpio50";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio38","gpio50";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_mclk2_default: cam_sensor_mclk2_default {
++			/* MCLK2 */
++			mux {
++				/* CLK, DATA */
++				pins = "gpio28";
++				function = "cam_mclk";
++			};
++
++			config {
++				pins = "gpio28";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_mclk2_sleep: cam_sensor_mclk2_sleep {
++			/* MCLK2 */
++			mux {
++				/* CLK, DATA */
++				pins = "gpio28";
++				function = "cam_mclk";
++			};
++
++			config {
++				pins = "gpio28";
++				bias-pull-down; /* PULL DOWN */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_front1_default: cam_sensor_front1_default {
++			/* RESET, STANDBY */
++			mux {
++				pins = "gpio40", "gpio39";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio40", "gpio39";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++
++		cam_sensor_front1_sleep: cam_sensor_front1_sleep {
++			/* RESET, STANDBY */
++			mux {
++				pins = "gpio40", "gpio39";
++				function = "gpio";
++			};
++
++			config {
++				pins = "gpio40", "gpio39";
++				bias-disable; /* No PULL */
++				drive-strength = <2>; /* 2 MA */
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8937-pmi8937-mtp.dtsi b/arch/arm64/boot/dts/gm/msm8937-pmi8937-mtp.dtsi
+new file mode 100644
+index 000000000..6994d4d17
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8937-pmi8937-mtp.dtsi
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++//#include "msm-pmi8937.dtsi"
++#include "msm8937-mtp.dtsi"
++#include "msm8937-audio-mtp.dtsi"
++/*
++&soc {
++	led_flash0: qcom,camera-flash {
++		cell-index = <0>;
++		compatible = "qcom,camera-flash";
++		qcom,flash-type = <1>;
++		qcom,flash-source = <&pmi8937_flash0 &pmi8937_flash1>;
++		qcom,torch-source = <&pmi8937_torch0 &pmi8937_torch1>;
++		qcom,switch-source = <&pmi8937_switch>;
++	};
++};
++
++/{
++	mtp_batterydata: qcom,battery-data {
++		qcom,batt-id-range-pct = <15>;
++		#include "batterydata-itech-3000mah.dtsi"
++		#include "batterydata-ascent-3450mAh.dtsi"
++	};
++};
++
++&pmi8937_fg {
++	qcom,battery-data = <&mtp_batterydata>;
++};
++
++&pmi8937_charger {
++	qcom,battery-data = <&mtp_batterydata>;
++	qcom,chg-led-sw-controls;
++	qcom,chg-led-support;
++};
++*/
+diff --git a/arch/arm64/boot/dts/gm/msm8940-mtp.dtsi b/arch/arm64/boot/dts/gm/msm8940-mtp.dtsi
+new file mode 100644
+index 000000000..98436c862
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8940-mtp.dtsi
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include "msm8937-mtp.dtsi"
++#include "msm8940-pinctrl.dtsi"
++
++/* 4.19 uses its SoC reserved-memory layout, not the 3.18 mem_client size node. */
++
++&soc {
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8940-pinctrl.dtsi b/arch/arm64/boot/dts/gm/msm8940-pinctrl.dtsi
+new file mode 100644
+index 000000000..037cc8330
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8940-pinctrl.dtsi
+@@ -0,0 +1,17 @@
++/*
++ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include "msm8937-pinctrl.dtsi"
++
++&soc {
++};
+diff --git a/arch/arm64/boot/dts/gm/msm8940-pmi8937-mtp.dtsi b/arch/arm64/boot/dts/gm/msm8940-pmi8937-mtp.dtsi
+new file mode 100644
+index 000000000..342868256
+--- /dev/null
++++ b/arch/arm64/boot/dts/gm/msm8940-pmi8937-mtp.dtsi
+@@ -0,0 +1,18 @@
++/*
++ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include "msm8937-pmi8937-mtp.dtsi"
++#include "msm8940-mtp.dtsi"
++
++&soc {
++};
+diff --git a/arch/arm64/configs/gm8_defconfig b/arch/arm64/configs/gm8_defconfig
+new file mode 100644
+index 000000000..1fb9dcf38
+--- /dev/null
++++ b/arch/arm64/configs/gm8_defconfig
+@@ -0,0 +1,685 @@
++CONFIG_LOCALVERSION="-gm8-4.19-port"
++# CONFIG_LOCALVERSION_AUTO is not set
++CONFIG_AUDIT=y
++# CONFIG_AUDITSYSCALL is not set
++CONFIG_NO_HZ=y
++CONFIG_HIGH_RES_TIMERS=y
++CONFIG_PREEMPT=y
++CONFIG_IRQ_TIME_ACCOUNTING=y
++CONFIG_SCHED_WALT=y
++CONFIG_TASKSTATS=y
++CONFIG_TASK_XACCT=y
++CONFIG_TASK_IO_ACCOUNTING=y
++CONFIG_PSI=y
++CONFIG_RCU_EXPERT=y
++CONFIG_RCU_FAST_NO_HZ=y
++CONFIG_RCU_NOCB_CPU=y
++CONFIG_IKCONFIG=y
++CONFIG_IKCONFIG_PROC=y
++CONFIG_IKHEADERS=y
++CONFIG_LOG_CPU_MAX_BUF_SHIFT=17
++CONFIG_MEMCG=y
++CONFIG_MEMCG_SWAP=y
++CONFIG_BLK_CGROUP=y
++CONFIG_CGROUP_FREEZER=y
++CONFIG_CPUSETS=y
++CONFIG_CGROUP_CPUACCT=y
++CONFIG_CGROUP_BPF=y
++CONFIG_SCHED_CORE_CTL=y
++CONFIG_NAMESPACES=y
++# CONFIG_PID_NS is not set
++CONFIG_SCHED_AUTOGROUP=y
++CONFIG_SCHED_TUNE=y
++CONFIG_BLK_DEV_INITRD=y
++# CONFIG_RD_BZIP2 is not set
++# CONFIG_RD_LZMA is not set
++# CONFIG_RD_XZ is not set
++# CONFIG_RD_LZO is not set
++# CONFIG_RD_LZ4 is not set
++# CONFIG_FHANDLE is not set
++CONFIG_KALLSYMS_ALL=y
++CONFIG_BPF_SYSCALL=y
++CONFIG_BPF_JIT_ALWAYS_ON=y
++CONFIG_EMBEDDED=y
++# CONFIG_COMPAT_BRK is not set
++CONFIG_PROFILING=y
++CONFIG_ARCH_QCOM=y
++CONFIG_ARCH_QM215=y
++CONFIG_ARCH_MSM8917=y
++CONFIG_ARCH_MSM8920=y
++CONFIG_ARCH_MSM8937=y
++CONFIG_ARCH_MSM8940=y
++CONFIG_MACH_GM_GM8=y
++CONFIG_ARCH_SDM429=y
++CONFIG_ARCH_SDM439=y
++# CONFIG_ARM64_ERRATUM_1024718 is not set
++CONFIG_SCHED_MC=y
++CONFIG_NR_CPUS=8
++CONFIG_HZ_100=y
++CONFIG_SECCOMP=y
++CONFIG_ARMV8_DEPRECATED=y
++CONFIG_SWP_EMULATION=y
++CONFIG_CP15_BARRIER_EMULATION=y
++CONFIG_SETEND_EMULATION=y
++CONFIG_ARM64_SW_TTBR0_PAN=y
++# CONFIG_ARM64_VHE is not set
++CONFIG_RANDOMIZE_BASE=y
++CONFIG_CMDLINE="cgroup_disable=pressure"
++CONFIG_CMDLINE_EXTEND=y
++CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y
++CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES="gm/gm8_sprout"
++CONFIG_COMPAT=y
++CONFIG_PM_WAKELOCKS=y
++CONFIG_PM_WAKELOCKS_LIMIT=0
++# CONFIG_PM_WAKELOCKS_GC is not set
++CONFIG_ENERGY_MODEL=y
++CONFIG_CPU_IDLE=y
++CONFIG_CPU_FREQ=y
++CONFIG_CPU_FREQ_TIMES=y
++CONFIG_CPU_FREQ_GOV_POWERSAVE=y
++CONFIG_CPU_FREQ_GOV_USERSPACE=y
++CONFIG_CPU_FREQ_GOV_ONDEMAND=y
++CONFIG_CPU_FREQ_GOV_CONSERVATIVE=y
++CONFIG_CPU_BOOST=y
++CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
++CONFIG_CPU_FREQ_MSM=y
++CONFIG_MSM_TZ_LOG=y
++CONFIG_ARM64_CRYPTO=y
++CONFIG_CRYPTO_SHA1_ARM64_CE=y
++CONFIG_CRYPTO_SHA2_ARM64_CE=y
++CONFIG_CRYPTO_GHASH_ARM64_CE=y
++CONFIG_CRYPTO_AES_ARM64_CE_CCM=y
++CONFIG_CRYPTO_AES_ARM64_CE_BLK=y
++CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y
++CONFIG_ARCH_MMAP_RND_COMPAT_BITS=16
++CONFIG_PANIC_ON_REFCOUNT_ERROR=y
++CONFIG_MODULES=y
++CONFIG_MODULE_UNLOAD=y
++CONFIG_MODVERSIONS=y
++CONFIG_MODULE_SIG=y
++CONFIG_MODULE_SIG_FORCE=y
++# CONFIG_BLK_DEV_BSG is not set
++CONFIG_BLK_DEV_ZONED=y
++CONFIG_BLK_INLINE_ENCRYPTION=y
++CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK=y
++CONFIG_PARTITION_ADVANCED=y
++# CONFIG_IOSCHED_DEADLINE is not set
++CONFIG_IOSCHED_BFQ=y
++CONFIG_BFQ_GROUP_IOSCHED=y
++# CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
++CONFIG_CMA=y
++CONFIG_ZSMALLOC=y
++CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER=y
++CONFIG_NET=y
++CONFIG_PACKET=y
++CONFIG_UNIX=y
++CONFIG_XFRM_USER=y
++CONFIG_XFRM_INTERFACE=y
++CONFIG_XFRM_STATISTICS=y
++CONFIG_NET_KEY=y
++CONFIG_INET=y
++CONFIG_IP_MULTICAST=y
++CONFIG_IP_ADVANCED_ROUTER=y
++CONFIG_IP_MULTIPLE_TABLES=y
++CONFIG_IP_ROUTE_VERBOSE=y
++CONFIG_IP_PNP=y
++CONFIG_IP_PNP_DHCP=y
++CONFIG_NET_IPGRE_DEMUX=y
++CONFIG_SYN_COOKIES=y
++CONFIG_NET_IPVTI=y
++CONFIG_INET_AH=y
++CONFIG_INET_ESP=y
++CONFIG_INET_IPCOMP=y
++CONFIG_INET_UDP_DIAG=y
++CONFIG_INET_DIAG_DESTROY=y
++CONFIG_IPV6_ROUTER_PREF=y
++CONFIG_IPV6_ROUTE_INFO=y
++CONFIG_IPV6_OPTIMISTIC_DAD=y
++CONFIG_INET6_AH=y
++CONFIG_INET6_ESP=y
++CONFIG_INET6_IPCOMP=y
++CONFIG_IPV6_MIP6=y
++CONFIG_IPV6_VTI=y
++CONFIG_IPV6_MULTIPLE_TABLES=y
++CONFIG_IPV6_SUBTREES=y
++CONFIG_NETFILTER=y
++CONFIG_NF_CONNTRACK=y
++CONFIG_NF_CONNTRACK_SECMARK=y
++CONFIG_NF_CONNTRACK_EVENTS=y
++CONFIG_NF_CONNTRACK_AMANDA=y
++CONFIG_NF_CONNTRACK_FTP=y
++CONFIG_NF_CONNTRACK_H323=y
++CONFIG_NF_CONNTRACK_IRC=y
++CONFIG_NF_CONNTRACK_NETBIOS_NS=y
++CONFIG_NF_CONNTRACK_PPTP=y
++CONFIG_NF_CONNTRACK_SANE=y
++CONFIG_NF_CONNTRACK_TFTP=y
++CONFIG_NF_CT_NETLINK=y
++CONFIG_NETFILTER_XT_TARGET_CLASSIFY=y
++CONFIG_NETFILTER_XT_TARGET_CONNMARK=y
++CONFIG_NETFILTER_XT_TARGET_CONNSECMARK=y
++CONFIG_NETFILTER_XT_TARGET_IDLETIMER=y
++CONFIG_NETFILTER_XT_TARGET_HARDIDLETIMER=y
++CONFIG_NETFILTER_XT_TARGET_LOG=y
++CONFIG_NETFILTER_XT_TARGET_MARK=y
++CONFIG_NETFILTER_XT_TARGET_NFLOG=y
++CONFIG_NETFILTER_XT_TARGET_NFQUEUE=y
++CONFIG_NETFILTER_XT_TARGET_NOTRACK=y
++CONFIG_NETFILTER_XT_TARGET_TEE=y
++CONFIG_NETFILTER_XT_TARGET_TPROXY=y
++CONFIG_NETFILTER_XT_TARGET_TRACE=y
++CONFIG_NETFILTER_XT_TARGET_SECMARK=y
++CONFIG_NETFILTER_XT_TARGET_TCPMSS=y
++CONFIG_NETFILTER_XT_MATCH_BPF=y
++CONFIG_NETFILTER_XT_MATCH_COMMENT=y
++CONFIG_NETFILTER_XT_MATCH_CONNLIMIT=y
++CONFIG_NETFILTER_XT_MATCH_CONNMARK=y
++CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y
++CONFIG_NETFILTER_XT_MATCH_DSCP=y
++CONFIG_NETFILTER_XT_MATCH_ESP=y
++CONFIG_NETFILTER_XT_MATCH_HASHLIMIT=y
++CONFIG_NETFILTER_XT_MATCH_HELPER=y
++CONFIG_NETFILTER_XT_MATCH_IPRANGE=y
++# CONFIG_NETFILTER_XT_MATCH_L2TP is not set
++CONFIG_NETFILTER_XT_MATCH_LENGTH=y
++CONFIG_NETFILTER_XT_MATCH_LIMIT=y
++CONFIG_NETFILTER_XT_MATCH_MAC=y
++CONFIG_NETFILTER_XT_MATCH_MARK=y
++CONFIG_NETFILTER_XT_MATCH_MULTIPORT=y
++CONFIG_NETFILTER_XT_MATCH_OWNER=y
++CONFIG_NETFILTER_XT_MATCH_POLICY=y
++CONFIG_NETFILTER_XT_MATCH_PKTTYPE=y
++CONFIG_NETFILTER_XT_MATCH_QUOTA=y
++CONFIG_NETFILTER_XT_MATCH_QUOTA2=y
++CONFIG_NETFILTER_XT_MATCH_QUOTA2_LOG=y
++# CONFIG_NETFILTER_XT_MATCH_SCTP is not set
++CONFIG_NETFILTER_XT_MATCH_SOCKET=y
++CONFIG_NETFILTER_XT_MATCH_STATE=y
++CONFIG_NETFILTER_XT_MATCH_STATISTIC=y
++CONFIG_NETFILTER_XT_MATCH_STRING=y
++CONFIG_NETFILTER_XT_MATCH_TIME=y
++CONFIG_NETFILTER_XT_MATCH_U32=y
++CONFIG_IP_NF_IPTABLES=y
++CONFIG_IP_NF_MATCH_AH=y
++CONFIG_IP_NF_MATCH_ECN=y
++CONFIG_IP_NF_MATCH_RPFILTER=y
++CONFIG_IP_NF_MATCH_TTL=y
++CONFIG_IP_NF_FILTER=y
++CONFIG_IP_NF_TARGET_REJECT=y
++CONFIG_IP_NF_NAT=y
++CONFIG_IP_NF_TARGET_MASQUERADE=y
++CONFIG_IP_NF_TARGET_NETMAP=y
++CONFIG_IP_NF_TARGET_REDIRECT=y
++CONFIG_IP_NF_MANGLE=y
++CONFIG_IP_NF_RAW=y
++CONFIG_IP_NF_SECURITY=y
++CONFIG_IP_NF_ARPTABLES=y
++CONFIG_IP_NF_ARPFILTER=y
++CONFIG_IP_NF_ARP_MANGLE=y
++CONFIG_IP6_NF_IPTABLES=y
++CONFIG_IP6_NF_MATCH_RPFILTER=y
++CONFIG_IP6_NF_FILTER=y
++CONFIG_IP6_NF_TARGET_REJECT=y
++CONFIG_IP6_NF_MANGLE=y
++CONFIG_IP6_NF_RAW=y
++CONFIG_BRIDGE_NF_EBTABLES=y
++CONFIG_BRIDGE_EBT_BROUTE=y
++CONFIG_IP_SCTP=y
++CONFIG_L2TP=y
++CONFIG_L2TP_V3=y
++CONFIG_L2TP_IP=y
++CONFIG_L2TP_ETH=y
++CONFIG_BRIDGE=y
++CONFIG_NET_SCHED=y
++CONFIG_NET_SCH_HTB=y
++CONFIG_NET_SCH_PRIO=y
++CONFIG_NET_SCH_INGRESS=y
++CONFIG_NET_CLS_FW=y
++CONFIG_NET_CLS_U32=y
++CONFIG_CLS_U32_MARK=y
++CONFIG_NET_CLS_FLOW=y
++CONFIG_NET_CLS_BPF=y
++CONFIG_NET_EMATCH=y
++CONFIG_NET_EMATCH_CMP=y
++CONFIG_NET_EMATCH_NBYTE=y
++CONFIG_NET_EMATCH_U32=y
++CONFIG_NET_EMATCH_META=y
++CONFIG_NET_EMATCH_TEXT=y
++CONFIG_NET_CLS_ACT=y
++CONFIG_QRTR=y
++CONFIG_QRTR_SMD=y
++CONFIG_BPF_JIT=y
++CONFIG_BT=y
++# CONFIG_BT_BREDR is not set
++# CONFIG_BT_LE is not set
++CONFIG_MSM_BT_POWER=y
++CONFIG_BTFM_SLIM_WCN3990=y
++CONFIG_CFG80211=y
++CONFIG_CFG80211_INTERNAL_REGDB=y
++# CONFIG_CFG80211_CRDA_SUPPORT is not set
++CONFIG_RFKILL=y
++CONFIG_NFC_NQ=y
++CONFIG_FW_LOADER_USER_HELPER=y
++CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y
++# CONFIG_FW_CACHE is not set
++CONFIG_REGMAP_ALLOW_WRITE_DEBUGFS=y
++CONFIG_DMA_CMA=y
++CONFIG_OF_IGNORE_QCOM_VENDOR_DTS=y
++CONFIG_ZRAM=y
++CONFIG_BLK_DEV_LOOP=y
++CONFIG_BLK_DEV_LOOP_MIN_COUNT=16
++CONFIG_BLK_DEV_RAM=y
++CONFIG_BLK_DEV_RAM_SIZE=8192
++CONFIG_HDCP_QSEECOM=y
++CONFIG_QSEECOM=y
++CONFIG_UID_SYS_STATS=y
++CONFIG_SCSI=y
++CONFIG_BLK_DEV_SD=y
++CONFIG_CHR_DEV_SG=y
++CONFIG_CHR_DEV_SCH=y
++CONFIG_SCSI_CONSTANTS=y
++CONFIG_SCSI_LOGGING=y
++CONFIG_SCSI_SCAN_ASYNC=y
++CONFIG_SCSI_UFSHCD=y
++CONFIG_SCSI_UFSHCD_PLATFORM=y
++CONFIG_SCSI_UFS_QCOM=y
++CONFIG_SCSI_UFS_CRYPTO=y
++CONFIG_SCSI_UFS_CRYPTO_QTI=y
++CONFIG_MD=y
++CONFIG_BLK_DEV_DM=y
++CONFIG_DM_CRYPT=y
++CONFIG_DM_DEFAULT_KEY=y
++CONFIG_DM_SNAPSHOT=y
++CONFIG_DM_UEVENT=y
++CONFIG_DM_VERITY=y
++CONFIG_DM_VERITY_FEC=y
++CONFIG_DM_ANDROID_VERITY=y
++CONFIG_DM_BOW=y
++CONFIG_NETDEVICES=y
++CONFIG_DUMMY=y
++CONFIG_TUN=y
++CONFIG_VETH=y
++# CONFIG_NET_VENDOR_AMAZON is not set
++CONFIG_MSM_RMNET_BAM=y
++# CONFIG_NET_VENDOR_EZCHIP is not set
++# CONFIG_NET_VENDOR_HISILICON is not set
++# CONFIG_NET_VENDOR_MARVELL is not set
++# CONFIG_NET_VENDOR_NETRONOME is not set
++CONFIG_RMNET=y
++# CONFIG_NET_VENDOR_ROCKER is not set
++# CONFIG_NET_VENDOR_SYNOPSYS is not set
++CONFIG_PPP=y
++CONFIG_PPP_BSDCOMP=y
++CONFIG_PPP_DEFLATE=y
++CONFIG_PPP_FILTER=y
++CONFIG_PPP_MPPE=y
++CONFIG_PPP_MULTILINK=y
++CONFIG_PPPOE=y
++CONFIG_PPTP=y
++CONFIG_PPPOL2TP=y
++CONFIG_PPP_ASYNC=y
++CONFIG_PPP_SYNC_TTY=y
++CONFIG_USB_RTL8152=y
++CONFIG_USB_USBNET=y
++# CONFIG_WLAN_VENDOR_ADMTEK is not set
++# CONFIG_WLAN_VENDOR_ATH is not set
++# CONFIG_WLAN_VENDOR_ATMEL is not set
++# CONFIG_WLAN_VENDOR_BROADCOM is not set
++# CONFIG_WLAN_VENDOR_CISCO is not set
++# CONFIG_WLAN_VENDOR_INTEL is not set
++# CONFIG_WLAN_VENDOR_INTERSIL is not set
++# CONFIG_WLAN_VENDOR_MARVELL is not set
++# CONFIG_WLAN_VENDOR_MEDIATEK is not set
++# CONFIG_WLAN_VENDOR_RALINK is not set
++# CONFIG_WLAN_VENDOR_REALTEK is not set
++# CONFIG_WLAN_VENDOR_RSI is not set
++# CONFIG_WLAN_VENDOR_ST is not set
++# CONFIG_WLAN_VENDOR_TI is not set
++# CONFIG_WLAN_VENDOR_ZYDAS is not set
++CONFIG_WCNSS_MEM_PRE_ALLOC=y
++CONFIG_CLD_LL_CORE=y
++CONFIG_INPUT_EVDEV=y
++CONFIG_KEYBOARD_GPIO=y
++# CONFIG_INPUT_MOUSE is not set
++CONFIG_INPUT_JOYSTICK=y
++CONFIG_JOYSTICK_XPAD=y
++CONFIG_INPUT_MISC=y
++CONFIG_INPUT_HBTP_INPUT=y
++CONFIG_INPUT_QPNP_POWER_ON=y
++CONFIG_INPUT_UINPUT=y
++# CONFIG_SERIO_SERPORT is not set
++# CONFIG_VT is not set
++# CONFIG_LEGACY_PTYS is not set
++# CONFIG_DEVMEM is not set
++CONFIG_SERIAL_MSM_HS=y
++CONFIG_HW_RANDOM=y
++CONFIG_HW_RANDOM_MSM_LEGACY=y
++CONFIG_MSM_SMD_PKT=y
++CONFIG_DIAG_CHAR=y
++CONFIG_MSM_ADSPRPC=y
++CONFIG_MSM_RDBG=m
++CONFIG_I2C_CHARDEV=y
++CONFIG_I2C_MSM_V2=y
++CONFIG_SPI=y
++CONFIG_SPI_QUP=y
++CONFIG_SPI_SPIDEV=y
++CONFIG_SPMI=y
++CONFIG_PINCTRL_MSM8937=y
++CONFIG_PINCTRL_MSM8917=y
++CONFIG_PINCTRL_MSM8940=y
++CONFIG_PINCTRL_QCOM_SPMI_PMIC=y
++CONFIG_GPIO_SYSFS=y
++CONFIG_POWER_RESET_QCOM=y
++CONFIG_QPNP_SMB5=y
++CONFIG_QPNP_VM_BMS=y
++CONFIG_QPNP_LINEAR_CHARGER=y
++CONFIG_SMB1351_USB_CHARGER=y
++CONFIG_SMB1360_CHARGER_FG=y
++CONFIG_SMB1355_SLAVE_CHARGER=y
++CONFIG_QPNP_QG=y
++CONFIG_QPNP_FG=y
++CONFIG_QPNP_SMBCHARGER=y
++CONFIG_THERMAL=y
++CONFIG_THERMAL_WRITABLE_TRIPS=y
++CONFIG_THERMAL_GOV_USER_SPACE=y
++CONFIG_THERMAL_GOV_LOW_LIMITS=y
++CONFIG_CPU_THERMAL=y
++CONFIG_DEVFREQ_THERMAL=y
++CONFIG_QCOM_SPMI_TEMP_ALARM=y
++CONFIG_THERMAL_QPNP_ADC_TM=y
++CONFIG_THERMAL_TSENS=y
++CONFIG_QTI_ADC_TM=y
++CONFIG_QTI_VIRTUAL_SENSOR=y
++CONFIG_QTI_BCL_PMIC5=y
++CONFIG_QTI_BCL_SOC_DRIVER=y
++CONFIG_QTI_QMI_COOLING_DEVICE=y
++CONFIG_REGULATOR_COOLING_DEVICE=y
++CONFIG_MFD_I2C_PMIC=y
++CONFIG_MFD_SPMI_PMIC=y
++CONFIG_REGULATOR=y
++CONFIG_REGULATOR_FIXED_VOLTAGE=y
++CONFIG_REGULATOR_QPNP_LABIBB=y
++CONFIG_REGULATOR_QPNP_LCDB=y
++CONFIG_REGULATOR_TPS65132=y
++CONFIG_REGULATOR_MEM_ACC=y
++CONFIG_REGULATOR_CPR=y
++CONFIG_REGULATOR_RPM_SMD=y
++CONFIG_REGULATOR_SPM=y
++CONFIG_REGULATOR_STUB=y
++CONFIG_MEDIA_SUPPORT=y
++CONFIG_MEDIA_CAMERA_SUPPORT=y
++CONFIG_MEDIA_CONTROLLER=y
++CONFIG_VIDEO_V4L2_SUBDEV_API=y
++CONFIG_V4L_PLATFORM_DRIVERS=y
++CONFIG_MSM_VIDC_3X_GOVERNORS=y
++CONFIG_MSM_VIDC_3X_V4L2=y
++CONFIG_MSM_CAMERA=y
++CONFIG_MSMB_CAMERA=y
++CONFIG_MSM_CAMERA_SENSOR=y
++CONFIG_MSM_CPP=y
++CONFIG_MSM_CCI=y
++CONFIG_MSM_CSI20_HEADER=y
++CONFIG_MSM_CSI22_HEADER=y
++CONFIG_MSM_CSI30_HEADER=y
++CONFIG_MSM_CSI31_HEADER=y
++CONFIG_MSM_CSIPHY=y
++CONFIG_MSM_CSID=y
++CONFIG_MSM_EEPROM=y
++CONFIG_MSM_ISPIF_V2=y
++CONFIG_IMX134=y
++CONFIG_IMX132=y
++CONFIG_OV9724=y
++CONFIG_OV5648=y
++CONFIG_GC0339=y
++CONFIG_OV8825=y
++CONFIG_OV8865=y
++CONFIG_s5k4e1=y
++CONFIG_OV12830=y
++CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE=y
++CONFIG_MSMB_JPEG=y
++CONFIG_MSM_FD=y
++CONFIG_RADIO_IRIS=y
++CONFIG_RADIO_IRIS_TRANSPORT=y
++CONFIG_FB=y
++CONFIG_FB_MSM=y
++CONFIG_FB_MSM_MDSS=y
++CONFIG_FB_MSM_MDSS_WRITEBACK=y
++CONFIG_FB_MSM_MDSS_DSI_CTRL_STATUS=y
++CONFIG_FB_MSM_MDSS_XLOG_DEBUG=y
++CONFIG_BACKLIGHT_LCD_SUPPORT=y
++# CONFIG_BACKLIGHT_CLASS_DEVICE is not set
++CONFIG_SOUND=y
++CONFIG_SND=y
++CONFIG_SND_DYNAMIC_MINORS=y
++CONFIG_SND_USB_AUDIO=y
++CONFIG_SND_SOC=y
++CONFIG_UHID=y
++CONFIG_HID_APPLE=y
++CONFIG_HID_ELECOM=y
++CONFIG_HID_MAGICMOUSE=y
++CONFIG_HID_MICROSOFT=y
++CONFIG_HID_MULTITOUCH=y
++CONFIG_HID_NINTENDO=y
++CONFIG_HID_SONY=y
++CONFIG_USB_HIDDEV=y
++CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
++CONFIG_USB_MON=y
++CONFIG_USB_EHCI_HCD=y
++CONFIG_USB_EHCI_HCD_PLATFORM=y
++CONFIG_USB_EHCI_MSM=y
++CONFIG_USB_ACM=y
++CONFIG_USB_STORAGE=y
++CONFIG_USB_STORAGE_DATAFAB=y
++CONFIG_USB_STORAGE_FREECOM=y
++CONFIG_USB_STORAGE_ISD200=y
++CONFIG_USB_STORAGE_USBAT=y
++CONFIG_USB_STORAGE_SDDR09=y
++CONFIG_USB_STORAGE_SDDR55=y
++CONFIG_USB_STORAGE_JUMPSHOT=y
++CONFIG_USB_STORAGE_ALAUDA=y
++CONFIG_USB_STORAGE_ONETOUCH=y
++CONFIG_USB_STORAGE_KARMA=y
++CONFIG_USB_STORAGE_CYPRESS_ATACB=y
++CONFIG_USB_SERIAL=y
++CONFIG_USB_EHSET_TEST_FIXTURE=y
++CONFIG_NOP_USB_XCEIV=y
++CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET_DEBUG_FILES=y
++CONFIG_USB_GADGET_DEBUG_FS=y
++CONFIG_USB_GADGET_VBUS_DRAW=500
++CONFIG_USB_CI13XXX_MSM=y
++CONFIG_USB_CONFIGFS=y
++CONFIG_USB_CONFIGFS_UEVENT=y
++CONFIG_USB_CONFIGFS_SERIAL=y
++CONFIG_USB_CONFIGFS_NCM=y
++CONFIG_USB_CONFIGFS_QCRNDIS=y
++CONFIG_USB_CONFIGFS_RNDIS=y
++CONFIG_USB_CONFIGFS_RMNET_BAM=y
++CONFIG_USB_CONFIGFS_MASS_STORAGE=y
++CONFIG_USB_CONFIGFS_F_FS=y
++CONFIG_USB_CONFIGFS_F_ACC=y
++CONFIG_USB_CONFIGFS_F_AUDIO_SRC=y
++CONFIG_USB_CONFIGFS_F_MIDI=y
++CONFIG_USB_CONFIGFS_F_HID=y
++CONFIG_USB_CONFIGFS_F_DIAG=y
++CONFIG_USB_CONFIGFS_F_CDEV=y
++CONFIG_USB_CONFIGFS_F_CCID=y
++CONFIG_USB_CONFIGFS_F_QDSS=y
++CONFIG_USB_CONFIGFS_F_MTP=y
++CONFIG_USB_CONFIGFS_F_PTP=y
++CONFIG_TYPEC=y
++CONFIG_MMC=y
++# CONFIG_PWRSEQ_EMMC is not set
++# CONFIG_PWRSEQ_SIMPLE is not set
++CONFIG_MMC_BLOCK_MINORS=32
++CONFIG_MMC_BLOCK_DEFERRED_RESUME=y
++CONFIG_MMC_SDHCI=y
++CONFIG_MMC_SDHCI_PLTFM=y
++CONFIG_MMC_SDHCI_MSM=y
++CONFIG_MMC_CQHCI_CRYPTO=y
++CONFIG_MMC_CQHCI_CRYPTO_QTI=y
++CONFIG_LEDS_QTI_TRI_LED=y
++CONFIG_LEDS_QPNP=y
++CONFIG_LEDS_QPNP_FLASH=y
++CONFIG_LEDS_QPNP_FLASH_V2=y
++CONFIG_LEDS_QPNP_VIBRATOR_LDO=y
++CONFIG_LEDS_QPNP_VIBRATOR=y
++CONFIG_LEDS_QPNP_HAPTICS=y
++CONFIG_LEDS_QPNP_WLED=y
++CONFIG_LEDS_TRIGGER_TIMER=y
++CONFIG_EDAC=y
++CONFIG_RTC_CLASS=y
++CONFIG_RTC_DRV_PM8XXX=y
++CONFIG_DMADEVICES=y
++CONFIG_QCOM_SPS_DMA=y
++CONFIG_UIO=y
++CONFIG_UIO_MSM_SHAREDMEM=y
++CONFIG_STAGING=y
++CONFIG_ASHMEM=y
++CONFIG_ION=y
++CONFIG_ION_POOL_AUTO_REFILL=y
++CONFIG_MSM_EXT_DISPLAY=y
++CONFIG_QPNP_REVID=y
++CONFIG_SPS=y
++CONFIG_SPS_SUPPORT_NDP_BAM=y
++CONFIG_IPA=y
++CONFIG_RMNET_IPA=y
++CONFIG_RNDIS_IPA=y
++CONFIG_USB_BAM=y
++CONFIG_MDSS_PLL=y
++CONFIG_QCOM_CLK_SMD_RPM=y
++CONFIG_SDM_GCC_429W=y
++CONFIG_SDM_DEBUGCC_429W=y
++CONFIG_CLOCK_CPU_SDM=y
++CONFIG_SDM_DEBUGCC_439=y
++CONFIG_HWSPINLOCK=y
++CONFIG_HWSPINLOCK_QCOM=y
++CONFIG_MAILBOX=y
++CONFIG_ARM_SMMU=y
++CONFIG_QCOM_LAZY_MAPPING=y
++CONFIG_RPMSG_CHAR=y
++CONFIG_RPMSG_QCOM_GLINK_RPM=y
++CONFIG_RPMSG_QCOM_GLINK_SMEM=y
++CONFIG_RPMSG_QCOM_SMD=y
++CONFIG_MSM_RPM_SMD=y
++CONFIG_QCOM_RUN_QUEUE_STATS=y
++CONFIG_QPNP_PBS=y
++CONFIG_QCOM_QMI_HELPERS=y
++CONFIG_QCOM_SMEM=y
++CONFIG_QCOM_SMD_RPM=y
++CONFIG_MSM_SPM=y
++CONFIG_MSM_L2_SPM=y
++CONFIG_QCOM_EARLY_RANDOM=y
++CONFIG_QCOM_MEMORY_DUMP_V2=y
++CONFIG_QCOM_SMP2P=y
++CONFIG_QCOM_SMSM=y
++CONFIG_MSM_PIL_MSS_QDSP6V5=y
++CONFIG_QCOM_SECURE_BUFFER=y
++CONFIG_MSM_TZ_SMMU=y
++CONFIG_MSM_SUBSYSTEM_RESTART=y
++CONFIG_MSM_PIL=y
++CONFIG_MSM_SYSMON_QMI_COMM=y
++CONFIG_MSM_PIL_SSR_GENERIC=y
++CONFIG_MSM_BOOT_STATS=y
++CONFIG_QCOM_WATCHDOG_V2=y
++CONFIG_QCOM_FORCE_WDOG_BITE_ON_PANIC=y
++CONFIG_QCOM_BUS_SCALING=y
++CONFIG_QCOM_GLINK=y
++CONFIG_MSM_EVENT_TIMER=y
++CONFIG_MSM_PM=y
++CONFIG_QCOM_DCC=y
++CONFIG_QTI_RPM_STATS_LOG=y
++CONFIG_QTEE_SHM_BRIDGE=y
++CONFIG_MEM_SHARE_QMI_SERVICE=y
++CONFIG_MSM_PERFORMANCE=y
++CONFIG_QTI_CRYPTO_COMMON=y
++CONFIG_QTI_CRYPTO_TZ=y
++CONFIG_MSM_BAM_DMUX=y
++CONFIG_WCNSS_CORE=y
++CONFIG_WCNSS_CORE_PRONTO=y
++CONFIG_WCNSS_REGISTER_DUMP_ON_BITE=y
++CONFIG_QCOM_BIMC_BWMON=y
++CONFIG_ARM_MEMLAT_MON=y
++CONFIG_DEVFREQ_GOV_QCOM_BW_HWMON=y
++CONFIG_DEVFREQ_GOV_MEMLAT=y
++CONFIG_DEVFREQ_SIMPLE_DEV=y
++CONFIG_QCOM_DEVFREQ_DEVBW=y
++CONFIG_IIO=y
++CONFIG_QCOM_SPMI_ADC5=y
++CONFIG_QCOM_SPMI_VADC=y
++CONFIG_PWM=y
++CONFIG_PWM_QTI_LPG=y
++CONFIG_PWM_QPNP=y
++CONFIG_ARM_GIC_V3_ACL=y
++CONFIG_QCOM_MPM=y
++CONFIG_RAS=y
++CONFIG_ANDROID=y
++CONFIG_ANDROID_BINDER_IPC=y
++CONFIG_ANDROID_BINDERFS=y
++CONFIG_QCOM_QFPROM=y
++CONFIG_NVMEM_SPMI_SDAM=y
++CONFIG_SLIMBUS_MSM_NGD=y
++CONFIG_SENSORS_SSC=y
++CONFIG_QCOM_KGSL=y
++CONFIG_LEGACY_ENERGY_MODEL_DT=y
++CONFIG_EXT4_FS=y
++CONFIG_EXT4_FS_POSIX_ACL=y
++CONFIG_EXT4_FS_SECURITY=y
++CONFIG_EXT4_ENCRYPTION=y
++CONFIG_F2FS_FS=y
++CONFIG_F2FS_FS_SECURITY=y
++CONFIG_F2FS_FS_ENCRYPTION=y
++CONFIG_FS_ENCRYPTION_INLINE_CRYPT=y
++CONFIG_FS_VERITY=y
++CONFIG_FS_VERITY_BUILTIN_SIGNATURES=y
++CONFIG_QUOTA=y
++CONFIG_QUOTA_NETLINK_INTERFACE=y
++CONFIG_QFMT_V2=y
++CONFIG_FUSE_FS=y
++CONFIG_OVERLAY_FS=y
++CONFIG_INCREMENTAL_FS=y
++CONFIG_VFAT_FS=y
++CONFIG_TMPFS=y
++CONFIG_TMPFS_POSIX_ACL=y
++CONFIG_SDCARD_FS=y
++CONFIG_PSTORE=y
++CONFIG_PSTORE_CONSOLE=y
++CONFIG_PSTORE_PMSG=y
++CONFIG_PSTORE_RAM=y
++# CONFIG_NETWORK_FILESYSTEMS is not set
++CONFIG_NLS_CODEPAGE_437=y
++CONFIG_NLS_ISO8859_1=y
++CONFIG_SECURITY=y
++CONFIG_HARDENED_USERCOPY=y
++CONFIG_STATIC_USERMODEHELPER=y
++CONFIG_STATIC_USERMODEHELPER_PATH=""
++CONFIG_SECURITY_SELINUX=y
++CONFIG_SECURITY_SMACK=y
++CONFIG_CRYPTO_GCM=y
++CONFIG_CRYPTO_XCBC=y
++CONFIG_CRYPTO_TWOFISH=y
++CONFIG_CRYPTO_ANSI_CPRNG=y
++CONFIG_CRYPTO_DEV_QCOM_MSM_QCE=y
++CONFIG_CRYPTO_DEV_QCRYPTO=y
++CONFIG_CRYPTO_DEV_QCEDEV=y
++CONFIG_CRYPTO_DEV_QCOM_ICE=y
++CONFIG_PRINTK_TIME=y
++CONFIG_DEBUG_INFO=y
++CONFIG_DEBUG_FS=y
++CONFIG_MAGIC_SYSRQ=y
++CONFIG_PANIC_TIMEOUT=5
++CONFIG_SCHEDSTATS=y
++# CONFIG_DEBUG_PREEMPT is not set
++CONFIG_IPC_LOGGING=y
++CONFIG_BUG_ON_DATA_CORRUPTION=y
++CONFIG_DEBUG_ALIGN_RODATA=y
++CONFIG_CORESIGHT=y
++CONFIG_CORESIGHT_LINK_AND_SINK_TMC=y
++CONFIG_CORESIGHT_DYNAMIC_REPLICATOR=y
++CONFIG_CORESIGHT_STM=y
++CONFIG_CORESIGHT_TPDA=y
++CONFIG_CORESIGHT_TPDM=y
++CONFIG_CORESIGHT_HWEVENT=y
++CONFIG_CORESIGHT_DUMMY=y
++CONFIG_CORESIGHT_REMOTE_ETM=y
++CONFIG_CORESIGHT_TGU=y
+diff --git a/drivers/regulator/cpr-regulator.c b/drivers/regulator/cpr-regulator.c
+index 674af9f5d..208eb1e78 100644
+--- a/drivers/regulator/cpr-regulator.c
++++ b/drivers/regulator/cpr-regulator.c
+@@ -5741,7 +5741,6 @@ int __init cpr_regulator_init(void)
+ 	cpr_debugfs_base_init();
+ 	return platform_driver_register(&cpr_regulator_driver);
+ }
+-EXPORT_SYMBOL(cpr_regulator_init);
+ 
+ static void __exit cpr_regulator_exit(void)
+ {

@@ -1,0 +1,2 @@
+# Unified diff context is data; kernel source additions are checked separately.
+*.patch -whitespace
