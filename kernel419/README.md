@@ -58,6 +58,58 @@ signature, checking Android ramdisk/VINTF integration and constructing a
 temporary boot candidate. No VINTF requirements or SELinux enforcement are
 relaxed by this preflight tool.
 
+### Temporary boot candidate after inspection
+
+For the inspected GM8 v0 recovery-as-boot layout, `pack-kernel419-boot.py`
+can now produce a separate **temporary-boot candidate** from existing build
+outputs. It does not modify BoardConfig, rebuild Android, sign an OTA or flash
+a device. It requires the saved inspection report to match the actual inputs
+exactly, verifies the base image identifier, rejects signing trailers and
+preserves the compressed recovery ramdisk byte for byte.
+
+```sh
+python3 tools/pack-kernel419-boot.py \
+  --base-boot "$HOME/android/lineage-19.1/out/target/product/GM8_sprout/boot.img" \
+  --kernel-out "$HOME/android/out-gm8-kernel419-v2" \
+  --inspection "$HOME/android/gm8-kernel419-boot-inspection.json" \
+  --output-dir "$HOME/android/gm8-kernel419-test-v1"
+```
+
+The new directory contains `gm8-kernel419-test-boot.img`, an exact copy of the
+input as `gm8-working-3.18-boot.img`, and `boot-candidate.json`. Existing output
+directories are refused. The packer preserves the base kernel encoding:
+gzip + DTB, raw ARM64 Image + DTB, or the stock `UNCOMPRESSED_IMG` wrapper.
+OS version/patch metadata, board name, tags address and original command line
+are retained; only diagnostic `panic=10 loglevel=7` parameters are appended.
+
+The candidate uses kernel address **0x80080000** (matching the Image's 0x80000
+text offset from the aligned 0x80000000 base), ramdisk address **0x83000000**
+and the existing tags address **0x80000100**. Actual Image memory extent,
+ramdisk size and DTB size must fit without overlap below the GM8 external
+firmware reservation at **0x84a00000**. The packer checks these ranges and
+re-inspects its result. This establishes a consistent *header* layout;
+the phone bootloader may override addresses and its actual placement remains
+unverified until a hardware boot test. Android/vendor peripheral compatibility
+also remains unverified.
+
+For the first attempt use `fastboot boot gm8-kernel419-test-boot.img` on an
+unlocked device. This does not replace either installed boot partition; an
+Android session can still write userdata normally. Do not substitute a flash
+command if temporary boot is unsupported. Keep the working boot image available
+and collect the actual result, kernel version and logs before further changes.
+The candidate is not a signed release or an OTA.
+
+Host packing tests compare the complete candidate bytes against independent
+Lineage Android 12.1 `mkbootimg` output for all three supported kernel encodings,
+and cover stale inputs, trailers, corrupt identifiers, overlap rejection,
+backup fidelity and output overwrite refusal. No phone was accessed:
+
+```sh
+python3 tools/tests/test-kernel419-boot-packing.py \
+  --mkbootimg /path/to/lineage-19.1/system/tools/mkbootimg/mkbootimg.py \
+  --kernel-out /path/to/out-gm8-kernel419-v2
+```
+
 ## Pinned sources
 
 * Base: LineageOS/android_kernel_xiaomi_msm8937, `lineage-22.2`,
@@ -119,7 +171,9 @@ the current default branch for the pinned base.
 
 4.19 is itself an old kernel branch. A successful build does not establish
 current security coverage, improved application speed or blob compatibility.
-This checkpoint deliberately does not package an Android boot image or OTA.
+The kernel build helper does not package an Android boot image or OTA. The
+separate inspected-input packer above produces an experimental temporary boot
+candidate only.
 
 ## Validation on 2026-10-24
 
