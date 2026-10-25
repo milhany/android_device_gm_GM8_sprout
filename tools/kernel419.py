@@ -16,6 +16,7 @@ UPSTREAM = "https://github.com/LineageOS/android_kernel_xiaomi_msm8937.git"
 REVISION = "e24963ba7e7376ad052179723a22b316e73af7d9"
 PATCH = PORT / "0001-gm8-board-bringup.patch"
 POWER_UPGRADE = PORT / "upgrades/d06c76c-power.patch"
+TOUCH_UPGRADE = PORT / "upgrades/9530763-touch.patch"
 
 
 def run(args, cwd=None, capture=False, env=None):
@@ -51,28 +52,44 @@ def source_check(source, quiet=False):
         run(["git", "apply", "--reverse", "--check", PATCH], source)
 
 
-def upgrade_power(source):
-    """Upgrade only an exact d06c76c port, preserving the source/output paths."""
+def upgrade_known_checkpoint(source):
+    """Recognize an exact older port and apply one checked cumulative delta."""
     if Path(run(["git", "rev-parse", "--show-toplevel"], source, True).strip()).resolve() != source:
         return False
     if run(["git", "rev-parse", "HEAD"], source, True).strip() != REVISION:
         return False
+    if subprocess.run(["git", "diff", "--quiet"], cwd=source).returncode:
+        return False
+    actual_index = run(["git", "write-tree"], source, True).strip()
     with tempfile.TemporaryDirectory(prefix="gm8-port-upgrade-") as directory:
         env = dict(os.environ, GIT_INDEX_FILE=str(Path(directory) / "index"))
         run(["git", "read-tree", REVISION], source, env=env)
         run(["git", "apply", "--cached", PATCH], source, env=env)
-        run(["git", "apply", "--cached", "--reverse", POWER_UPGRADE], source, env=env)
-        baseline = run(["git", "diff", "--cached", "--binary", REVISION],
-                       source, True, env)
-        check = subprocess.run(["git", "apply", "--reverse", "--check", "-"],
-                               input=baseline, cwd=source, text=True, capture_output=True)
-        if check.returncode:
-            return False
-    run(["git", "apply", "--index", "--check", POWER_UPGRADE], source)
-    run(["git", "apply", "--index", POWER_UPGRADE], source)
-    source_check(source)
-    print(f"Upgraded the exact d06c76c checkpoint in place: {source}")
-    return True
+        current_tree = run(["git", "write-tree"], source, True, env).strip()
+        for name, reversals in [("9530763", [TOUCH_UPGRADE]),
+                                ("d06c76c", [TOUCH_UPGRADE, POWER_UPGRADE])]:
+            run(["git", "read-tree", current_tree], source, env=env)
+            for patch in reversals:
+                run(["git", "apply", "--cached", "--reverse", patch], source, env=env)
+            baseline_tree = run(["git", "write-tree"], source, True, env).strip()
+            if actual_index != baseline_tree:
+                continue
+            baseline = run(["git", "diff", "--cached", "--binary", REVISION],
+                           source, True, env)
+            check = subprocess.run(["git", "apply", "--reverse", "--check", "-"],
+                                   input=baseline, cwd=source, text=True, capture_output=True)
+            if check.returncode:
+                continue
+            delta = run(["git", "diff", "--binary", baseline_tree, current_tree],
+                        source, True, env)
+            subprocess.run(["git", "apply", "--index", "--check", "-"],
+                           input=delta, cwd=source, text=True, check=True)
+            subprocess.run(["git", "apply", "--index", "-"],
+                           input=delta, cwd=source, text=True, check=True)
+            source_check(source)
+            print(f"Upgraded the exact {name} checkpoint in place: {source}")
+            return True
+    return False
 
 
 def prepare(source):
@@ -80,7 +97,7 @@ def prepare(source):
         try:
             source_check(source, quiet=True)
         except (ValueError, subprocess.CalledProcessError) as error:
-            if upgrade_power(source):
+            if upgrade_known_checkpoint(source):
                 return
             raise ValueError("Existing source does not match this checkpoint. "
                              "For an older port, keep that checkout and choose a new "
@@ -173,6 +190,8 @@ def build(args, source):
     dtb = out / "arch/arm64/boot/dts/gm/gm8_sprout.dtb"
     verify(dtb)
     run([sys.executable, DEVICE / "tools/tests/test-gm8-power419.py",
+         "--kernel", source, "--dtb", dtb, "--config", out / ".config"], env=env)
+    run([sys.executable, DEVICE / "tools/tests/test-gm8-touch419.py",
          "--kernel", source, "--dtb", dtb, "--config", out / ".config"], env=env)
     names = ["arch/arm64/boot/Image.gz", "arch/arm64/boot/Image.gz-dtb",
              "arch/arm64/boot/dts/gm/gm8_sprout.dtb", ".config"]

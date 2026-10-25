@@ -1,0 +1,88 @@
+{
+  "reference_repository": "https://github.com/milhany/android_kernel_gm_msm8937.git",
+  "reference_revision": "44e09019575c012ad5b332250261d162ea5835d5",
+  "hash_scope": "Unmodified reference bytes before API adaptation and whitespace cleanup",
+  "files": [
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_core.c",
+      "source_sha256": "ae53f1db41fef929fed0f95d36eb51501a35c9d6ce179beb8378182fe176ca83",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_core.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_i2c.c",
+      "source_sha256": "9f87ae264779e74cdb89f367bc308d16abd647e5b1bb6b2548e33080dcc3a19f",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_i2c.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_ex_mode.c",
+      "source_sha256": "3e26fa198ab424c6c12ea8da36beec6d072fb5262a99d6b19dd34cda047b58ea",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_ex_mode.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_gesture.c",
+      "source_sha256": "9f0007f71bf3905ec886bc06be45009ac8178b877605bde49a3ff8e3d4250719",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_gesture.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_esdcheck.c",
+      "source_sha256": "3186c66c6f8df52ae1fb6d756765ee02ddf2b9c48e341c79c5f33f7da0732739",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_esdcheck.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_point_report_check.c",
+      "source_sha256": "8a4fa6e06b4ea22959362551cdabc83a10476365c16583f47624bb2a73b6a71f",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_point_report_check.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_core.h",
+      "source_sha256": "421b735963462fbf6e1b1568f50af87fd209f86be920a36e44577dae0b7022b3",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_core.h"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_common.h",
+      "source_sha256": "0b685005b13b0dbf23ad7cc980da49a2b1948113f307cc68f637c6576794f6a8",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_common.h"
+    },
+    {
+      "source": "drivers/input/touchscreen/ft8006/focaltech_config.h",
+      "source_sha256": "9e38ddee4da4f59f8aa2357d99fd1ff7300c55bc6b65abdf6a66b625da4d556d",
+      "target": "drivers/input/touchscreen/gm8/ft8006m/focaltech_config.h"
+    },
+    {
+      "source": "drivers/input/touchscreen/hxchipset/himax_common.c",
+      "source_sha256": "7ee1ff63f38109d4dbf7f21e7e6945351f4dd50b70e7ab74f8f7ed20aa5c304e",
+      "target": "drivers/input/touchscreen/gm8/himax/himax_common.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/hxchipset/himax_common.h",
+      "source_sha256": "6fc5401fcf867a0fab40939b91a672d3d9bfcd0df7e47bb11ceaf4aa9304338e",
+      "target": "drivers/input/touchscreen/gm8/himax/himax_common.h"
+    },
+    {
+      "source": "drivers/input/touchscreen/hxchipset/himax_ic.c",
+      "source_sha256": "b918b14192817c7a28fc39208f33d2c8af59a042f496090b499d70b21073f844",
+      "target": "drivers/input/touchscreen/gm8/himax/himax_ic.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/hxchipset/himax_ic.h",
+      "source_sha256": "ef4187f92cfb0eb76c4e07503956ee4751f7c504c814e1a1532bfd43db3b6722",
+      "target": "drivers/input/touchscreen/gm8/himax/himax_ic.h"
+    },
+    {
+      "source": "drivers/input/touchscreen/hxchipset/himax_platform.c",
+      "source_sha256": "b7f99fac2c47eb551128106cd8f017640a79009cc8da8aa6cc38bf82edcc0c1a",
+      "target": "drivers/input/touchscreen/gm8/himax/himax_platform.c"
+    },
+    {
+      "source": "drivers/input/touchscreen/hxchipset/himax_platform.h",
+      "source_sha256": "b619248f6ad49e08d624a2a3892e10be8211730bfcbcbb575640983be3857da4",
+      "target": "drivers/input/touchscreen/gm8/himax/himax_platform.h"
+    }
+  ],
+  "panel_id_reference": {
+    "path": "drivers/video/msm/mdss/mdss_dsi.c",
+    "source_sha256": "c7b203c3fe6c1d6bd6802f9b2cb26c8199b6425c39d6bf3e96ca61478a2afa90",
+    "id0_tlmm": 59,
+    "id1_tlmm": 27
+  }
+}

@@ -53,7 +53,7 @@ the current default branch for the pinned base.
 | Area | Required before a phone boot candidate |
 | --- | --- |
 | Charger / fuel gauge | Source port and host tests now pass for GM8 BQ2560x/BQ27426 plus USB supply. Hardware must still validate battery-ID voltage, temperature, charge limits, unplug/replug, suspend and regulator/IRQ behavior. Profile programming remains disabled. |
-| Touch | Port both actual GM8 Himax and FT8006M variants. Touch is currently disabled in this compile checkpoint. Do not substitute FT8006S firmware. |
+| Touch | GM8 FT8006M and Himax source ports now compile and pass host checks. Actual touch events, selected variant, cold boot, screen blank/resume and gesture wake still need phone validation. Firmware loading/programming is disabled. |
 | Fingerprint | Port GM8 FPC and Sunwave GPIO/power/detection behavior, sysfs/proc ABI and wakeup handling. |
 | GPU / memory | Common KGSL header layouts match; verify actual V415 driver behavior, heap availability, cache maintenance and the legacy ION operations used by the vendor binaries. |
 | Audio / camera | Legacy camera header ABI now matches the audited GM8 structures. Still port/review sensor-specific changes and TAS2560, then validate actual camera/audio operation. |
@@ -132,7 +132,7 @@ camera stack and 32-bit ION handler. Inherited legacy-camera VLA warnings remain
 
 ## GM8 power port on 2026-10-25
 
-The current power checkpoint is recorded in `validation-power-20261025.json`.
+The preceding power checkpoint is recorded in `validation-power-20261025.json`.
 `power-provenance-20261025.json` identifies every imported power source and the
 three byte-identical GM8 gauge calibration images. This is a **source port with
 compile/host checks**, not confirmation that charging works on the phone.
@@ -206,8 +206,94 @@ sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 
 The existing host image already contains the host test dependencies. `build`
 runs these tests after DTB verification and writes a new build record only
-after they pass. No Android boot image is produced; touch and other hardware
-gates still remain before a phone candidate.
+after they pass. No Android boot image is produced; Android boot-image
+integration and hardware gates still remain before a phone candidate.
+
+## GM8 touch port on 2026-10-25
+
+The latest source/build record is `validation-touch-20261025.json`. Original
+source hashes and the stock panel-ID reference are in
+`touch-provenance-20261025.json`. Both actual GM8 variants are enabled:
+FT8006M at I2C 0x38 and Himax at 0x48, with the original 720x1440 geometry,
+TLMM reset 64 and IRQ 65. This is a **compile/host checkpoint**, not a report
+that either panel has worked on a phone with 4.19.
+
+The 3.18 MDSS driver read the panel-ID straps from TLMM **59 / 27**. Its
+globals gated the touch drivers: 1/1 selected FocalTech, 0/1 or 1/0 selected
+Himax. The new shared helper reads those pins through GPIO descriptors and
+releases them before continuing. Reads are serialized. Unknown IDs and
+ineligible drivers return without selecting the shared reset/IRQ pin state;
+provider deferral and read errors propagate. Only the eligible driver selects
+`pmx_ts_active`, then verifies the controller itself. This removes the old
+dependencies on MDSS globals and the factory device-info helper.
+
+Port details:
+
+* Preserved FT8006M input, gesture, ESD and point-report paths; firmware and
+  LCD-configuration updates, APK/raw-register factory nodes and production
+  tests are disabled. No FT firmware binary or flash implementation is
+  imported. If the existing firmware is not ready, identification fails
+  without entering the bootloader or loading a replacement.
+* Preserved Himax input/gesture paths with native wakeup sources. Automatic
+  firmware updates are disabled and no firmware images/factory debug driver
+  are imported. Small no-op logging hooks replace the raw/proc diagnostics,
+  avoiding the stock unconditional per-IRQ timing output.
+* Kept normal packet metadata available with diagnostics disabled. Point
+  counts are checked against the existing 10-entry finger buffer before
+  input/report allocation to reject invalid controller information.
+* Corrected GPIO/probe error propagation, registered-input cleanup, work/IRQ
+  teardown and delayed framebuffer notifier cleanup. The FocalTech gesture
+  control now uses proper kobject attributes and reference release.
+
+The stock input/gesture code is retained, but screen power sequencing and
+gesture behavior with the 4.19 display driver remain hardware tests. The
+factory/proc diagnostics are intentionally unavailable in this input port.
+
+`tools/tests/test-gm8-touch419.py` compiles the **actual** board selector and FT
+identification functions with GPIO/pinctrl/I2C substitutes. It checks all stock
+ID combinations, ineligible-driver exclusion, descriptor release, deferred
+providers and read errors. It checks valid/invalid FT identities and that
+unready firmware does not cause bootloader writes. Compiled DT address,
+GPIO/strap/state/geometry links and build policy are also checked. These tests
+do not measure the pins, generate real touch events or validate suspend/wake.
+
+The full kernel, appended image and GM8 DTB compile passed with the touch
+variants; all four power and four touch check groups passed. Existing VLA and
+debug-disabled unused-variable warnings are not suppressed. Matching these
+checks still does not establish phone bootability or vendor compatibility.
+
+### Upgrade the already-built power checkpoint
+
+The helper recognizes the exact **9530763** power checkpoint and applies
+`upgrades/9530763-touch.patch` in place. It also supports a direct upgrade from
+the exact **d06c76c** checkpoint by composing both deltas. The index must match
+a recognized baseline and tracked working files must be unchanged. A private
+index reconstructs the baseline, then one checked patch updates the real
+checkout. Conflicts and unrecognized changes are rejected without a reset.
+Both upgrade paths, repeat preparation and conflict rejection were tested.
+
+Update this tools checkout to the current branch and reuse the existing host
+image, source and output paths:
+
+```sh
+set -o pipefail
+sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$HOME/android:/work" \
+  -v "$HOME/android/gm8-kernel419-tools-v2:/port:ro" \
+  gm8-kernel419-host prepare --source /work/gm8-kernel419-v2
+
+sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$HOME/android:/work" \
+  -v "$HOME/android/gm8-kernel419-tools-v2:/port:ro" \
+  gm8-kernel419-host build --source /work/gm8-kernel419-v2 \
+  --out /work/out-gm8-kernel419-v2 --jobs 32 \
+  2>&1 | tee "$HOME/android/gm8-kernel419-v2-touch-build.log"
+```
+
+Expect eight `PASS` groups after compilation. This still produces standalone
+kernel/DTB artifacts. Android 12.1 boot-image/ramdisk/matrix integration is the
+next step before a controlled first phone boot; no OTA or boot image is
+packaged by this helper.
 
 Reproduce the header audit in an environment with LLVM 18 and both kernel
 source trees (including `include/uapi`, architecture UAPI and old staging ION
@@ -250,7 +336,7 @@ sudo docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 `prepare` clones the pinned base into a new directory and stages the patch for
 inspection. It does not reset an existing checkout. An existing directory is
 accepted if its HEAD matches the base and the cumulative patch can be reversed
-cleanly, or if it is the exact supported d06c76c checkpoint for the power upgrade.
+cleanly, or if it matches a supported d06c76c/9530763 upgrade baseline.
 Unrelated, conflicting or partially prepared checkouts fail instead of being
 overwritten. For other older checkpoints, choose new source/output directories.
 
