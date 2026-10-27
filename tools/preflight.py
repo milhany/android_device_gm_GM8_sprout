@@ -29,7 +29,8 @@ def main():
     if not args.source_only:
         for helper in ("apply-radio-compat.py", "apply-wifi-keystore-compat.py",
                        "apply-legacy-network-compat.py", "apply-processgroup-compat.py",
-                       "apply-runtime-compat.py", "fixup-legacy-protobuf.py"):
+                       "apply-runtime-compat.py", "apply-art-prefetch-compat.py",
+                       "fixup-legacy-protobuf.py"):
             check = subprocess.run(
                 [sys.executable, str(device / "tools" / helper), "--top", str(top), "--check"],
                 capture_output=True, text=True)
