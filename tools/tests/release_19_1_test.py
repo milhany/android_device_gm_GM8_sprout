@@ -118,9 +118,19 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     saved_umask = os.umask(0o077)
     try:
         release.generate_keys(plan, 'host-fixture-password', '/CN=GM8 Release Fixture')
+        release.require_existing_keys(plan)
         before = {str(p): release.digest(p) for p in keys.rglob('*') if p.is_file()}
         release.generate_keys(plan, 'host-fixture-password', '/CN=GM8 Release Fixture')
         assert before == {str(p): release.digest(p) for p in keys.rglob('*') if p.is_file()}
+        # An update must fail before key creation, including missing APEX keys.
+        missing = json.loads(json.dumps(plan))
+        missing['payloads'][str(keys / 'absent-payload')] = 4096
+        expect_failure(lambda: release.require_existing_keys(missing))
+        assert not (keys / 'absent-payload.pem').exists()
+        missing = json.loads(json.dumps(plan))
+        missing['certificates']['new'] = {'key': str(keys / 'absent-apk')}
+        expect_failure(lambda: release.require_existing_keys(missing))
+        assert not (keys / 'absent-apk.pk8').exists()
         for p in keys.rglob('*'):
             if p.is_file():
                 assert p.stat().st_mode & 0o077 == 0
@@ -235,6 +245,24 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     assert not result['migration_required'] and result['signing_verified']
     assert (output / 'gm8-19.1-user-release-boot.img').read_bytes() == b'ANDROID!fixture-boot'
     expect_failure(lambda: release.sign(plan, output, root, 'host-fixture-password'))
+
+    # Same cryptographic fixture, explicit update policy and no wipe metadata.
+    update_output = root / 'update-output'
+    update_output.mkdir()
+    update_plan = dict(plan, install_mode='update')
+    subprocess.run = signing_binaries
+    release.verify_target = lambda *args: 4
+    try:
+        release.sign(update_plan, update_output, root, 'host-fixture-password')
+    finally:
+        subprocess.run = actual_subprocess
+        release.verify_target = actual_verify
+    update_result = json.loads((update_output / 'release-verification.json').read_text())
+    assert update_result['install_mode'] == 'update'
+    assert not update_result['requires_format_data']
+    assert not update_result['installed_signing_identity_verified']
+    assert update_result['signing_verified']
+    assert '--wipe_user_data' not in binary_calls[-1]
 
 print('PASS: installed/embedded inventory, cert aliases, PRESIGNED preservation, '
       'encrypted/reused keys, actual CMS signature pinning/tamper detection, '

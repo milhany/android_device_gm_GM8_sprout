@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prepare private keys and sign/verify an existing GM8 user target-files ZIP.
 
-Prepares a clean-install release requiring a manual Format Data. Never flashes,
+Supports clean installs and updates reusing existing keys. Never flashes,
 edits packages.xml, disables signature checks or generates an automatic wipe OTA.
 """
 import argparse
@@ -243,6 +243,17 @@ def validate_private(base, password):
         raise ValueError(f'Private key/certificate mismatch: {base}')
 
 
+def require_existing_keys(plan):
+    """Check the complete plan before generating or changing any key material."""
+    required = []
+    for base in {c['key'] for c in plan['certificates'].values()}:
+        required.extend((Path(base + '.x509.pem'), Path(base + '.pk8')))
+    required.extend(Path(base + '.pem') for base in plan['payloads'])
+    for path in required:
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f'Update requires the original existing key; refusing to generate it: {path}')
+
+
 def generate_keys(plan, password, subject):
     for base in sorted({c['key'] for c in plan['certificates'].values()}):
         cert, private = Path(base + '.x509.pem'), Path(base + '.pk8')
@@ -403,6 +414,11 @@ def verify_ota(path, cert):
 
 
 def sign(plan, output, host, password):
+    install_mode = plan.get('install_mode', 'clean')
+    if install_mode not in ('clean', 'update'):
+        raise ValueError('Unknown installation mode')
+    if install_mode == 'update':
+        require_existing_keys(plan)
     if digest(plan['target']) != plan['target_sha256']:
         raise ValueError('Target-files changed since key preparation')
     signed = output / 'signed-target_files.zip'
@@ -444,13 +460,18 @@ def sign(plan, output, host, password):
     result = {'apks_checked': checked, 'apexes_in_archive': len(plan['apexes']),
               'signed_target_sha256': digest(signed), 'ota_sha256': digest(ota),
               'boot_sha256': digest(boot), 'ota_metadata': metadata,
-              'install_mode': 'clean', 'requires_format_data': True,
+              'install_mode': install_mode, 'requires_format_data': install_mode == 'clean',
+              'installed_signing_identity_verified': False,
               'migration_required': False, 'signing_verified': True,
               'device_tested': False}
     (output / 'release-verification.json').write_text(json.dumps(result, indent=2) + '\n')
     print(f'Verified signed OTA: {ota}')
     print(f'Matching signed recovery-as-boot image: {boot}')
-    print('CLEAN INSTALL: back up phone data, use the matching recovery and manually Format Data before installation.')
+    if install_mode == 'clean':
+        print('CLEAN INSTALL: back up phone data, use the matching recovery and manually Format Data before installation.')
+    else:
+        print('UPDATE: original existing keys reused; install over a ROM using these same keys. No Format Data requested.')
+        print('The signing identity of the installed phone has not been checked by this host tool.')
 
 
 def main():
@@ -461,6 +482,8 @@ def main():
     parser.add_argument('--key-dir', type=Path)
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--subject', default='/C=TR/O=GM8 Community/CN=GM8 Release')
+    parser.add_argument('--install-mode', choices=('clean', 'update'), default='clean',
+                        help='prepare only: update refuses missing keys and requests no Format Data')
     args = parser.parse_args()
     os.umask(0o077)
     try:
@@ -476,9 +499,14 @@ def main():
                 raise ValueError('prepare requires --target-files and --key-dir')
             if plan_file.exists():
                 raise ValueError('Plan exists; use its sign stage or a new output directory')
+            if args.install_mode == 'update' and not args.key_dir.expanduser().is_dir():
+                raise ValueError('Update requires an existing private key directory')
             keys = private_directory(args.key_dir, top)
             plan = inventory(top, args.target_files.expanduser().resolve(), keys, host)
-            password = key_password(confirm=True)
+            plan['install_mode'] = args.install_mode
+            if args.install_mode == 'update':
+                require_existing_keys(plan)
+            password = key_password(confirm=args.install_mode == 'clean')
             generate_keys(plan, password, args.subject)
             # Public certificate identities pin the generated keys for sign.
             plan['public_keys'] = public_map(plan)
