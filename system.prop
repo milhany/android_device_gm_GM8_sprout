@@ -49,7 +49,11 @@ debug.enable.sglscale=1
 vendor.display.enable_default_color_mode=1
 
 # Display Properties as per treble compliance
-vendor.gralloc.enable_fb_ubwc=1
+# HWC compatibility experiment for the legacy GM8 MDP and V415 GLES stack.
+# Prefer linear graphics/client-target buffers, keeping HWC available.
+vendor.gralloc.enable_fb_ubwc=0
+vendor.gralloc.disable_ubwc=1
+debug.gralloc.gfx_ubwc_disable=1
 vendor.display.disable_skip_validate=1
 
 #system props for the MM modules
