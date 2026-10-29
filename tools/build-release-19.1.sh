@@ -2,16 +2,23 @@
 # One entry point on ilhan@ubuntu or builder@gm8-build. No sync or flashing.
 set -eo pipefail
 
-if [[ $# -gt 1 || ( $# -eq 1 && "$1" != --inside ) ]]; then
-    echo "Usage: bash $0" >&2
-    exit 2
-fi
-if [[ "${1:-}" != --inside && "$(id -un)" != builder ]]; then
+GM8_INSIDE=false
+GM8_LMKD_TEST=false
+for GM8_ARG in "$@"; do
+    case "$GM8_ARG" in
+        --inside) GM8_INSIDE=true ;;
+        --lmkd-test) GM8_LMKD_TEST=true ;;
+        *) echo "Usage: bash $0 [--lmkd-test]" >&2; exit 2 ;;
+    esac
+done
+if [[ "$GM8_INSIDE" != true && "$(id -un)" != builder ]]; then
     command -v docker >/dev/null || { echo 'Run on the Docker host or as builder in gm8-build.' >&2; exit 1; }
     sudo docker start gm8-build >/dev/null
+    GM8_CONTAINER_ARGS=(--inside)
+    if [[ "$GM8_LMKD_TEST" == true ]]; then GM8_CONTAINER_ARGS+=(--lmkd-test); fi
     exec sudo docker exec -it --user builder \
         --workdir /home/builder/android/lineage-19.1 gm8-build \
-        bash device/gm/GM8_sprout/tools/build-release-19.1.sh --inside
+        bash device/gm/GM8_sprout/tools/build-release-19.1.sh "${GM8_CONTAINER_ARGS[@]}"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,6 +53,9 @@ RUN_DIR="$(mktemp -d "$RELEASE_ROOT/$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")"
 echo "Build log: $RUN_DIR/build.log"
 (
     trap 'echo "FAILED: release incomplete; previous latest release preserved. See $RUN_DIR/build.log" >&2' ERR
+    if [[ "$GM8_LMKD_TEST" == true ]]; then
+        bash "$SCRIPT_DIR/select-lmkd-test-19.1.sh"
+    fi
     python3 "$SCRIPT_DIR/clean-kernel-19.1.py" --top "$TOP"
     bash "$SCRIPT_DIR/build-19.1.sh" target-files user
     GM8_TARGETS=(out/target/product/GM8_sprout/obj/PACKAGING/target_files_intermediates/*target_files*.zip)
@@ -63,4 +73,8 @@ echo "Build log: $RUN_DIR/build.log"
     echo "SIGNED ZIP: $RELEASE_ROOT/latest/gm8-19.1-user-release.zip"
     echo "BOOT IMAGE: $RELEASE_ROOT/latest/gm8-19.1-user-release-boot.img"
     echo "BUILD LOG: $RUN_DIR/build.log"
+    if [[ "$GM8_LMKD_TEST" == true ]]; then
+        echo 'BUILD ONLY. Phone is on stock Pie: return to Lineage requires a backed-up clean installation.'
+        echo 'The signing helper update label refers to Lineage keys, not stock-to-Lineage compatibility.'
+    fi
 ) 2>&1 | tee "$RUN_DIR/build.log"

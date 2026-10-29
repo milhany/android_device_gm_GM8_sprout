@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--top", type=Path, default=Path(__file__).resolve().parents[4],
                         help="Android source root (default: inferred from device/gm/GM8_sprout)")
     parser.add_argument("--source-only", action="store_true",
-                        help="check device/vendor inputs only; does not satisfy the build gate")
+                        help="check device/vendor/kernel inputs only; does not satisfy the build gate")
     args = parser.parse_args()
     top = args.top.resolve()
     device = top / "device/gm/GM8_sprout"
@@ -48,6 +48,12 @@ def main():
                         "CONFIG_CGROUP_CPUACCT", "CONFIG_CPUSETS"):
             if not re.search(r"^" + feature + r"=y$", config, re.M):
                 errors.append(f"Legacy GM8 compatibility requires built-in {feature}.")
+
+    memory_check = subprocess.run(
+        [sys.executable, str(device / "tools/check-lmkd-compat.py"), "--top", str(top)] +
+        (["--source-only"] if args.source_only else []), capture_output=True, text=True)
+    if memory_check.returncode:
+        errors.append(memory_check.stderr.strip() or "GM8 LMKD candidate checks failed.")
 
     # Legacy Qualcomm used input property 0x06 for a private resume quirk.
     # Android 12 interprets that bit as an accelerometer and selects BOOTTIME.
@@ -81,10 +87,15 @@ def main():
             "HighPerformance", "MaxPerformance", "RealtimePerformance",
             "CameraServicePerformance", "NNApiHALPerformance", "Dex2oatPerformance",
         }
-        if ({p["Name"] for p in profiles} != expected_profiles or
-                len(profiles) != len(expected_profiles)):
-            errors.append("GM8 must override all nine Android CPU performance profiles.")
+        memory_profiles = {"LowMemoryUsage", "HighMemoryUsage"}
+        if ({p["Name"] for p in profiles} != expected_profiles | memory_profiles or
+                len(profiles) != len(expected_profiles | memory_profiles)):
+            errors.append("GM8 must override nine CPU profiles and two shared memory profiles.")
         for profile in profiles:
+            if profile["Name"] in memory_profiles:
+                if profile["Actions"]:
+                    errors.append("Shared memcg groups must not receive per-app memory limits.")
+                continue
             # Child CFS groups default to zero RT runtime on this 3.18 kernel.
             # Bluetooth timer callbacks and SurfaceFlinger need SCHED_FIFO.
             if profile["Actions"] != [{"Name": "JoinCgroup", "Params": {

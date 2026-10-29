@@ -51,6 +51,7 @@ RECORD_DIR="$(dirname "${TOP}")/gm8-19.1-records/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "${RECORD_DIR}"
 printf 'stage=%s\nvariant=%s\n' "${STAGE}" "${BUILD_VARIANT}" > "${RECORD_DIR}/build-selection.txt"
 repo manifest -r -o "${RECORD_DIR}/manifest.xml"
+git -C system/memory/lmkd rev-parse HEAD > "${RECORD_DIR}/lmkd-revision.txt"
 for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 vendor/gapps; do
     printf '%s ' "${PROJECT}" >> "${RECORD_DIR}/revisions.txt"
     git -C "${PROJECT}" rev-parse HEAD >> "${RECORD_DIR}/revisions.txt"
@@ -79,9 +80,16 @@ case "${STAGE}" in
     rom) m bacon -j32 ;;
     target-files)
         m target-files-package otatools -j32
+        python3 device/gm/GM8_sprout/tools/check-lmkd-compat.py --built
+        cp out/target/product/GM8_sprout/obj/KERNEL_OBJ/.config "${RECORD_DIR}/kernel.config"
         python3 device/gm/GM8_sprout/tools/inspect-release-19.1.py \
             --product-out "$(get_build_var PRODUCT_OUT)" \
             --variant "${BUILD_VARIANT}" --output "${RECORD_DIR}/signing-inputs.txt"
         echo "Target-files preparation only: sign and plan key migration before installation."
         ;;
 esac
+
+if [[ "${STAGE}" == boot || "${STAGE}" == rom ]]; then
+    python3 device/gm/GM8_sprout/tools/check-lmkd-compat.py --built
+    cp out/target/product/GM8_sprout/obj/KERNEL_OBJ/.config "${RECORD_DIR}/kernel.config"
+fi

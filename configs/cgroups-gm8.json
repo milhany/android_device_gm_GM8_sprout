@@ -6,6 +6,14 @@
       "Mode": "0000",
       "UID": "",
       "GID": ""
+    },
+    {
+      "Controller": "memory",
+      "Path": "/dev/memcg",
+      "Mode": "0700",
+      "UID": "root",
+      "GID": "system",
+      "Optional": false
     }
   ]
 }

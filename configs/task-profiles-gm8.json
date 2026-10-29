@@ -107,6 +107,14 @@
           }
         }
       ]
+    },
+    {
+      "Name": "LowMemoryUsage",
+      "Actions": []
+    },
+    {
+      "Name": "HighMemoryUsage",
+      "Actions": []
     }
   ]
 }

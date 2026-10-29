@@ -130,3 +130,9 @@ wifi.mac_rand_no_keystore=true
 # Stock 3.18 has xt_qtaguid, not the Android 12 eBPF ABI.
 # Requires the paired system/bpf + system/netd patches checked by preflight.
 ro.kernel.ebpf.supported=false
+
+# Paired with the memcg-enabled / in-kernel-LMK-disabled 3.18 candidate.
+# Keep framework minfree thresholds; PSI is not available on this kernel.
+ro.lmk.use_psi=false
+ro.lmk.use_minfree_levels=true
+ro.config.per_app_memcg=false

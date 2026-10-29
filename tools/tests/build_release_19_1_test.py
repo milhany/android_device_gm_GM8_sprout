@@ -75,8 +75,24 @@ else:
     source = top / 'kernel/gm/msm8937/Makefile'
     source.write_text('source preserved')
 
-    def invoke(extra=None):
-        return subprocess.run(['bash', str(device / 'build-release-19.1.sh'), '--inside'],
+    executable(device / 'selector-fixture.py', '''import fcntl, os, pathlib, sys
+lock = pathlib.Path(__file__).resolve().parents[5] / 'gm8-release/.build.lock'
+with lock.open('a') as stream:
+    try:
+        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        pass
+    else:
+        raise AssertionError('Source selector ran outside the build lock')
+if os.environ.get('GM8_FIXTURE_SELECT_FAIL') == '1':
+    sys.exit(44)
+''')
+    executable(device / 'select-lmkd-test-19.1.sh',
+               '#!/bin/bash\nexec python3 "$(dirname "$0")/selector-fixture.py"\n')
+
+    def invoke(extra=None, candidate=False):
+        return subprocess.run(['bash', str(device / 'build-release-19.1.sh'), '--inside'] +
+                              (['--lmkd-test'] if candidate else []),
                               env=dict(env, **(extra or {})), capture_output=True, text=True)
 
     result = invoke()
@@ -105,6 +121,22 @@ else:
     with (latest.parent / '.build.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         result = invoke()
+        assert result.returncode != 0 and 'already running' in result.stderr
+
+    # Candidate source selection must hold the same build lock and fail
+    # before removing outputs or starting a build/sign step.
+    kernel.mkdir()
+    (kernel / 'old').touch()
+    result = invoke({'GM8_FIXTURE_SELECT_FAIL': '1'}, candidate=True)
+    assert result.returncode != 0 and (kernel / 'old').exists()
+    assert latest.resolve() == second
+    result = invoke(candidate=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'stock Pie' in result.stdout
+    second = latest.resolve()
+    with (latest.parent / '.build.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        result = invoke(candidate=True)
         assert result.returncode != 0 and 'already running' in result.stderr
 
     # Reject a path escape before any removal, even if it points inside out/.
