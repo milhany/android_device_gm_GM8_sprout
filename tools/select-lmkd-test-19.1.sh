@@ -4,9 +4,10 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 cd "$TOP"
-for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937; do
+for PROJECT in device/gm/GM8_sprout kernel/gm/msm8937; do
     if ! git -C "$PROJECT" diff --quiet || ! git -C "$PROJECT" diff --cached --quiet; then
         echo "Tracked local edits in $PROJECT; preserve/commit them before selecting this candidate." >&2
+        git -C "$PROJECT" status --short --untracked-files=no >&2
         exit 1
     fi
 done
@@ -22,7 +23,10 @@ for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937; do
     printf '%s ' "$PROJECT" >> "$RECORD"
     git -C "$PROJECT" rev-parse HEAD >> "$RECORD"
 done
+# Protobuf preparation intentionally rewrites tracked vendor ELFs. Preserve
+# non-overlapping edits and their index state; never reset or stash them.
+python3 "$SCRIPT_DIR/switch-vendor-preserving-edits.py" \
+    --repo vendor/gm/GM8_sprout --ref "$VENDOR_SHA" --record-dir "${RECORD%.txt}.vendor"
 git -C kernel/gm/msm8937 switch --detach "$KERNEL_SHA"
-git -C vendor/gm/GM8_sprout switch --detach "$VENDOR_SHA"
 python3 "$SCRIPT_DIR/check-lmkd-compat.py" --top "$TOP"
 echo "Previous revisions: $RECORD"
