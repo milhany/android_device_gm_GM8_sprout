@@ -4,8 +4,8 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/product_launched_with_o.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
-# Setup dalvik vm configs
-$(call inherit-product, frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk)
+# Controlled GM8 trial: reproduce the observed stock Pie heap profile.
+$(call inherit-product, $(LOCAL_PATH)/configs/heap-gm8-pie.mk)
 
 # Use install/cloud and runtime profiles to select app code for compilation.
 # Full speed compilation of large apps can exceed ART's watchdog on this SoC.

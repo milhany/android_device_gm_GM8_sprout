@@ -41,6 +41,17 @@ def main():
         if not version or version[1] != "32":
             errors.append("This branch requires a LineageOS 19.1 / Android 12.1 (SDK 32) source tree.")
 
+        # Keep the stock-heap trial independent of persistent local edits from
+        # the separate ART prefetch experiment. Refuse a mixed baseline.
+        runtime_mk = top / "build/make/target/product/runtime_libart.mk"
+        runtime_text = runtime_mk.read_text() if runtime_mk.is_file() else ""
+        for name in ("dalvik.vm.madvise.odexfile.size", "dalvik.vm.madvise.vdexfile.size"):
+            values = re.findall(r"^\s*" + re.escape(name) + r"=(\d+)\b", runtime_text, re.M)
+            if values != ["104857600"]:
+                errors.append("Stock-heap trial needs the original 100 MiB ART prefetch defaults: "
+                              + name + ". Restore the separate I/O trial before switching branches; "
+                              "see docs/STOCK-PIE-COMPARISON-20261029.md.")
+
         kernel_config = top / "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig"
         config = kernel_config.read_text() if kernel_config.is_file() else ""
         for feature in ("CONFIG_NETFILTER_XT_MATCH_QTAGUID", "CONFIG_NETFILTER_XT_MATCH_QUOTA2",
