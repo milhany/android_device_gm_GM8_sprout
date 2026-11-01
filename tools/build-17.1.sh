@@ -42,7 +42,7 @@ done
 m nothing -j32
 case "$STAGE" in
     boot) m bootimage GM8Dolby -j32 ;;
-    target-files) m target-files-package otatools -j32 ;;
+    target-files) m target-files-package otatools apksigner -j32 ;;
 esac
 echo "Build records: $RECORD"
 echo 'Bring-up only: no release signing, OTA generation or hardware validation performed.'
