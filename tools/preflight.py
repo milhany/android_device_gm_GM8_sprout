@@ -83,7 +83,7 @@ def main():
 
     # Runtime overlays are Make modules in the Q branch, not Soong RRO modules.
     for blueprint in device.rglob("Android.bp"):
-        if re.search(r"^\\s*runtime_resource_overlay\\s*\\{", blueprint.read_text(), re.M):
+        if re.search(r"^\s*runtime_resource_overlay\s*\{", blueprint.read_text(), re.M):
             errors.append("Android 10 requires BUILD_RRO_PACKAGE instead of runtime_resource_overlay: "
                           + str(blueprint.relative_to(device)))
     overlay_make = device / "rro_overlays/CarrierConfigOverlay/Android.mk"
@@ -95,8 +95,8 @@ def main():
         errors.append("Remove the vendored libperfmgr definition; use system/extras/libperfmgr.")
 
     board = (device / "BoardConfig.mk").read_text()
-    if (not re.search(r"^USE_DEVICE_SPECIFIC_THERMAL\\s*:?=\\s*true$", board, re.M) or
-            not re.search(r"^DEVICE_SPECIFIC_THERMAL_PATH\\s*:?=\\s*\\$\\(DEVICE_PATH\\)/thermal$", board, re.M)):
+    if (not re.search(r"^USE_DEVICE_SPECIFIC_THERMAL\s*:?=\s*true$", board, re.M) or
+            not re.search(r"^DEVICE_SPECIFIC_THERMAL_PATH\s*:?=\s*\$\(DEVICE_PATH\)/thermal$", board, re.M)):
         errors.append("Select the stock GM8 thermal HAL through the Q device-specific path.")
     for arch in ("lib", "lib64"):
         stock_thermal = f"proprietary/vendor/{arch}/hw/thermal.msm8937.so"
