@@ -1,6 +1,7 @@
 # Only vendor init scripts publish the selected fingerprint driver. The value
 # is non-sensitive and readable from adb for hardware diagnostics.
-vendor_restricted_prop(vendor_gm8_fingerprint_prop)
+# Q uses explicit property types; vendor_restricted_prop is a newer macro.
+type vendor_gm8_fingerprint_prop, property_type;
 set_prop(qti_init_shell, vendor_gm8_fingerprint_prop)
 get_prop(shell, vendor_gm8_fingerprint_prop)
 

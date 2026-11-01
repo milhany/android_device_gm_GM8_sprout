@@ -7,7 +7,9 @@ type hal_gm8_dolby_default_exec, exec_type, vendor_file_type, file_type;
 init_daemon_domain(hal_gm8_dolby_default)
 hwbinder_use(hal_gm8_dolby_default)
 
-type hal_gm8_dolby_hwservice, hwservice_manager_type, protected_hwservice;
+# Q restricts app access to non-exempt hwservice_manager_type services in
+# app_neverallows.te; protected_hwservice is not defined on this platform.
+type hal_gm8_dolby_hwservice, hwservice_manager_type;
 hal_attribute_hwservice(hal_gm8_dolby, hal_gm8_dolby_hwservice)
 binder_call(hal_gm8_dolby_client, hal_gm8_dolby_server)
 binder_call(hal_gm8_dolby_server, hal_gm8_dolby_client)
