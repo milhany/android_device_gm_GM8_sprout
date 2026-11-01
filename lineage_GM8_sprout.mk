@@ -1,5 +1,5 @@
 #
-# General Mobile GM 8 - LineageOS 18.1
+# General Mobile GM 8 - LineageOS 17.1
 #
 
 $(call inherit-product, device/gm/GM8_sprout/device.mk)
@@ -13,16 +13,8 @@ TARGET_BOOT_ANIMATION_RES := 720
 TARGET_EXCLUDES_AUDIOFX := true
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
-# Preserve the existing Android 11 Google Mobile Services integration.
-# Do not silently produce a vanilla image when the proprietary GApps checkout
-# is missing; that made previous test builds boot without GmsCore/Play Store.
-ifneq ($(wildcard vendor/gapps/arm64/arm64-vendor.mk),)
-$(call inherit-product, vendor/gapps/arm64/arm64-vendor.mk)
-else ifneq ($(wildcard vendor/partner_gms/products/gms.mk),)
-$(call inherit-product, vendor/partner_gms/products/gms.mk)
-else
-$(error GM8_sprout: GApps tree missing. Run device/gm/GM8_sprout/setup-gapps.sh from the Android source root before building)
-endif
+# Initial bring-up is vanilla. Never import the Android 11/12 GApps checkout.
+# Add an explicitly verified Android 10 package only after the base boots.
 
 # Device-specific applications not supplied by the common phone profile.
 PRODUCT_PACKAGES += \

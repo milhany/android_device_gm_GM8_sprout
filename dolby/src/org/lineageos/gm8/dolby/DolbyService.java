@@ -6,41 +6,93 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
+import android.media.AudioPlaybackConfiguration;
+import java.util.List;
+import android.media.AudioPatch;
+import android.media.AudioPort;
+import android.media.AudioSystem;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.IHwBinder;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
 
-/** Keeps one global DAP instance alive, including after an audioserver restart. */
+/** Owns the global DAP effect and stops automatically after an unsafe attach. */
 public final class DolbyService extends Service {
     static final String PREFS = "dolby";
     static volatile int status = R.string.starting;
     private static final String TAG = "GM8Dolby";
+    private static final long STABLE_MS = 5000;
     private HandlerThread thread;
     private Handler worker;
     private StockDolbyEffect effect;
+    private StockDmsClient dms;
+    private long dmsGeneration;
     private SharedPreferences prefs;
     private AudioManager audio;
     private boolean registered;
-    private final SharedPreferences.OnSharedPreferenceChangeListener listener =
-            (p, key) -> worker.post(this::apply);
+    private Boolean lastRouteAllowed;
+    private final AudioManager.AudioPlaybackCallback playbackCallback =
+            new AudioManager.AudioPlaybackCallback() {
+        @Override public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
+            updateRoute(); // Registered on the worker; also catches playback start/stop.
+        }
+    };
+    private final AudioManager.OnAudioPortUpdateListener routeListener =
+            new AudioManager.OnAudioPortUpdateListener() {
+        @Override public void onAudioPortListUpdate(AudioPort[] ports) {
+            worker.post(DolbyService.this::updateRoute);
+        }
+        @Override public void onAudioPatchListUpdate(AudioPatch[] patches) {
+            worker.post(DolbyService.this::updateRoute);
+        }
+        @Override public void onServiceDied() {
+            // The audio-server state callback handles native object teardown.
+        }
+    };
+    private boolean attaching;
+    private final Runnable attach = this::apply;
+    private final Runnable verify = this::verify;
+    private final IHwBinder.DeathRecipient dmsDeath = cookie -> worker.post(() -> {
+        if (cookie == dmsGeneration && dms != null) {
+            dms = null;
+            pause("Stock Dolby DMS died; waiting for an explicit retry", null);
+        }
+    });
+    private final SharedPreferences.OnSharedPreferenceChangeListener listener = (p, key) -> {
+        // Internal checkpoints must never schedule another native transaction.
+        if ("enabled".equals(key) || "profile".equals(key) || "retry".equals(key)) {
+            worker.post(() -> {
+                if ("retry".equals(key) || ("enabled".equals(key)
+                        && p.getBoolean("enabled", true))) {
+                    prefs.edit().putBoolean("paused", false).commit();
+                }
+                schedule();
+            });
+        }
+    };
     private final AudioManager.AudioServerStateCallback serverCallback =
             new AudioManager.AudioServerStateCallback() {
         @Override public void onAudioServerDown() {
-            worker.removeCallbacks(retry);
-            releaseEffect();
-            status = R.string.starting;
+            worker.removeCallbacks(attach);
+            worker.removeCallbacks(verify);
+            if (attaching) {
+                pause("Audio server died during Dolby attachment", null);
+            } else {
+                releaseEffect();
+                status = prefs.getBoolean("paused", false) ? R.string.paused
+                        : prefs.getBoolean("enabled", true) ? R.string.starting : R.string.inactive;
+            }
         }
         @Override public void onAudioServerUp() {
-            apply();
+            if (effect == null && !prefs.getBoolean("paused", false)) schedule();
         }
     };
-    private final Runnable retry = this::apply;
 
     @Override public void onCreate() {
         super.onCreate();
-        // This ROM's global output mix is controlled by the primary user.
         if (UserHandle.myUserId() != UserHandle.USER_SYSTEM) {
             stopSelf();
             return;
@@ -49,37 +101,132 @@ public final class DolbyService extends Service {
         thread.start();
         worker = new Handler(thread.getLooper());
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        // Survives a native crash or process death before Java can catch an error.
+        if (prefs.getBoolean("attaching", false)) {
+            prefs.edit().putBoolean("paused", true).putBoolean("attaching", false).commit();
+        }
         prefs.registerOnSharedPreferenceChangeListener(listener);
         audio = getSystemService(AudioManager.class);
         audio.setAudioServerStateCallback(command -> worker.post(command), serverCallback);
+        audio.registerAudioPortUpdateListener(routeListener);
+        audio.registerAudioPlaybackCallback(playbackCallback, worker);
         registered = true;
-        worker.post(this::apply);
+        worker.post(this::updateRoute);
+    }
+
+    private boolean routeAllowsDap() {
+        try {
+            return DolbyRoutePolicy.allowsDap(audio.getMode(),
+                    AudioSystem.getDevicesForStream(AudioSystem.STREAM_MUSIC));
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Cannot determine audio route; bypassing Dolby", e);
+            return false;
+        }
+    }
+
+    private void updateRoute() {
+        boolean allowed = routeAllowsDap();
+        if (lastRouteAllowed == null || lastRouteAllowed != allowed) {
+            lastRouteAllowed = allowed;
+            worker.removeCallbacks(attach);
+            if (allowed) schedule();
+            else apply(); // No attach debounce when entering receiver/call routing.
+        }
+    }
+
+    private void schedule() {
+        worker.removeCallbacks(attach);
+        worker.removeCallbacks(verify);
+        worker.postDelayed(attach, 1000);
     }
 
     private void apply() {
-        worker.removeCallbacks(retry);
+        worker.removeCallbacks(verify);
+        boolean enabled = prefs.getBoolean("enabled", true);
+        if (!enabled || !routeAllowsDap()) {
+            // Explicitly disable DAP's shared native state before releasing
+            // our handles. Keep the user's preference for the next media route.
+            if (effect != null) {
+                try {
+                    effect.apply(false, prefs.getInt("profile", 2));
+                } catch (RuntimeException | LinkageError e) {
+                    pause("Cannot bypass Dolby on receiver/call routing", e);
+                    return;
+                }
+            }
+            releaseEffect();
+            releaseDms();
+            attaching = false;
+            prefs.edit().putBoolean("attaching", false).commit();
+            status = enabled ? R.string.receiver_bypass : R.string.inactive;
+            return;
+        }
+        if (prefs.getBoolean("paused", false)) {
+            status = R.string.paused;
+            return;
+        }
+        // Commit before touching native audio so a process restart cannot loop.
+        if (!prefs.edit().putBoolean("attaching", true).commit()) {
+            status = R.string.paused;
+            return;
+        }
+        attaching = true;
+        status = R.string.starting;
         try {
+            if (dms == null) dms = new StockDmsClient(dmsDeath, ++dmsGeneration);
             if (effect == null) {
                 effect = new StockDolbyEffect();
-                // Reactivate the engine after temporary AudioEffect clients release it.
                 effect.setControlStatusListener((e, control) -> {
-                    if (control) worker.post(this::apply);
-                    else status = R.string.unavailable;
+                    if (e != effect) return;
+                    if (control && !prefs.getBoolean("paused", false)) schedule();
+                    else if (!control) status = R.string.unavailable;
                 });
             }
-            boolean enabled = prefs.getBoolean("enabled", true);
-            int profile = prefs.getInt("profile", 2);
-            effect.apply(enabled, profile);
-            if (effect.isDapEnabled() != enabled || effect.profile() != profile) {
+            effect.apply(true, prefs.getInt("profile", 2));
+            worker.postDelayed(verify, STABLE_MS);
+        } catch (RemoteException | RuntimeException | LinkageError e) {
+            pause("Dolby attachment failed; waiting for an explicit retry", e);
+        }
+    }
+
+    private void verify() {
+        if (!routeAllowsDap()) {
+            apply();
+            return;
+        }
+        try {
+            if (effect == null || !effect.isDapEnabled()
+                    || effect.profile() != prefs.getInt("profile", 2)) {
                 throw new IllegalStateException("Dolby did not accept the requested settings");
             }
-            status = enabled ? R.string.active : R.string.inactive;
-            Log.i(TAG, "DAP ready: enabled=" + enabled + " profile=" + profile);
-        } catch (RuntimeException e) {
-            status = R.string.unavailable;
-            Log.w(TAG, "Cannot attach GM8 stock DAP; retrying in 10s", e);
-            releaseEffect();
-            worker.postDelayed(retry, 10000);
+            if (!prefs.edit().putBoolean("attaching", false).commit()) {
+                throw new IllegalStateException("Cannot save Dolby attachment checkpoint");
+            }
+            attaching = false;
+            status = R.string.active;
+            Log.i(TAG, "DAP ready: enabled=true profile=" + prefs.getInt("profile", 2));
+        } catch (RuntimeException | LinkageError e) {
+            pause("Dolby verification failed; waiting for an explicit retry", e);
+        }
+    }
+
+    private void pause(String reason, Throwable error) {
+        worker.removeCallbacks(attach);
+        worker.removeCallbacks(verify);
+        prefs.edit().putBoolean("paused", true).putBoolean("attaching", false).commit();
+        attaching = false;
+        status = R.string.paused;
+        Log.w(TAG, reason, error);
+        releaseEffect();
+        releaseDms();
+    }
+
+    private void releaseDms() {
+        if (dms != null) {
+            StockDmsClient previous = dms;
+            dms = null;
+            ++dmsGeneration;
+            previous.close();
         }
     }
 
@@ -103,10 +250,16 @@ public final class DolbyService extends Service {
     @Override public void onDestroy() {
         if (worker != null) {
             prefs.unregisterOnSharedPreferenceChangeListener(listener);
-            if (registered) audio.clearAudioServerStateCallback();
+            if (registered) {
+                audio.clearAudioServerStateCallback();
+                audio.unregisterAudioPortUpdateListener(routeListener);
+                audio.unregisterAudioPlaybackCallback(playbackCallback);
+            }
             worker.removeCallbacksAndMessages(null);
             worker.post(() -> {
                 releaseEffect();
+                releaseDms();
+                prefs.edit().putBoolean("attaching", false).commit();
                 thread.quitSafely();
             });
         }

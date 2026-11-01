@@ -1,0 +1,161 @@
+{
+  "description": "GM8 build-411 DolbyMemoryService inline ABuffer accessors: API 27 to API 30 layout. AHandler/ALooper and AMessage data layouts are unchanged.",
+  "abis": {
+    "lib64": {
+      "machine": "EM_AARCH64",
+      "build_id": "6b9a557bc7e6f5bd8803a8aebf97e2da",
+      "patches": [
+        {
+          "address": "0x5b94",
+          "before": "2a1140f9",
+          "after": "2a0d40f9",
+          "field": "mData",
+          "old": "ldr x10, [x9, #0x20]",
+          "new": "ldr x10, [x9, #0x18]"
+        },
+        {
+          "address": "0x5b98",
+          "before": "291940f9",
+          "after": "291540f9",
+          "field": "mRangeOffset",
+          "old": "ldr x9, [x9, #0x30]",
+          "new": "ldr x9, [x9, #0x28]"
+        },
+        {
+          "address": "0x5ce0",
+          "before": "2a1140f9",
+          "after": "2a0d40f9",
+          "field": "mData",
+          "old": "ldr x10, [x9, #0x20]",
+          "new": "ldr x10, [x9, #0x18]"
+        },
+        {
+          "address": "0x5ce4",
+          "before": "291940f9",
+          "after": "291540f9",
+          "field": "mRangeOffset",
+          "old": "ldr x9, [x9, #0x30]",
+          "new": "ldr x9, [x9, #0x28]"
+        },
+        {
+          "address": "0x5e60",
+          "before": "2b1140f9",
+          "after": "2b0d40f9",
+          "field": "mData",
+          "old": "ldr x11, [x9, #0x20]",
+          "new": "ldr x11, [x9, #0x18]"
+        },
+        {
+          "address": "0x5e64",
+          "before": "2c1940f9",
+          "after": "2c1540f9",
+          "field": "mRangeOffset",
+          "old": "ldr x12, [x9, #0x30]",
+          "new": "ldr x12, [x9, #0x28]"
+        },
+        {
+          "address": "0x5e68",
+          "before": "223940b9",
+          "after": "223140b9",
+          "field": "mRangeLength",
+          "old": "ldr w2, [x9, #0x38]",
+          "new": "ldr w2, [x9, #0x30]"
+        },
+        {
+          "address": "0x5f3c",
+          "before": "553940b9",
+          "after": "553140b9",
+          "field": "mRangeLength",
+          "old": "ldr w21, [x10, #0x38]",
+          "new": "ldr w21, [x10, #0x30]"
+        },
+        {
+          "address": "0x5f40",
+          "before": "581140f9",
+          "after": "580d40f9",
+          "field": "mData",
+          "old": "ldr x24, [x10, #0x20]",
+          "new": "ldr x24, [x10, #0x18]"
+        },
+        {
+          "address": "0x5f44",
+          "before": "591940f9",
+          "after": "591540f9",
+          "field": "mRangeOffset",
+          "old": "ldr x25, [x10, #0x30]",
+          "new": "ldr x25, [x10, #0x28]"
+        }
+      ]
+    },
+    "lib": {
+      "machine": "EM_ARM",
+      "build_id": "86cb48a475c7c668530d8219157c435a",
+      "patches": [
+        {
+          "address": "0x4700",
+          "before": "0169",
+          "after": "c168",
+          "field": "mData",
+          "old": "ldr r1, [r0, #0x10]",
+          "new": "ldr r1, [r0, #0xc]"
+        },
+        {
+          "address": "0x4702",
+          "before": "8069",
+          "after": "4069",
+          "field": "mRangeOffset",
+          "old": "ldr r0, [r0, #0x18]",
+          "new": "ldr r0, [r0, #0x14]"
+        },
+        {
+          "address": "0x47c8",
+          "before": "0169",
+          "after": "c168",
+          "field": "mData",
+          "old": "ldr r1, [r0, #0x10]",
+          "new": "ldr r1, [r0, #0xc]"
+        },
+        {
+          "address": "0x47ca",
+          "before": "8069",
+          "after": "4069",
+          "field": "mRangeOffset",
+          "old": "ldr r0, [r0, #0x18]",
+          "new": "ldr r0, [r0, #0x14]"
+        },
+        {
+          "address": "0x48c2",
+          "before": "0169",
+          "after": "c168",
+          "field": "mData",
+          "old": "ldr r1, [r0, #0x10]",
+          "new": "ldr r1, [r0, #0xc]"
+        },
+        {
+          "address": "0x48c4",
+          "before": "d0e90632",
+          "after": "d0e90532",
+          "field": "mRangeOffset+mRangeLength",
+          "old": "ldrd r3, r2, [r0, #0x18]",
+          "new": "ldrd r3, r2, [r0, #0x14]"
+        },
+        {
+          "address": "0x490a",
+          "before": "d0f81090",
+          "after": "d0f80c90",
+          "field": "mData",
+          "old": "ldr.w sb, [r0, #0x10]",
+          "new": "ldr.w sb, [r0, #0xc]"
+        },
+        {
+          "address": "0x490e",
+          "before": "d0e906b6",
+          "after": "d0e905b6",
+          "field": "mRangeOffset+mRangeLength",
+          "old": "ldrd fp, r6, [r0, #0x18]",
+          "new": "ldrd fp, r6, [r0, #0x14]"
+        }
+      ]
+    }
+  }
+}
