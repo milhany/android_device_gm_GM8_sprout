@@ -5,7 +5,9 @@
 $(call inherit-product, device/gm/GM8_sprout/device.mk)
 
 PRODUCT_GMS_CLIENTID_BASE := android-a1-gm-rev2
-TARGET_BOOT_ANIMATION_RES := 720
+# Boot animation dimensions for the GM8 18:9 panel (LineageOS Q).
+TARGET_SCREEN_WIDTH := 720
+TARGET_SCREEN_HEIGHT := 1440
 
 # Restore the complete Lineage phone profile, including LineageParts,
 # SetupWizard, Updater, themes, SDK and the standard mobile applications.
