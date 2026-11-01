@@ -74,6 +74,15 @@ def main():
             return True
         return args.metadata_only and path.is_relative_to(vendor) and str(path.relative_to(vendor)) in vendor_inputs
 
+    # Runtime overlays are Make modules in the Q branch, not Soong RRO modules.
+    for blueprint in device.rglob("Android.bp"):
+        if re.search(r"^\\s*runtime_resource_overlay\\s*\\{", blueprint.read_text(), re.M):
+            errors.append("Android 10 requires BUILD_RRO_PACKAGE instead of runtime_resource_overlay: "
+                          + str(blueprint.relative_to(device)))
+    overlay_make = device / "rro_overlays/CarrierConfigOverlay/Android.mk"
+    if not overlay_make.is_file():
+        errors.append("Missing Android 10 CarrierConfigOverlay Make definition.")
+
     xml_count = 0
     for path in device.rglob("*.xml"):
         try:
