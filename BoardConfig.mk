@@ -161,7 +161,7 @@ TARGET_PROVIDES_QTI_TELEPHONY_JAR := true
 # SELinux
 # Lineage build/core/config.mk includes its common policy after device config.
 # Add only the device-specific Qualcomm and GM8 policy here.
-include device/qcom/sepolicy-legacy-um/SEPolicy.mk
+include device/qcom/sepolicy-legacy-um/sepolicy.mk
 BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
 
 # VINTF

@@ -108,3 +108,25 @@ not hash all proprietary files or validate Android modules. The actual Java
 route policy compiled and passed 54 mode/route cases. A generated H.264 MOV
 was inspected successfully by the ffprobe helper, with filenames/tags omitted.
 No full Android build, native DMS playback or device boot has been tested here.
+
+## Android 10 checkout paths and Python
+
+The Q policy entry point is device/qcom/sepolicy-legacy-um/sepolicy.mk
+(lowercase). The 17.1 extraction helper belongs to
+vendor/lineage/build/tools/extract_utils.sh, not tools/extract-utils.
+Preflight no longer requires extraction tooling to build an already-synced
+proprietary vendor tree; the two extraction scripts use the correct Q helper.
+
+The GCC wrapper explicitly uses env python2. The build entry point first
+probes the synced prebuilts/python/linux-x86/2.7.5/bin/python2 and temporarily
+prepends that directory to its own PATH. A runnable host python2.7 is a
+fallback. Python 3 is retained for the GM8 preflight/fixup scripts; system
+interpreter symlinks and update-alternatives are not changed. If neither
+Python 2 candidate can run, stop before building and repair the interpreter
+inside gm8-build. No host Ubuntu 26 Python downgrade is needed.
+
+Host make fixtures reproduced the old case-sensitive include failure and
+confirmed that the corrected real BoardConfig/policy collect both QCOM and
+GM8 policy directories. Shell syntax and Python source parsing were checked.
+A complete Android build and the interpreter's behavior in the user's
+container remain separate checks.

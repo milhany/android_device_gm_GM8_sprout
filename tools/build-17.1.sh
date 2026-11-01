@@ -10,9 +10,27 @@ if ! grep -Eq '^[[:space:]]*PLATFORM_SDK_VERSION[[:space:]]*:?=[[:space:]]*29[[:
     echo 'Expected separate LineageOS 17.1 / SDK 29 checkout. Do not reuse 19.1 out/.' >&2
     exit 1
 fi
+# The stock GCC wrapper has an env-python2 shebang. Prefer the interpreter
+# already synced by the Android 10 manifest; never replace system Python.
+GM8_PY2_DIR="$TOP/prebuilts/python/linux-x86/2.7.5/bin"
+if [[ -x "$GM8_PY2_DIR/python2" ]] &&
+   "$GM8_PY2_DIR/python2" -c 'import os,re,subprocess,sys; assert sys.version_info[:2] == (2,7)' >/dev/null 2>&1; then
+    export PATH="$GM8_PY2_DIR:$PATH"
+elif command -v python2 >/dev/null &&
+     python2 -c 'import os,re,subprocess,sys; assert sys.version_info[:2] == (2,7)' >/dev/null 2>&1; then
+    GM8_PY2_DIR=""
+else
+    echo 'A runnable Python 2.7 is required by the legacy kernel tools.' >&2
+    echo 'Check prebuilts/python/linux-x86/2.7.5, or install python2 inside gm8-build as root.' >&2
+    echo 'Keep python3 and the system python links unchanged.' >&2
+    exit 1
+fi
+printf 'Legacy tool interpreter: '
+python2 --version 2>&1
 python3 "$SCRIPT_DIR/preflight.py" --top "$TOP"
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug
+if [[ -n "$GM8_PY2_DIR" ]]; then export PATH="$GM8_PY2_DIR:$PATH"; fi
 RECORD="$(dirname "$TOP")/gm8-17.1-records/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$RECORD"
 repo manifest -r -o "$RECORD/manifest.xml"
