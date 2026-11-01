@@ -164,6 +164,13 @@ TARGET_PROVIDES_QTI_TELEPHONY_JAR := true
 include device/qcom/sepolicy-legacy-um/sepolicy.mk
 BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
 
+# Thermal
+# The generic QCOM thermal_target.c does not map GM8's SoC 313.
+# Select the device path so the generic thermal.msm8937 source rule is skipped;
+# the paired stock 32/64-bit HALs are installed by the vendor copy list.
+USE_DEVICE_SPECIFIC_THERMAL := true
+DEVICE_SPECIFIC_THERMAL_PATH := $(DEVICE_PATH)/thermal
+
 # VINTF
 DEVICE_MANIFEST_FILE := $(DEVICE_PATH)/configs/vintf/manifest.xml
 DEVICE_MATRIX_FILE := $(DEVICE_PATH)/configs/vintf/compatibility_matrix.xml

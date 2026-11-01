@@ -43,6 +43,8 @@ def main():
         "vendor/codeaurora/telephony/qti-utils/Android.mk",
         "vendor/codeaurora/telephony/qti-utils/qti_telephony_utils.xml",
         "system/extras/libperfmgr/Android.bp",
+        "vendor/lineage/build/core/qcom_target.mk",
+        "device/gm/GM8_sprout/thermal/Android.mk",
         "kernel/gm/msm8937/Makefile",
         "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig",
         "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-gcc",
@@ -91,6 +93,15 @@ def main():
     # Q already provides this library in the global Soong namespace.
     if (device / "power-libperfmgr/libperfmgr/Android.bp").is_file():
         errors.append("Remove the vendored libperfmgr definition; use system/extras/libperfmgr.")
+
+    board = (device / "BoardConfig.mk").read_text()
+    if (not re.search(r"^USE_DEVICE_SPECIFIC_THERMAL\\s*:?=\\s*true$", board, re.M) or
+            not re.search(r"^DEVICE_SPECIFIC_THERMAL_PATH\\s*:?=\\s*\\$\\(DEVICE_PATH\\)/thermal$", board, re.M)):
+        errors.append("Select the stock GM8 thermal HAL through the Q device-specific path.")
+    for arch in ("lib", "lib64"):
+        stock_thermal = f"proprietary/vendor/{arch}/hw/thermal.msm8937.so"
+        if not available(vendor / stock_thermal):
+            errors.append("Missing paired stock thermal HAL: " + stock_thermal)
 
     xml_count = 0
     for path in device.rglob("*.xml"):
