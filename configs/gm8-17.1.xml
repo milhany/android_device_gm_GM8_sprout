@@ -6,5 +6,5 @@
   <project name="proprietary_vendor_gm_GM8_sprout" path="vendor/gm/GM8_sprout"
            remote="gm8-projects" revision="a22c80f76f1bc90d07d627bd43af8e959e3b22bc" />
   <project name="android_kernel_gm_msm8937" path="kernel/gm/msm8937"
-           remote="gm8-projects" revision="8f41b70bdb7e7ca8d3c404f414db4ae3fa53fcc0" />
+           remote="gm8-projects" revision="a2ed797896306db24c8b9da9f80f8ad22d326b4d" />
 </manifest>

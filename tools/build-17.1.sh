@@ -27,6 +27,13 @@ else
 fi
 printf 'Legacy tool interpreter: '
 python2 --version 2>&1
+# Module signing must use the system Perl selected by BoardConfig, without
+# Lineage's old PERL5LIB. Check the same imports used by scripts/sign-file.
+if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MFileHandle -MIPC::Open2 -MGetopt::Std \
+     -e 'print "Kernel signing Perl: $^V\n"'; then
+    echo 'Install the complete perl package inside gm8-build as root (apt-get install -y perl).' >&2
+    exit 1
+fi
 python3 "$SCRIPT_DIR/preflight.py" --top "$TOP"
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug
