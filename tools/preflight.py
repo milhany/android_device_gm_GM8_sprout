@@ -38,6 +38,7 @@ def main():
         "hardware/qcom-caf/common/fwk-detect/Android.bp",
         "device/gm/GM8_sprout/lineage_GM8_sprout.mk",
         "vendor/gm/GM8_sprout/GM8_sprout-vendor.mk",
+        "system/extras/libperfmgr/Android.bp",
         "kernel/gm/msm8937/Makefile",
         "kernel/gm/msm8937/arch/arm64/configs/msm8937-perf_defconfig",
         "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-gcc",
@@ -82,6 +83,10 @@ def main():
     overlay_make = device / "rro_overlays/CarrierConfigOverlay/Android.mk"
     if not overlay_make.is_file():
         errors.append("Missing Android 10 CarrierConfigOverlay Make definition.")
+
+    # Q already provides this library in the global Soong namespace.
+    if (device / "power-libperfmgr/libperfmgr/Android.bp").is_file():
+        errors.append("Remove the vendored libperfmgr definition; use system/extras/libperfmgr.")
 
     xml_count = 0
     for path in device.rglob("*.xml"):
