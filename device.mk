@@ -344,3 +344,10 @@ PRODUCT_PACKAGES += \
 
 # Inherit vendor
 include vendor/gm/GM8_sprout/GM8_sprout-vendor.mk
+
+# Android 10 vendor/codeaurora/telephony installs these XMLs alongside the
+# source-built QTI jars. Keep a single provider even after vendor regeneration.
+PRODUCT_COPY_FILES := $(filter-out \
+    %:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/qti_telephony_hidl_wrapper.xml \
+    %:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/qti_telephony_utils.xml,\
+    $(PRODUCT_COPY_FILES))
