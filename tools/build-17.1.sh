@@ -47,6 +47,8 @@ for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937; do
     git -C "$PROJECT" status --short >> "$RECORD/revisions.txt"
 done
 m nothing -j32
+# Catch policy parse/neverallow failures before scheduling the full ROM build.
+m sepolicy_neverallows sepolicy.recovery -j32
 case "$STAGE" in
     boot) m bootimage GM8Dolby -j32 ;;
     target-files) m target-files-package otatools apksigner -j32 ;;
