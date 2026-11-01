@@ -81,7 +81,7 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     target = root / 'target.zip'
     build = 'ro.build.type=userdebug\nro.build.tags=test-keys\nro.build.product=GM8_sprout\nro.build.version.sdk=29\n'
     entries = {'SYSTEM/build.prop': build,
-               'META/misc_info.txt': 'ab_update=true\ndefault_system_dev_certificate=build/make/target/product/security/testkey\n',
+               'META/misc_info.txt': 'ab_update=true\nrecovery_as_boot=true\ndefault_system_dev_certificate=build/make/target/product/security/testkey\n',
                'META/apkcerts.txt': apkcerts, 'META/apexkeys.txt': apexcerts,
                'META/otakeys.txt': '', 'SYSTEM/app/System.apk': b'app',
                'SYSTEM/app/Alias.apk': b'alias', 'SYSTEM/priv-app/GmsCore.apk': b'presigned-google',
@@ -178,6 +178,7 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     expected = certificates[0]['new_sha256']
     entries['SYSTEM/build.prop'] = build.replace('test-keys', 'release-keys')
     entries['SYSTEM/etc/security/otacerts.zip'] = zip_bytes({'releasekey.x509.pem': Path(plan['ota_key'] + '.x509.pem').read_bytes()})
+    entries['BOOT/RAMDISK/system/etc/security/otacerts.zip'] = entries['SYSTEM/etc/security/otacerts.zip']
     signed.write_bytes(zip_bytes(entries))
     original_run = release.run
     calls = []
@@ -202,6 +203,42 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     release.run = verify_commands
     assert release.verify_target(single_key_plan, signed, root) == 4
     assert any('verify_image' in call for call in calls)
+    # Q recovery may additionally trust Lineage's declared recovery-only cert.
+    # The main system store remains pinned to the release certificate.
+    extra = top / 'vendor/lineage/build/target/product/security/lineage'
+    old_key(extra)
+    main_cert = Path(plan['ota_key'] + '.x509.pem').read_bytes()
+    extra_cert = Path(str(extra) + '.x509.pem').read_bytes()
+    main_store = zip_bytes({'releasekey.x509.pem': main_cert})
+    recovery_store = zip_bytes({'releasekey.x509.pem': main_cert, 'lineage.x509.pem': extra_cert})
+    input_snapshot = target.read_bytes()
+    original_entries = dict(entries)
+    original_entries['META/misc_info.txt'] += 'extra_recovery_keys=vendor/lineage/build/target/product/security/lineage\n'
+    target.write_bytes(zip_bytes(original_entries))
+    entries['BOOT/RAMDISK/system/etc/security/otacerts.zip'] = recovery_store
+    signed.write_bytes(zip_bytes(entries))
+    real_host = top / 'out/host/linux-x86'
+    assert release.verify_target(single_key_plan, signed, real_host) == 4
+    entries['SYSTEM/etc/security/otacerts.zip'] = recovery_store
+    signed.write_bytes(zip_bytes(entries))
+    expect_failure(lambda: release.verify_target(single_key_plan, signed, real_host))
+    entries['SYSTEM/etc/security/otacerts.zip'] = main_store
+    entries['BOOT/RAMDISK/system/etc/security/otacerts.zip'] = main_store
+    signed.write_bytes(zip_bytes(entries))
+    expect_failure(lambda: release.verify_target(single_key_plan, signed, real_host))
+    entries['BOOT/RAMDISK/system/etc/security/otacerts.zip'] = zip_bytes({
+        'releasekey.x509.pem': main_cert, 'lineage.x509.pem': extra_cert,
+        'unexpected.x509.pem': (top / 'packages/example/resource-cert.x509.pem').read_bytes()})
+    signed.write_bytes(zip_bytes(entries))
+    expect_failure(lambda: release.verify_target(single_key_plan, signed, real_host))
+    # Also verify a mapped recovery key follows the signing plan's key mapping.
+    mapped_plan = dict(single_key_plan, certificates=dict(single_key_plan['certificates']))
+    mapped_plan['certificates']['vendor/lineage/build/target/product/security/lineage.x509.pem'] = {'key': plan['ota_key']}
+    entries['BOOT/RAMDISK/system/etc/security/otacerts.zip'] = main_store
+    signed.write_bytes(zip_bytes(entries))
+    assert release.verify_target(mapped_plan, signed, real_host) == 4
+    # Restore the original prepared input for the subsequent signing workflow tests.
+    target.write_bytes(input_snapshot)
     entries['SYSTEM/priv-app/GmsCore.apk'] = b'changed-google'
     signed.write_bytes(zip_bytes(entries))
     expect_failure(lambda: release.verify_target(single_key_plan, signed, root))
@@ -262,6 +299,35 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     assert (output / 'gm8-17.1-userdebug-release-boot.img').read_bytes() == b'ANDROID!fixture-boot'
     expect_failure(lambda: release.sign(plan, output, root, 'host-fixture-password'))
 
+    # A previous successful APK-signing stage can be reused, but the archive
+    # must be verified again before OTA generation. Never call the signer twice.
+    resume_output = root / 'resume-output'
+    resume_output.mkdir()
+    (resume_output / 'signed-target_files.zip').write_bytes(zip_bytes({'IMAGES/boot.img': b'ANDROID!fixture-boot'}))
+    sign_count = sum(Path(c[1]).stem == 'sign_target_files_apks' for c in binary_calls)
+    verified = []
+    subprocess.run = signing_binaries
+    release.verify_target = lambda *args: verified.append(args[1]) or 4
+    try:
+        release.sign(plan, resume_output, root, 'host-fixture-password')
+    finally:
+        subprocess.run = actual_subprocess
+        release.verify_target = actual_verify
+    assert verified == [resume_output / 'signed-target_files.zip']
+    assert sum(Path(c[1]).stem == 'sign_target_files_apks' for c in binary_calls) == sign_count
+    assert (resume_output / 'gm8-17.1-userdebug-release.zip').exists()
+    # An invalid existing signed archive fails before invoking the OTA tool.
+    rejected_output = root / 'rejected-resume'
+    rejected_output.mkdir()
+    (rejected_output / 'signed-target_files.zip').write_bytes(b'incomplete signing output')
+    before_calls = len(binary_calls)
+    subprocess.run = signing_binaries
+    try:
+        expect_failure(lambda: release.sign(plan, rejected_output, root, 'host-fixture-password'), zipfile.BadZipFile)
+    finally:
+        subprocess.run = actual_subprocess
+    assert len(binary_calls) == before_calls
+
     # Same cryptographic fixture, explicit update policy and no wipe metadata.
     update_output = root / 'update-output'
     update_output.mkdir()
@@ -282,4 +348,5 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
 
 print('PASS: Q installed inventory and SDK/variant isolation, cert aliases, PRESIGNED preservation, '
       'encrypted/reused keys, actual CMS signature pinning/tamper detection, '
+      'Q recovery-only certificate boundaries, verified signed-input resume, '
       'signing argument/password-file lifecycle and non-wipe OTA guards')

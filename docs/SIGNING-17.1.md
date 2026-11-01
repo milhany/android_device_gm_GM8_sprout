@@ -80,6 +80,22 @@ bash device/gm/GM8_sprout/tools/build-release-17.1.sh --resume /home/builder/and
 Resume requires an existing signing plan in a direct child of the release root.
 It skips compilation and key preparation, verifies the recorded source ZIP hash
 and key identities, signs, verifies, writes checksums and publishes `latest`.
-The old log is appended to, not erased. Existing signed output files are still
-refused to prevent accidental overwrites; inspect partial outputs before retrying
-such a run. The normal command without arguments continues to build and sign.
+The old log is appended to, not erased. Existing signed target-files are fully reverified and reused before generating
+an OTA. Invalid/incomplete signed archives fail verification and are preserved.
+Existing OTA or exported boot outputs are refused to prevent overwrites. The normal command without arguments continues to build and sign.
+
+
+## Main and recovery OTA certificates
+
+Q's `ReplaceOtaKeys` writes the release certificate to the system OTA trust
+store, and also appends `META/misc_info.txt:extra_recovery_keys` to the
+recovery trust store. Lineage's common configuration declares its Lineage
+recovery certificate this way. These are intentionally different trust stores.
+
+Verification requires the system store and the correct recovery-as-boot (or
+recovery) store. System certificates must match the release identity exactly.
+Recovery certificates must match the release identity plus only the explicitly
+declared extras, following the signing plan's mappings where present, otherwise
+using the corresponding source public certificates. Extra/missing/replaced
+certificates fail verification; arbitrary output certificates are never trusted.
+The final OTA's whole-file signature remains pinned to the release key.

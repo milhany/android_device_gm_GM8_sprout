@@ -352,6 +352,27 @@ def apk_verify(path, expected, host):
         raise ValueError(f'Unexpected signer certificate: {path}')
 
 
+def ota_trust_certificates(plan, host):
+    """Exact Q trust policy: main OTA key plus declared recovery-only keys."""
+    with zipfile.ZipFile(plan['target']) as original:
+        misc = props(text(original, 'META/misc_info.txt'))
+    main = {cert_der(plan['ota_key'] + '.x509.pem')}
+    recovery = set(main)
+    for name in misc.get('extra_recovery_keys', '').split():
+        source = name + '.x509.pem'
+        mapped = plan['certificates'].get(source)
+        if mapped is not None:
+            recovery.add(cert_der(mapped['key'] + '.x509.pem'))
+        else:
+            # Q's ReplaceOtaKeys keeps an unmapped, explicitly declared extra
+            # recovery certificate. Never accept an arbitrary cert from output.
+            recovery.add(cert_der(source_certificate(host.parents[2], source)))
+    recovery_path = ('BOOT/RAMDISK/system/etc/security/otacerts.zip'
+                     if misc.get('recovery_as_boot') == 'true' else
+                     'RECOVERY/RAMDISK/system/etc/security/otacerts.zip')
+    return main, recovery, recovery_path
+
+
 def verify_target(plan, signed, host):
     checked = 0
     with zipfile.ZipFile(signed) as z:
@@ -401,14 +422,20 @@ def verify_target(plan, signed, host):
                         apk_verify(path, expected[apk['key']], host)
                     checked += 1
         otacerts = [n for n in z.namelist() if n.endswith('/otacerts.zip')]
-        if not otacerts:
-            raise ValueError('No OTA trust store found in signed target files')
-        expected_der = cert_der(plan['ota_key'] + '.x509.pem')
+        main_trust, recovery_trust, recovery_path = ota_trust_certificates(plan, host)
+        for required in ('SYSTEM/etc/security/otacerts.zip', recovery_path):
+            if required not in otacerts:
+                raise ValueError(f'Missing required OTA trust store: {required}')
         for entry in otacerts:
             with zipfile.ZipFile(io.BytesIO(z.read(entry))) as certs:
-                ders = [run(['openssl', 'x509', '-outform', 'DER'], certs.read(n)) for n in certs.namelist()]
-                if not ders or any(der != expected_der for der in ders):
-                    raise ValueError(f'Unexpected OTA trust-store certificates: {entry}')
+                ders = {run(['openssl', 'x509', '-outform', 'DER'], certs.read(n.filename))
+                        for n in certs.infolist() if not n.is_dir()}
+                expected_trust = (recovery_trust if entry == recovery_path else main_trust)
+                if ders != expected_trust:
+                    found = sorted(hashlib.sha256(d).hexdigest() for d in ders)
+                    wanted = sorted(hashlib.sha256(d).hexdigest() for d in expected_trust)
+                    raise ValueError(f'Unexpected OTA trust-store certificates: {entry}; '
+                                     f'found SHA256={found}; expected SHA256={wanted}')
     return checked
 
 
@@ -466,7 +493,7 @@ def sign(plan, output, host, password):
     signed = output / 'signed-target_files.zip'
     ota = output / 'gm8-17.1-userdebug-release.zip'
     boot = output / 'gm8-17.1-userdebug-release-boot.img'
-    if signed.exists() or ota.exists() or boot.exists():
+    if ota.exists() or boot.exists():
         raise ValueError('Output already exists; use a new output directory to preserve it')
     mapping = public_map(plan)
     for base in sorted({c['key'] for c in plan['certificates'].values()}):
@@ -487,7 +514,12 @@ def sign(plan, output, host, password):
             stream.write(''.join(f'[[[ {password} ]]] {c["key"]}\n' for c in mapping))
         env = dict(os.environ, ANDROID_PW_FILE=str(pwfile))
         env.pop('ANDROID_SECURE_STORAGE_CMD', None)
-        subprocess.run([str(a) for a in cmd], check=True, env=env)
+        if signed.exists():
+            print(f'Checking existing signed target-files before reuse: {signed}')
+        else:
+            subprocess.run([str(a) for a in cmd], check=True, env=env)
+        # Existing signed archives are never overwritten or trusted without
+        # repeating the full APK/APEX/build/trust-store verification.
         checked = verify_target(plan, signed, host)
         ota_command = releasetool(host, 'ota_from_target_files') + [
             '-p', host, '-k', plan['ota_key'], signed, ota]
