@@ -93,20 +93,52 @@ def source_certificate(top, name):
     return path
 
 
-def host_tools(top):
+def signing_python_candidates(top):
+    return [Path('/usr/bin/python2.7'), Path('/usr/bin/python2'),
+            top / 'prebuilts/python/linux-x86/2.7.5/bin/python2']
+
+
+def signing_python(top):
+    # A runnable kernel-tool Python is not necessarily a complete Python.
+    # Releasetools needs native compression, XML, SSL and ctypes extensions.
+    probe = ('import sys,zlib,gzip,bz2,ssl,hashlib,zipfile,ctypes; '
+             'import xml.etree.ElementTree; '
+             'assert sys.version_info[:2] == (2,7)')
+    env = dict(os.environ)
+    env.pop('PYTHONHOME', None)
+    env.pop('PYTHONPATH', None)
+    for candidate in signing_python_candidates(top):
+        if not candidate.is_file():
+            continue
+        try:
+            result = subprocess.run([str(candidate), '-c', probe], env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError:
+            continue
+        if result.returncode == 0:
+            return candidate
+    raise ValueError('No complete Python 2.7 for Q signing (zlib/gzip/bz2/SSL/ctypes required). '
+                     'Inside gm8-build as root, install: apt-get install -y python2 libpython2.7-stdlib')
+
+
+def host_tools(top, python_bin):
     host = top / 'out/host/linux-x86'
     for name in ('avbtool', 'apksigner'):
         if not (host / 'bin' / name).is_file():
             raise ValueError(f'Missing {host / "bin" / name}; run m otatools first')
     # Q ships releasetools as source scripts, not host/bin Python binaries.
-    python_dir = top / 'prebuilts/python/linux-x86/2.7.5/bin'
-    if not (python_dir / 'python2').is_file():
-        raise ValueError(f'Missing bundled Python 2.7: {python_dir}')
+    python = signing_python(top)
     for name in ('sign_target_files_apks', 'ota_from_target_files'):
         if not (top / 'build/make/tools/releasetools' / (name + '.py')).is_file():
             raise ValueError(f'Missing Q releasetools source: {name}')
-    os.environ['PATH'] = str(host / 'bin') + os.pathsep + os.environ['PATH']
-    os.environ['PATH'] = str(python_dir) + os.pathsep + os.environ['PATH']
+    # Q child tools use env-python shebangs. Keep their aliases private to this
+    # process; never change /usr/bin/python or the kernel-tool interpreter.
+    for name in ('python', 'python2'):
+        (python_bin / name).symlink_to(python)
+    os.environ.pop('PYTHONHOME', None)
+    os.environ.pop('PYTHONPATH', None)
+    os.environ['PATH'] = (str(python_bin) + os.pathsep + str(host / 'bin') +
+                          os.pathsep + os.environ['PATH'])
     jdk = top / 'prebuilts/jdk/jdk9/linux-x86/bin'
     if (jdk / 'java').exists():
         os.environ['PATH'] = str(jdk) + os.pathsep + os.environ['PATH']
@@ -115,7 +147,7 @@ def host_tools(top):
 
 def releasetool(host, name):
     top = host.parents[2]
-    return [top / 'prebuilts/python/linux-x86/2.7.5/bin/python2',
+    return [signing_python(top),
             top / 'build/make/tools/releasetools' / (name + '.py')]
 
 
@@ -487,11 +519,11 @@ def sign(plan, output, host, password):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('stage', choices=('prepare', 'sign'))
+    parser.add_argument('stage', choices=('check-python', 'prepare', 'sign'))
     parser.add_argument('--top', type=Path, default=Path(__file__).resolve().parents[4])
     parser.add_argument('--target-files', type=Path)
     parser.add_argument('--key-dir', type=Path)
-    parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--output-dir', type=Path)
     parser.add_argument('--subject', default='/C=TR/O=GM8 Community/CN=GM8 Release')
     parser.add_argument('--install-mode', choices=('clean', 'update'), default='clean',
                         help='prepare only: update refuses missing keys and requests no Format Data')
@@ -499,41 +531,47 @@ def main():
     os.umask(0o077)
     try:
         top = args.top.resolve()
-        host = host_tools(top)
-        output = args.output_dir.expanduser().resolve()
-        if output == top or top in output.parents:
-            raise ValueError('Release output must be outside the Android checkout')
-        output.mkdir(mode=0o700, parents=True, exist_ok=True)
-        plan_file = output / 'release-plan.json'
-        if args.stage == 'prepare':
-            if args.target_files is None or args.key_dir is None:
-                raise ValueError('prepare requires --target-files and --key-dir')
-            if plan_file.exists():
-                raise ValueError('Plan exists; use its sign stage or a new output directory')
-            if args.install_mode == 'update' and not args.key_dir.expanduser().is_dir():
-                raise ValueError('Update requires an existing private key directory')
-            keys = private_directory(args.key_dir, top)
-            plan = inventory(top, args.target_files.expanduser().resolve(), keys, host)
-            plan['install_mode'] = args.install_mode
-            if args.install_mode == 'update':
-                require_existing_keys(plan)
-            password = key_password(confirm=args.install_mode == 'clean')
-            generate_keys(plan, password, args.subject)
-            # Public certificate identities pin the generated keys for sign.
-            plan['public_keys'] = public_map(plan)
-            plan['payload_key_sha256'] = {key: digest(key + '.pem') for key in plan['payloads']}
-            plan_file.write_text(json.dumps(plan, indent=2) + '\n')
-            (output / 'public-key-map.json').write_text(json.dumps(plan['public_keys'], indent=2) + '\n')
-            print(f'Prepared {len(plan["apks"])} installed APKs, '
-                  f'{len(plan["apexes"])} actual APEXes. Plan: {plan_file}')
-            print('Back up the private key directory separately; never publish it.')
-        else:
-            plan = json.loads(plan_file.read_text())
-            private_directory(plan['key_dir'], top)
-            if public_map(plan) != plan['public_keys'] or any(
-                    digest(key + '.pem') != value for key, value in plan['payload_key_sha256'].items()):
-                raise ValueError('Signing keys changed since preparation')
-            sign(plan, output, host, key_password())
+        if args.stage == 'check-python':
+            print(f'Q signing Python: {signing_python(top)} (compression/XML/SSL/ctypes imports passed)')
+            return
+        if args.output_dir is None:
+            raise ValueError('prepare/sign requires --output-dir')
+        with tempfile.TemporaryDirectory(prefix='gm8-q-python-') as python_bin:
+            host = host_tools(top, Path(python_bin))
+            output = args.output_dir.expanduser().resolve()
+            if output == top or top in output.parents:
+                raise ValueError('Release output must be outside the Android checkout')
+            output.mkdir(mode=0o700, parents=True, exist_ok=True)
+            plan_file = output / 'release-plan.json'
+            if args.stage == 'prepare':
+                if args.target_files is None or args.key_dir is None:
+                    raise ValueError('prepare requires --target-files and --key-dir')
+                if plan_file.exists():
+                    raise ValueError('Plan exists; use its sign stage or a new output directory')
+                if args.install_mode == 'update' and not args.key_dir.expanduser().is_dir():
+                    raise ValueError('Update requires an existing private key directory')
+                keys = private_directory(args.key_dir, top)
+                plan = inventory(top, args.target_files.expanduser().resolve(), keys, host)
+                plan['install_mode'] = args.install_mode
+                if args.install_mode == 'update':
+                    require_existing_keys(plan)
+                password = key_password(confirm=args.install_mode == 'clean')
+                generate_keys(plan, password, args.subject)
+                # Public certificate identities pin the generated keys for sign.
+                plan['public_keys'] = public_map(plan)
+                plan['payload_key_sha256'] = {key: digest(key + '.pem') for key in plan['payloads']}
+                plan_file.write_text(json.dumps(plan, indent=2) + '\n')
+                (output / 'public-key-map.json').write_text(json.dumps(plan['public_keys'], indent=2) + '\n')
+                print(f'Prepared {len(plan["apks"])} installed APKs, '
+                      f'{len(plan["apexes"])} actual APEXes. Plan: {plan_file}')
+                print('Back up the private key directory separately; never publish it.')
+            else:
+                plan = json.loads(plan_file.read_text())
+                private_directory(plan['key_dir'], top)
+                if public_map(plan) != plan['public_keys'] or any(
+                        digest(key + '.pem') != value for key, value in plan['payload_key_sha256'].items()):
+                    raise ValueError('Signing keys changed since preparation')
+                sign(plan, output, host, key_password())
     except subprocess.CalledProcessError as error:
         detail = (error.stderr or b'').decode(errors='replace')
         parser.exit(1, f'ERROR: {error}\n{detail}\n')

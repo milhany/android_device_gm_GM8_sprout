@@ -22,7 +22,7 @@ the existing keys; press Enter for unencrypted PK8 keys. Preparation asks for
 confirmation and signing asks again. Passwords are never command arguments;
 the temporary private password file is removed after signing.
 
-The implementation uses this checkout's Android 10 source releasetools with bundled Python 2.7, native host tools,
+The implementation uses this checkout's Android 10 source releasetools with a complete Python 2.7, native host tools,
 and JDK 9. The target-files build also builds `apksigner`, which Q does not
 include in the `otatools` dependency list.
 It maps installed APK certificates, preserves PRESIGNED components and
@@ -54,3 +54,32 @@ This is the first 17.1 clean installation. Back up the phone and manually
 Format Data in the appropriate recovery when changing from stock Pie/19.1.
 The OTA itself does not force a wipe. Signing does not establish that the
 ROM boots, that recovery accepts it, or that peripherals function.
+
+## Signing interpreter and resuming a prepared run
+
+The old kernel-tool Python 2.7.5 can execute the GCC wrapper while lacking
+`zlib`. It is not sufficient evidence that it can run releasetools.
+Before building, `check-python` probes Python 2.7 plus zlib, gzip, bz2, SSL,
+hashlib, zipfile, ctypes and ElementTree. Prefer `/usr/bin/python2.7` or
+`/usr/bin/python2`; accept the bundled interpreter only if the same probe passes.
+In the Ubuntu 22.04 container install `python2 libpython2.7-stdlib` as root
+if needed. Installing a similarly named package on the Ubuntu 26 host does
+not change the container or add extensions to the bundled interpreter.
+
+Only signing's child processes receive temporary `python`/`python2` aliases
+for the selected interpreter. The directory is removed on exit. System links
+and the kernel wrapper's interpreter remain unchanged. Inherited PYTHONHOME
+and PYTHONPATH are cleared for the probe and signing subprocesses.
+
+If preparation succeeded but signing failed before producing output files:
+
+```bash
+bash device/gm/GM8_sprout/tools/build-release-17.1.sh --resume /home/builder/android/gm8-17.1-release/RUN_DIRECTORY
+```
+
+Resume requires an existing signing plan in a direct child of the release root.
+It skips compilation and key preparation, verifies the recorded source ZIP hash
+and key identities, signs, verifies, writes checksums and publishes `latest`.
+The old log is appended to, not erased. Existing signed output files are still
+refused to prevent accidental overwrites; inspect partial outputs before retrying
+such a run. The normal command without arguments continues to build and sign.

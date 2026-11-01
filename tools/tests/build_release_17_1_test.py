@@ -2,6 +2,7 @@
 """Wrapper integration: real shell/filesystem, Android build/signing as fixtures."""
 import fcntl
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -35,10 +36,13 @@ printf fixture > out/target/product/GM8_sprout/obj/PACKAGING/target_files_interm
     (tools / 'release-17.1.py').write_text('''import os,sys
 from pathlib import Path
 args=sys.argv
+if args[1]=='check-python':
+    sys.exit(0)
 output=Path(args[args.index('--output-dir')+1])
 if args[1]=='prepare':
     assert args[args.index('--install-mode')+1]=='clean'
     (output/'prepared').touch()
+    (output/'release-plan.json').write_text('{}')
 else:
     assert (output/'prepared').exists()
     if os.getenv('GM8_FIXTURE_FAIL'):
@@ -61,8 +65,8 @@ else:
     env.pop('OUT_DIR', None)
     env.pop('OUT_DIR_COMMON_BASE', None)
 
-    def run(**extra):
-        return subprocess.run(['bash', str(tools / source.name)], cwd=top,
+    def run(*args, **extra):
+        return subprocess.run(['bash', str(tools / source.name), *args], cwd=top,
                               env=dict(env, **extra), capture_output=True, text=True)
 
     # Wrong branch and missing original key both fail before building.
@@ -77,6 +81,18 @@ else:
     failed = run(GM8_FIXTURE_FAIL='1')
     assert failed.returncode != 0 and latest.resolve() == previous
     assert 'release incomplete' in failed.stdout
+    # Resume the prepared failure without rebuilding or re-preparing keys.
+    failed_dir = Path(re.search(r'Build/signing log: (.+)/build.log', failed.stdout)[1])
+    build_count = (top / 'fixture-builds').read_text().count('built')
+    resumed = run('--resume', str(failed_dir))
+    assert resumed.returncode == 0, resumed.stdout + resumed.stderr
+    assert latest.resolve() == failed_dir
+    assert (top / 'fixture-builds').read_text().count('built') == build_count
+    assert 'no ROM build or key preparation' in resumed.stdout
+    assert 'FAILED:' in (failed_dir / 'build.log').read_text()
+    assert (failed_dir / 'SHA256SUMS').is_file()
+    # Resume accepts only prepared runs under the designated release root.
+    assert run('--resume', str(previous)).returncode != 0
     succeeded = run()
     assert succeeded.returncode == 0, succeeded.stdout + succeeded.stderr
     assert latest.resolve() != previous
@@ -89,4 +105,4 @@ else:
         assert run().returncode != 0 and latest.resolve() == current
 
 print('PASS: Q wrapper rejects wrong SDK/missing original keys, preserves latest '
-      'on signing failure, publishes successful output/checksums and blocks concurrent builds')
+      'on signing failure, resumes without rebuilding, publishes checksums and blocks concurrent builds')

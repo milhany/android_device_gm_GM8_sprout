@@ -211,11 +211,13 @@ with tempfile.TemporaryDirectory(prefix='gm8-release-test-') as temporary:
     output = root / 'release-output'
     output.mkdir()
     binary_calls = []
+    # Android binaries are fixtures here; interpreter probing has separate coverage.
+    release.signing_python = lambda top: top / 'fixture-tools/python2'
     actual_releasetool = release.releasetool
     # Preserve the real Q Python/script dispatch; only execute Android tools as fixtures.
     fixture_host = top / 'out/host/linux-x86'
     assert release.releasetool(fixture_host, 'sign_target_files_apks') == [
-        top / 'prebuilts/python/linux-x86/2.7.5/bin/python2',
+        top / 'fixture-tools/python2',
         top / 'build/make/tools/releasetools/sign_target_files_apks.py']
     release.releasetool = lambda host, name: actual_releasetool(fixture_host, name)
     password_files = []
