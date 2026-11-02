@@ -1,13 +1,16 @@
 # GM8 LineageOS 17.1 bring-up
 
+This records the initial bring-up. See AUDIT-17.1.md for the current source
+review, measured stock configuration references and remaining runtime checks.
+
 This is an initial Android 10 source candidate, not a tested daily ROM.
 Device base: 792239494f79d323c385f415767f9bb1e4145f38 (18.1 stock Dolby).
 Vendor base: 9eec7f5fbaffc9f24cb5af224ce5443da3760b5e.
 Kernel base: 1f1981295c7507163310c812e4a430be6f8d8777.
-Paired kernel revision: 8f41b70bdb7e7ca8d3c404f414db4ae3fa53fcc0.
+Paired kernel revision: 79997531c5a3b9cf52d608c09e1c584e379f1ff9.
 Paired vendor revision: a22c80f76f1bc90d07d627bd43af8e959e3b22bc.
-The kernel carries the reviewed private input-clock quirk fix; other 19.1
-kernel changes are excluded.
+The kernel carries the input-clock fix, system-Perl signing fix and integrated
+Q cpuset/memory/I/O controllers. The 19.1 LMKD/PSI experiment is excluded.
 
 ## Initial scope
 
@@ -96,7 +99,7 @@ camera/audio faults and actual decoder selection. Empty RAM alone is not an
 acceptance metric. Android 10 also needs a separate security/app-compatibility
 assessment; a new build date is not a new security patch level.
 
-The current phone is on stock Pie. Any eventual cross-ROM installation needs
+The initial migration started on stock Pie. A cross-ROM installation needs
 a backed-up clean-install/recovery plan. No flashing, partition resizing,
 signing-key replacement or phone data modification has been performed here.
 

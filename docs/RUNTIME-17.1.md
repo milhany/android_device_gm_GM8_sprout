@@ -4,11 +4,13 @@
 
 The next log reaches Android and completes fingerprint enrollment. Dolby dies
 before ActivityThread attaches because its dedicated domain cannot find
-activity_service. Add normal app_api_service discovery and window_service to
-that package's domain, retaining the separate DMS client attribute. Do not grant
+activity_service. Add normal app_api_service discovery to that package's
+domain, retaining the separate DMS client attribute. Direct window_service
+discovery is forbidden for this non-core app domain; Q ActivityManager passes
+the window Binder through its common-services cache. Do not grant
 DMS access to all platform apps or disable SELinux. Q's built searchpolicy now
 checks the actual compiled policy for activity/package/audio/notification/power,
-window, audioserver and DMS find permissions before the ROM build proceeds.
+audioserver and DMS find permissions before the ROM build proceeds.
 
 The device manifest has vendor Wi-Fi extensions but no standard IWifi,
 ISupplicant or IHostapd. Q reports "Vendor Hal not supported", then supplicant

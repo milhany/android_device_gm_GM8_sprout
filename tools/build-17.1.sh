@@ -35,6 +35,7 @@ if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MFileHandle -MIPC::Open2 -MGetopt::
     exit 1
 fi
 python3 "$SCRIPT_DIR/apply-power-diagnostics-17.1.py" --top "$TOP"
+python3 "$SCRIPT_DIR/check-device-config-17.1.py" --device "$SCRIPT_DIR/.."
 python3 "$SCRIPT_DIR/preflight.py" --top "$TOP"
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug
@@ -47,18 +48,16 @@ for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 syste
     git -C "$PROJECT" rev-parse HEAD >> "$RECORD/revisions.txt"
     git -C "$PROJECT" status --short >> "$RECORD/revisions.txt"
 done
-if [[ "$STAGE" != check ]]; then
-    # Rebuild the kernel and its modules together, preserving the Android out/.
-    # Do not carry an older Image or boot.img into a new signed update.
-    rm -rf -- "$TOP/out/target/product/GM8_sprout/obj/KERNEL_OBJ"
-    rm -f -- "$TOP/out/target/product/GM8_sprout/kernel" \
-        "$TOP/out/target/product/GM8_sprout/boot.img"
-fi
 m nothing -j32
 # Catch policy parsing, neverallows and file-label tests before the full ROM.
 m sepolicy_neverallows sepolicy.recovery sepolicy_tests searchpolicy -j32
 python3 "$SCRIPT_DIR/check-dolby-policy-17.1.py" --top "$TOP"
 if [[ "$STAGE" != check ]]; then
+    # Clean only after source/policy checks pass. Rebuild the kernel/modules
+    # together while preserving Android outputs, release keys and old ZIPs.
+    rm -rf -- "$TOP/out/target/product/GM8_sprout/obj/KERNEL_OBJ"
+    rm -f -- "$TOP/out/target/product/GM8_sprout/kernel" \
+        "$TOP/out/target/product/GM8_sprout/boot.img"
     m bootimage -j32
     python3 "$SCRIPT_DIR/check-kernel-17.1.py" \
         --config out/target/product/GM8_sprout/obj/KERNEL_OBJ/.config

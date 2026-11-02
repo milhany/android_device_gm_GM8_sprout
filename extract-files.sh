@@ -32,9 +32,6 @@ SECTION=
 
 while [ "${#}" -gt 0 ]; do
     case "${1}" in
-    vendor/lib/libdlbdsservice.so|vendor/lib64/libdlbdsservice.so|vendor/lib/libdlbmemoryservice.so|vendor/lib64/libdlbmemoryservice.so)
-        python3 "${MY_DIR}/tools/fixup-stock-dolby.py" "${2}" --patchelf "${PATCHELF}"
-        ;;
         -n | --no-cleanup )
                 CLEAN_VENDOR=false
                 ;;
@@ -58,6 +55,9 @@ fi
 
 function blob_fixup() {
     case "${1}" in
+    vendor/lib/libdlbdsservice.so|vendor/lib64/libdlbdsservice.so|vendor/lib/libdlbmemoryservice.so|vendor/lib64/libdlbmemoryservice.so)
+        python3 "${MY_DIR}/tools/fixup-stock-dolby.py" "${2}" --patchelf "${PATCHELF}"
+        ;;
     vendor/lib/hw/camera.msm8937.so)
         sed -i "s/service.bootanim.exit/service.bootanim.zzzz/g" "${2}"
         ;;

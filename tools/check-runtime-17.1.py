@@ -2,11 +2,79 @@
 """Check native services, Wi-Fi registration and the packaged kernel before signing."""
 import argparse
 import importlib.util
+import json
 from pathlib import Path
 import struct
 import xml.etree.ElementTree as ET
 import zipfile
 import zlib
+
+
+HEAP_PROPERTIES = {
+    'dalvik.vm.heapstartsize': '16m',
+    'dalvik.vm.heapgrowthlimit': '192m',
+    'dalvik.vm.heapsize': '512m',
+    'dalvik.vm.heaptargetutilization': '0.75',
+    'dalvik.vm.heapminfree': '4m',
+    'dalvik.vm.heapmaxfree': '8m',
+    'pm.dexopt.install': 'speed-profile',
+    'pm.dexopt.bg-dexopt': 'speed-profile',
+}
+UNSUPPORTED_STUNE_PROFILES = {
+    'HighEnergySaving', 'NormalPerformance', 'HighPerformance',
+    'MaxPerformance', 'RealtimePerformance', 'CpuPolicySpread', 'CpuPolicyPack',
+}
+
+
+def check_legacy_profiles(profiles):
+    if not isinstance(profiles, dict) or not isinstance(profiles.get('Profiles'), list):
+        raise ValueError('Expected a vendor task-profile object/list')
+    overrides = profiles['Profiles']
+    if (any(not isinstance(p, dict) for p in overrides) or
+            len(overrides) != len(UNSUPPORTED_STUNE_PROFILES) or
+            {p.get('Name') for p in overrides} != UNSUPPORTED_STUNE_PROFILES or
+            any(p.get('Actions') != [] for p in overrides) or profiles.get('Attributes')):
+        raise ValueError('Legacy QHMP overrides must only disable unsupported SchedTune actions')
+
+
+def check_memory_profile(archive):
+    # Follow Q property_load_boot_defaults: later normal-OS files override
+    # defaults. Recovery-only properties must not override the running ROM.
+    values = {}
+
+    def load_first(*names):
+        name = next((n for n in names if n in archive.namelist()), None)
+        if name is None:
+            return
+        for line in archive.read(name).decode('utf-8').splitlines():
+            if '=' not in line or line.lstrip().startswith('#'):
+                continue
+            key, value = line.split('=', 1)
+            values[key.strip()] = value.strip()
+
+    load_first('SYSTEM/etc/prop.default', 'SYSTEM/system/etc/prop.default',
+               'BOOT/RAMDISK/system/etc/prop.default', 'BOOT/RAMDISK/prop.default',
+               'BOOT/RAMDISK/default.prop')
+    load_first('SYSTEM/build.prop', 'SYSTEM/system/build.prop')
+    load_first('VENDOR/default.prop', 'SYSTEM/vendor/default.prop',
+               'SYSTEM/system/vendor/default.prop')
+    load_first('VENDOR/build.prop', 'SYSTEM/vendor/build.prop',
+               'SYSTEM/system/vendor/build.prop')
+    vendor_api = values.get('ro.vndk.version', values.get('ro.vendor.build.version.sdk', '29'))
+    if not vendor_api.isdigit() or int(vendor_api) >= 29:
+        load_first('ODM/etc/build.prop', 'VENDOR/odm/etc/build.prop')
+    else:
+        load_first('ODM/default.prop', 'VENDOR/odm/default.prop')
+        load_first('ODM/build.prop', 'VENDOR/odm/build.prop')
+    load_first('PRODUCT/build.prop', 'SYSTEM/product/build.prop',
+               'SYSTEM/system/product/build.prop')
+    load_first('PRODUCT_SERVICES/build.prop', 'SYSTEM/product_services/build.prop',
+               'SYSTEM/system/product_services/build.prop')
+    for key, expected in HEAP_PROPERTIES.items():
+        if values.get(key) != expected:
+            raise ValueError(f'Unexpected packaged ART policy: {key}={values.get(key)}')
+    profiles = json.loads(archive.read('VENDOR/etc/task_profiles.json'))
+    check_legacy_profiles(profiles)
 
 
 def require_hal(manifest, name, version, interface):
@@ -129,6 +197,7 @@ def symbols(data, label):
 
 def check(path):
     with zipfile.ZipFile(path) as archive:
+        check_memory_profile(archive)
         service = archive.read('VENDOR/bin/hw/vendor.qti.hardware.perf@1.0-service')
         library = archive.read('VENDOR/lib64/vendor.qti.hardware.perf@1.0.so')
         undefined, _ = symbols(service, 'perf service')

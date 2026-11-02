@@ -1,0 +1,11 @@
+{
+  "Profiles": [
+    { "Name": "HighEnergySaving", "Actions": [] },
+    { "Name": "NormalPerformance", "Actions": [] },
+    { "Name": "HighPerformance", "Actions": [] },
+    { "Name": "MaxPerformance", "Actions": [] },
+    { "Name": "RealtimePerformance", "Actions": [] },
+    { "Name": "CpuPolicySpread", "Actions": [] },
+    { "Name": "CpuPolicyPack", "Actions": [] }
+  ]
+}

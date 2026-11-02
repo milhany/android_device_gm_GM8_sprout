@@ -31,7 +31,7 @@ def main():
             errors.append("17.1 requires a separate Android 10 / SDK 29 checkout.")
     required = [
         "build/envsetup.sh",
-        "build/target/product/product_launched_with_o_mr1.mk",
+        "build/target/product/product_launched_with_o.mk",
         "vendor/lineage/config/common_full_phone.mk",
         "device/lineage/sepolicy/common/sepolicy.mk",
         "device/qcom/sepolicy-legacy-um/sepolicy.mk",
@@ -165,7 +165,7 @@ def main():
     props = device / "vendor.prop"
     if props.is_file():
         match = re.search(r"^ro\.product\.first_api_level=(\d+)$", props.read_text(), re.M)
-        launch = top / "build/target/product/product_launched_with_o_mr1.mk"
+        launch = top / "build/target/product/product_launched_with_o.mk"
         if match and launch.is_file():
             shipping = re.search(r"^PRODUCT_SHIPPING_API_LEVEL\s*:?=\s*(\d+)", launch.read_text(), re.M)
             if shipping and match[1] != shipping[1]:

@@ -5,6 +5,15 @@ getprop ro.build.version.sdk
 getprop ro.lineage.version
 getprop ro.build.type
 uname -r
+echo '=== ART heap and memory pressure snapshot ==='
+for gm8_prop in dalvik.vm.heapstartsize dalvik.vm.heapgrowthlimit dalvik.vm.heapsize dalvik.vm.heaptargetutilization dalvik.vm.heapminfree dalvik.vm.heapmaxfree pm.dexopt.install pm.dexopt.bg-dexopt; do
+    echo "$gm8_prop=$(getprop "$gm8_prop")"
+done
+grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree|Dirty|Writeback|SReclaimable):' /proc/meminfo
+for gm8_zram in disksize comp_algorithm mm_stat; do
+    echo "zram0/$gm8_zram"
+    cat "/sys/block/zram0/$gm8_zram" 2>&1
+done
 echo '=== Running kernel controller configuration ==='
 if [ -r /proc/config.gz ]; then
     zcat /proc/config.gz | grep -E '^CONFIG_(CPUSETS|MEMCG|MEMCG_SWAP|BLK_CGROUP|CFQ_GROUP_IOSCHED|ANDROID_LOW_MEMORY_KILLER|SCHED_TUNE|CGROUP_SCHEDTUNE)='

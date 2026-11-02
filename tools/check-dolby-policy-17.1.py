@@ -26,7 +26,7 @@ def main():
             raise ValueError('gm8_dolby_app is missing from the compiled appdomain attribute')
         targets = [(name, 'service_manager') for name in (
             'activity_service', 'package_service', 'audio_service',
-            'notification_service', 'power_service', 'window_service',
+            'notification_service', 'power_service',
             'audioserver_service')]
         targets.append(('hal_gm8_dolby_hwservice', 'hwservice_manager'))
         for target, target_class in targets:
@@ -37,7 +37,8 @@ def main():
             if not any(line.startswith('allow ') for line in result.stdout.splitlines()):
                 raise ValueError(f'Compiled Dolby policy lacks find on {target}:{target_class}')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
-        parser.exit(1, f'Dolby policy check failed: {error}\n')
+        detail = getattr(error, 'stderr', '') or ''
+        parser.exit(1, f'Dolby policy check failed: {error}\n{detail}')
     print('PASS: compiled Dolby app policy permits Android startup/UI/audio APIs and DMS discovery')
     print('This check does not prove service availability, audio processing or route behavior.')
 

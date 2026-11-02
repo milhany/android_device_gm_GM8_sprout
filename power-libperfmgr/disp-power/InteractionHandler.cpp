@@ -23,7 +23,11 @@
 #include <unistd.h>
 #include <utils/Log.h>
 #include <utils/Trace.h>
+#include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <memory>
+#include <vector>
 
 #include "InteractionHandler.h"
 
@@ -38,7 +42,9 @@ static const std::vector<std::string> fb_idle_patch = {"/sys/class/drm/card0/dev
 InteractionHandler::InteractionHandler(std::shared_ptr<HintManager> const &hint_manager)
     : mState(INTERACTION_STATE_UNINITIALIZED),
       mWaitMs(100),
-      mMinDurationMs(1400),
+      // Conservative default: the paired msm8937 animation profile uses
+      // 600 ms. Honor longer framework hints without adding a fixed tail.
+      mMinDurationMs(600),
       mMaxDurationMs(5650),
       mDurationMs(0),
       mHintManager(hint_manager) {}
@@ -87,6 +93,8 @@ void InteractionHandler::Exit() {
         return;
 
     AbortWaitLocked();
+    if (mState != INTERACTION_STATE_IDLE)
+        PerfRel();
     mState = INTERACTION_STATE_UNINITIALIZED;
     lk.unlock();
 
@@ -128,14 +136,9 @@ void InteractionHandler::Acquire(int32_t duration) {
         return;
     }
 
-    int inputDuration = duration + 650;
-    int finalDuration;
-    if (inputDuration > mMaxDurationMs)
-        finalDuration = mMaxDurationMs;
-    else if (inputDuration > mMinDurationMs)
-        finalDuration = inputDuration;
-    else
-        finalDuration = mMinDurationMs;
+    // Honor the framework duration without adding a fixed 650 ms tail.
+    // Clamp before arithmetic so malformed/large hints cannot overflow.
+    int finalDuration = std::max(mMinDurationMs, std::min(duration, mMaxDurationMs));
 
     struct timespec cur_timespec;
     clock_gettime(CLOCK_MONOTONIC, &cur_timespec);
@@ -220,8 +223,8 @@ void InteractionHandler::WaitForIdle(int32_t wait_ms, int32_t timeout_ms) {
     }
 
     ret = pread(mIdleFd, data, sizeof(data), 0);
-    if (!ret) {
-        ALOGE("%s: Unexpected EOF!", __func__);
+    if (ret <= 0) {
+        ALOGE("%s: Unable to read idle state (%zd, %d)", __func__, ret, errno);
         return;
     }
 

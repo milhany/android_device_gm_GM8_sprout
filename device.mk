@@ -1,11 +1,12 @@
-$(call inherit-product, $(SRC_TARGET_DIR)/product/product_launched_with_o_mr1.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/product_launched_with_o.mk)
 
 # Inherit from those products. Most specific first.
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
-# Setup dalvik vm configs
-$(call inherit-product, frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk)
+# GM8 has 3 GiB RAM. Use its captured stock heap policy, not the 4 GiB
+# template's larger per-app free-heap allowance. Keep app allocation limits.
+$(call inherit-product, device/gm/GM8_sprout/configs/gm8-dalvik-heap.mk)
 
 # A/B
 PRODUCT_PACKAGES += \
@@ -263,7 +264,8 @@ PRODUCT_PACKAGES += \
     vendor.qti.hardware.perf@1.0.vendor
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json
+    $(LOCAL_PATH)/configs/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json \
+    $(LOCAL_PATH)/configs/task_profiles.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
 
 # Recovery Ramdisk
 PRODUCT_PACKAGES += \

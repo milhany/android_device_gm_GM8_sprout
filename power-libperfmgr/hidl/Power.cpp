@@ -77,8 +77,7 @@ Power::Power()
         std::string state = android::base::GetProperty(kPowerHalStateProp, "");
         if (state == "SUSTAINED_PERFORMANCE") {
             ALOGI("Initialize with SUSTAINED_PERFORMANCE on");
-            mHintManager->DoHint("SUSTAINED_PERFORMANCE");
-            mSustainedPerfModeOn = true;
+            mSustainedPerfModeOn = mHintManager->DoHint("SUSTAINED_PERFORMANCE");
         } else {
             ALOGI("Initialize PowerHAL");
         }
@@ -122,8 +121,9 @@ Return<void> Power::powerHint(PowerHint_1_0 hint, int32_t data) {
             break;
         case PowerHint_1_0::SUSTAINED_PERFORMANCE:
             if (data && !mSustainedPerfModeOn) {
-                mHintManager->DoHint("SUSTAINED_PERFORMANCE");
-                mSustainedPerfModeOn = true;
+                // Q's GM8 profile does not define this optional hint. Do not
+                // suppress normal launch/interaction boosts when it fails.
+                mSustainedPerfModeOn = mHintManager->DoHint("SUSTAINED_PERFORMANCE");
             } else if (!data && mSustainedPerfModeOn) {
                 mHintManager->EndHint("SUSTAINED_PERFORMANCE");
                 mSustainedPerfModeOn = false;
@@ -212,7 +212,7 @@ Return<void> Power::getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_c
     //Note: No filling of state voters since VMIN_VOTERS = 0
 
 done:
-    _hidl_cb(states, Status::SUCCESS);
+    _hidl_cb(states, ret == 0 ? Status::SUCCESS : Status::FILESYSTEM_ERROR);
     return Void();
 }
 
