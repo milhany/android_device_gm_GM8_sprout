@@ -61,6 +61,19 @@ def check(path):
         found = found or '@1.0::IPerf/default' in [f.text for f in perf[0].findall('fqname')]
         if not found:
             raise ValueError('Missing IPerf 1.0/default manifest instance')
+        fingerprint = [h for h in manifest.findall('hal')
+                       if h.findtext('name') == 'android.hardware.biometrics.fingerprint']
+        if len(fingerprint) != 1 or fingerprint[0].findtext('transport') != 'hwbinder':
+            raise ValueError('Missing unique hwbinder fingerprint manifest entry')
+        hal = fingerprint[0]
+        found = ('2.1' in [v.text for v in hal.findall('version')] and
+                 any(i.findtext('name') == 'IBiometricsFingerprint' and
+                     'default' in [n.text for n in i.findall('instance')]
+                     for i in hal.findall('interface')))
+        found = found or '@2.1::IBiometricsFingerprint/default' in [
+            f.text for f in hal.findall('fqname')]
+        if not found:
+            raise ValueError('Missing IBiometricsFingerprint 2.1/default manifest instance')
     return len(required)
 
 

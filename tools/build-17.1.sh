@@ -49,8 +49,13 @@ done
 m nothing -j32
 # Catch policy parsing, neverallows and file-label tests before the full ROM.
 m sepolicy_neverallows sepolicy.recovery sepolicy_tests -j32
+if [[ "$STAGE" != check ]]; then
+    m bootimage -j32
+    python3 "$SCRIPT_DIR/check-kernel-17.1.py" \
+        --config out/target/product/GM8_sprout/obj/KERNEL_OBJ/.config
+fi
 case "$STAGE" in
-    boot) m bootimage GM8Dolby -j32 ;;
+    boot) m GM8Dolby -j32 ;;
     target-files)
         m target-files-package otatools apksigner -j32
         GM8_TARGETS=(out/target/product/GM8_sprout/obj/PACKAGING/target_files_intermediates/*target_files*.zip)

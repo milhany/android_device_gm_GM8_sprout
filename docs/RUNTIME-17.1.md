@@ -35,17 +35,45 @@ packaged, and that IPerf/default is registered, before starting signing.
 The early SELinux checks remain enabled. Host source/package checks are not
 a full Android compilation or hardware validation.
 
-## Still needs device evidence
+## Controller and fingerprint follow-up
 
-- libperfmgr reports fd=-1 for cpu0/scaling_min_freq. Determine whether opening
-  the node fails because of ownership, timing or absence before changing power
-  limits. The power profile has not been retuned in this candidate.
-- FingerprintService reports that the standard fingerprint HIDL is unavailable.
-  Read `vendor.gm8.fingerprint.sensor`, driver nodes and lshal before choosing a
-  driver or forcing a HAL.
-- lmkd reports EINVAL while writing oom_score_adj, and zygote encounters a tasks
-  file labeled as device on tmpfs. Capture actual mounts/controller state;
-  granting writes to the generic device type would hide a likely setup issue.
+The runtime-state capture selects FPC and shows only cpu/cpuacct mounted.
+The cpuset, stune and memcg paths are ordinary tmpfs directories, not mounted
+controllers. The paired 3.18 defconfig also lacks these controllers. Enable
+CPUSETS, MEMCG (including swap accounting), and
+the BLK_CGROUP/CFQ group interface expected by Android Q. Keep MEMCG_KMEM off
+and retain the existing in-kernel lowmemorykiller. This is compatibility work,
+not a guarantee of lower RAM use: memory accounting itself has some overhead.
+
+SchedTune is not integrated into this QHMP scheduler: tune.o is not linked and
+the EAS energy-model hooks used by tune.c are absent. Leave SCHED_TUNE and
+CGROUP_SCHEDTUNE disabled. Its unmounted /dev/stune path is not a functional
+controller and must not be made writable by adding generic device-type rules.
+Remove the device init write to schedtune.colocate, which this kernel does not
+implement. The new boot build gate inspects the resolved .config, rather than
+assuming requested defconfig options survived Kconfig dependency resolution.
+
+Add the missing standard android.hardware.biometrics.fingerprint 2.1/default
+hwbinder entry. Preserve the existing driver-based FPC/Sunwave selection and
+vendor extensions. Registration and actual enrollment still need device tests.
+The target-files gate now verifies this standard entry as well as IPerf.
+
+The captured CPU minimums (960000 and 768000) match the lowest frequencies
+actually exposed by each cluster. The power HAL runs as root, and Q's public
+domain policy already grants CPU-directory traversal/symlink reads. Do not
+change frequency tables or add redundant traversal permissions from this
+capture. If fd=-1 persists after the perf dependency fix, obtain the actual
+open error/AVC before changing node ownership or policy.
+
+The lmkd EINVAL messages do not by themselves establish a broken kill policy:
+this kernel can reject oom_score_adj after a task has lost its mm during exit.
+Do not copy the 19.1 experimental LMKD/PSI settings into this Q candidate.
+
+Host checks use the real Kconfig parser to resolve the requested controller
+options and reject a resolved config missing any required controller. These
+checks are not a full Android/kernel build or hardware validation. After
+installing the paired kernel/vendor update, check actual cpuset, memory and
+blkio mounts and labels again; SchedTune intentionally remains unsupported.
 
 Do not reuse an earlier --resume signing plan to include these source changes.
 Run the normal incremental build-release-17.1.sh, then install and retest.
