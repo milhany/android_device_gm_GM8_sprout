@@ -1,0 +1,10 @@
+# Only the platform-signed privileged GM8 Dolby package receives this domain.
+# Other platform apps remain outside the DMS client attribute.
+type gm8_dolby_app, domain;
+app_domain(gm8_dolby_app)
+hal_client_domain(gm8_dolby_app, hal_gm8_dolby)
+hwbinder_use(gm8_dolby_app)
+
+# AudioEffect and AudioManager route callbacks use the framework audio service.
+allow gm8_dolby_app audioserver_service:service_manager find;
+binder_call(gm8_dolby_app, audioserver)

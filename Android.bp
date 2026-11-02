@@ -1,5 +1,6 @@
 subdirs = [
     "dolby",
+    "hidl/perf",
     "light",
 ]
 soong_namespace {

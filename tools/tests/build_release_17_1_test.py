@@ -40,7 +40,8 @@ if args[1]=='check-python':
     sys.exit(0)
 output=Path(args[args.index('--output-dir')+1])
 if args[1]=='prepare':
-    assert args[args.index('--install-mode')+1]=='clean'
+    assert args[args.index('--install-mode')+1] in ('clean','update')
+    (output/'fixture-install-mode').write_text(args[args.index('--install-mode')+1])
     (output/'prepared').touch()
     (output/'release-plan.json').write_text('{}')
 else:
@@ -99,10 +100,16 @@ else:
     assert (latest / 'SHA256SUMS').is_file()
     assert 'SIGNED ZIP:' in succeeded.stdout
     assert before == {p.name: p.read_bytes() for p in keys.iterdir()}
+    update = run(GM8_INSTALL_MODE='update')
+    assert update.returncode == 0, update.stdout + update.stderr
+    assert (latest / 'fixture-install-mode').read_text() == 'update'
+    builds = (top / 'fixture-builds').read_text()
+    assert run(GM8_INSTALL_MODE='invalid').returncode != 0
+    assert (top / 'fixture-builds').read_text() == builds
     current = latest.resolve()
     with (release / '.build.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         assert run().returncode != 0 and latest.resolve() == current
 
 print('PASS: Q wrapper rejects wrong SDK/missing original keys, preserves latest '
-      'on signing failure, resumes without rebuilding, publishes checksums and blocks concurrent builds')
+      'on signing failure, resumes without rebuilding, selects update mode, publishes checksums and blocks concurrent builds')

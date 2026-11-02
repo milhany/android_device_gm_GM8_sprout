@@ -2,6 +2,8 @@
 # Run as builder in gm8-build. Incremental build, private signing, full A/B OTA.
 set -eo pipefail
 umask 077
+GM8_INSTALL_MODE="${GM8_INSTALL_MODE:-clean}"
+case "$GM8_INSTALL_MODE" in clean|update) ;; *) echo 'GM8_INSTALL_MODE must be clean or update.' >&2; exit 2;; esac
 RESUME_DIR=""
 if [[ $# -eq 2 && "$1" == --resume ]]; then
     RESUME_DIR="$2"
@@ -67,7 +69,7 @@ echo "Build/signing log: $RUN_DIR/build.log"
         fi
         python3 "$SCRIPT_DIR/release-17.1.py" prepare --top "$TOP" \
             --target-files "${GM8_TARGETS[0]}" --key-dir "$KEY_DIR" \
-            --output-dir "$RUN_DIR" --install-mode clean
+            --output-dir "$RUN_DIR" --install-mode "$GM8_INSTALL_MODE"
     fi
     python3 "$SCRIPT_DIR/release-17.1.py" sign --top "$TOP" --output-dir "$RUN_DIR"
     (cd "$RUN_DIR" && sha256sum gm8-17.1-userdebug-release.zip gm8-17.1-userdebug-release-boot.img > SHA256SUMS)

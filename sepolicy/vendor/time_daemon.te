@@ -1,0 +1,4 @@
+# The stock daemon changes its primary gid and uid before retaining sys_time.
+# Its imported Q domain already grants sys_time; permit only its own credential
+# transition, rather than allowing all vendor services or weakening enforcement.
+allow time_daemon self:capability { setgid setuid };

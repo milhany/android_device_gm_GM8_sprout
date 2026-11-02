@@ -259,6 +259,7 @@ PRODUCT_COPY_FILES += \
 # Power
 PRODUCT_PACKAGES += \
     android.hardware.power@1.3-service.gm-libperfmgr \
+    vendor.qti.hardware.perf@1.0 \
     vendor.qti.hardware.perf@1.0.vendor
 
 PRODUCT_COPY_FILES += \

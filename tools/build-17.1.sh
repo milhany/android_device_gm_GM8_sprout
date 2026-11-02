@@ -51,7 +51,15 @@ m nothing -j32
 m sepolicy_neverallows sepolicy.recovery sepolicy_tests -j32
 case "$STAGE" in
     boot) m bootimage GM8Dolby -j32 ;;
-    target-files) m target-files-package otatools apksigner -j32 ;;
+    target-files)
+        m target-files-package otatools apksigner -j32
+        GM8_TARGETS=(out/target/product/GM8_sprout/obj/PACKAGING/target_files_intermediates/*target_files*.zip)
+        if [[ ${#GM8_TARGETS[@]} -ne 1 || ! -f "${GM8_TARGETS[0]}" ]]; then
+            echo 'Expected one target-files ZIP for runtime dependency checks.' >&2
+            exit 1
+        fi
+        python3 "$SCRIPT_DIR/check-runtime-17.1.py" --target-files "${GM8_TARGETS[0]}"
+        ;;
 esac
 echo "Build records: $RECORD"
 echo 'Bring-up only: no release signing, OTA generation or hardware validation performed.'

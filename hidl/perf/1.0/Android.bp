@@ -1,0 +1,9 @@
+// Q-compatible build of the frozen legacy IPerf 1.0 interface.
+hidl_interface {
+    name: "vendor.qti.hardware.perf@1.0",
+    root: "vendor.qti.hardware.perf",
+    vendor_available: true,
+    srcs: ["IPerf.hal"],
+    interfaces: ["android.hidl.base@1.0"],
+    gen_java: false,
+}

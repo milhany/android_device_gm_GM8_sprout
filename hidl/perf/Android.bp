@@ -1,0 +1,8 @@
+// The Q interfaces checkout does not ship the legacy perf package.
+// Keep its root separate from vendor.qti.hardware's platform package root.
+hidl_package_root {
+    name: "vendor.qti.hardware.perf",
+    path: "device/gm/GM8_sprout/hidl/perf",
+}
+
+subdirs = ["1.0"]
