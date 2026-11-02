@@ -2,7 +2,6 @@
 hidl_interface {
     name: "vendor.qti.hardware.perf@1.0",
     root: "vendor.qti.hardware.perf",
-    vendor_available: true,
     srcs: ["IPerf.hal"],
     interfaces: ["android.hidl.base@1.0"],
     gen_java: false,
