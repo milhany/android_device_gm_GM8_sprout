@@ -1,5 +1,58 @@
 # First Android 10 runtime correction
 
+## Wi-Fi and Dolby follow-up (2026-11-02)
+
+The next log reaches Android and completes fingerprint enrollment. Dolby dies
+before ActivityThread attaches because its dedicated domain cannot find
+activity_service. Add normal app_api_service discovery and window_service to
+that package's domain, retaining the separate DMS client attribute. Do not grant
+DMS access to all platform apps or disable SELinux. Q's built searchpolicy now
+checks the actual compiled policy for activity/package/audio/notification/power,
+window, audioserver and DMS find permissions before the ROM build proceeds.
+
+The device manifest has vendor Wi-Fi extensions but no standard IWifi,
+ISupplicant or IHostapd. Q reports "Vendor Hal not supported", then supplicant
+startup fails and wificond cannot find a wiphy for wlan0. Declare IWifi 1.3,
+ISupplicant 1.2 and IHostapd 1.1, matching the selected Q source services; extend
+the existing init interface declarations for supplicant/hostapd. Q's Wi-Fi
+service is still named android.hardware.wifi@1.0-service, despite implementing
+IWifi 1.3. Its Android.mk installs an init RC, not a VINTF fragment. The native
+package gate now requires these three binaries and matching manifest/init
+declarations. Driver bring-up, WPA2 association, reconnect and hotspot operation
+still require testing; this change is not a WPA3 enablement or a driver rewrite.
+
+The captured CPU tables expose cpu0 960000..1401000 and cpu4 768000..1094400.
+Replace 9999999 CPU frequency requests with the corresponding real maximums,
+remove duplicate min-frequency values, and correct the unused 1094000 value.
+The minimum/defaults, hint durations, GPU settings and kernel thermal limits
+remain unchanged. Opening cpu0/scaling_min_freq still needs its real errno;
+the idempotent Q libperfmgr diagnostic patch changes its existing warning to
+PLOG so the next log distinguishes ENOENT, EACCES and other failures. Preserve
+that bounded system/extras edit across syncs. It changes logging only and does
+not claim to fix the file-open failure.
+
+For boot/target-files stages, rebuild the kernel/modules from a fresh
+obj/KERNEL_OBJ and remove only the generated product kernel and boot.img.
+Keep the rest of out/ and signing keys. Before signing, extract IKCONFIG from
+the packaged BOOT/kernel and compare it to the newly built .config; also compare
+IMAGES/boot.img's kernel if that image is present. This prevents an old boot
+payload from silently passing a source-only config check. Neverallow, recovery,
+file-label, native dependency and certificate verification remain enabled.
+
+The remaining tmpfs tasks denial is not grounds for generic device:file writes.
+Collect the *running* kernel config/mounts to distinguish the unsupported stune
+controller from an older boot or a failed cpuset/memory mount. The targeted
+collector now includes these, Wi-Fi interface/driver state and recent power
+errors without saved networks, hardware MAC addresses or subscriber IDs.
+Time-service protocol warnings and IRQ6 affinity failures are not demonstrated
+causes of the Wi-Fi or Dolby failures; do not mask them with broad rules.
+
+Local checks cover XML/init consistency, supported frequency values, the real Q
+FileNode patch (including idempotence/drift refusal), ELF/package fixtures,
+embedded kernel config and stale boot rejection, and shell/Python syntax.
+The compiled-policy gate and full Android build run in gm8-build; neither that
+build nor hardware/audio validation has been performed on the assistant host.
+
 The submitted boot log reaches BOOT_COMPLETED and opens the camera preview.
 It also shows recurring vendor failures, rather than a general Android crash.
 

@@ -5,6 +5,11 @@ app_domain(gm8_dolby_app)
 hal_client_domain(gm8_dolby_app, hal_gm8_dolby)
 hwbinder_use(gm8_dolby_app)
 
+# ActivityThread, package/audio services and the activity window need normal
+# application API discovery as well as access to the Dolby HAL.
+allow gm8_dolby_app app_api_service:service_manager find;
+allow gm8_dolby_app window_service:service_manager find;
+
 # AudioEffect and AudioManager route callbacks use the framework audio service.
 allow gm8_dolby_app audioserver_service:service_manager find;
 binder_call(gm8_dolby_app, audioserver)

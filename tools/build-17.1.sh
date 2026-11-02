@@ -34,6 +34,7 @@ if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MFileHandle -MIPC::Open2 -MGetopt::
     echo 'Install the complete perl package inside gm8-build as root (apt-get install -y perl).' >&2
     exit 1
 fi
+python3 "$SCRIPT_DIR/apply-power-diagnostics-17.1.py" --top "$TOP"
 python3 "$SCRIPT_DIR/preflight.py" --top "$TOP"
 source build/envsetup.sh
 lunch lineage_GM8_sprout-userdebug
@@ -41,14 +42,22 @@ if [[ -n "$GM8_PY2_DIR" ]]; then export PATH="$GM8_PY2_DIR:$PATH"; fi
 RECORD="$(dirname "$TOP")/gm8-17.1-records/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$RECORD"
 repo manifest -r -o "$RECORD/manifest.xml"
-for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937; do
+for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 system/extras; do
     printf '%s ' "$PROJECT" >> "$RECORD/revisions.txt"
     git -C "$PROJECT" rev-parse HEAD >> "$RECORD/revisions.txt"
     git -C "$PROJECT" status --short >> "$RECORD/revisions.txt"
 done
+if [[ "$STAGE" != check ]]; then
+    # Rebuild the kernel and its modules together, preserving the Android out/.
+    # Do not carry an older Image or boot.img into a new signed update.
+    rm -rf -- "$TOP/out/target/product/GM8_sprout/obj/KERNEL_OBJ"
+    rm -f -- "$TOP/out/target/product/GM8_sprout/kernel" \
+        "$TOP/out/target/product/GM8_sprout/boot.img"
+fi
 m nothing -j32
 # Catch policy parsing, neverallows and file-label tests before the full ROM.
-m sepolicy_neverallows sepolicy.recovery sepolicy_tests -j32
+m sepolicy_neverallows sepolicy.recovery sepolicy_tests searchpolicy -j32
+python3 "$SCRIPT_DIR/check-dolby-policy-17.1.py" --top "$TOP"
 if [[ "$STAGE" != check ]]; then
     m bootimage -j32
     python3 "$SCRIPT_DIR/check-kernel-17.1.py" \
@@ -63,7 +72,8 @@ case "$STAGE" in
             echo 'Expected one target-files ZIP for runtime dependency checks.' >&2
             exit 1
         fi
-        python3 "$SCRIPT_DIR/check-runtime-17.1.py" --target-files "${GM8_TARGETS[0]}"
+        python3 "$SCRIPT_DIR/check-runtime-17.1.py" --target-files "${GM8_TARGETS[0]}" \
+            --kernel-config out/target/product/GM8_sprout/obj/KERNEL_OBJ/.config
         ;;
 esac
 echo "Build records: $RECORD"
