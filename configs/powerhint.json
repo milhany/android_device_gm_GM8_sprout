@@ -101,7 +101,7 @@
         "1",
         "0"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": false
     },
     {
       "Name": "CPUBWHystTriggerCount",

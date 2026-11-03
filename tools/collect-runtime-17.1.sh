@@ -38,22 +38,31 @@ lshal 2>&1 | grep -E 'fingerprint|swfingerprint|dolby|hardware.perf|hardware.wif
 echo '=== Wi-Fi driver and interface presence (no saved networks or MAC addresses) ==='
 getprop wlan.driver.status
 getprop wifi.interface
-ls -ldZ /sys/class/net/wlan0 /sys/class/ieee80211 /dev/wcnss_ctrl /dev/wcnss_wlan 2>&1
+ls -ldZ /sys/class/net/wlan0 /sys/class/ieee80211 /dev/wcnss_ctrl /dev/wcnss_wlan /dev/socket/wifihal 2>&1
 for gm8_wifi_node in ifindex operstate phy80211/index; do
     cat "/sys/class/net/wlan0/$gm8_wifi_node" 2>&1
 done
 echo '=== CPU frequency node ownership and values ==='
-for gm8_cpu in 0 4; do
-    for gm8_node in scaling_min_freq scaling_max_freq scaling_governor scaling_available_frequencies; do
+for gm8_cpu in 0 1 2 3 4 5 6 7; do
+    echo "cpu$gm8_cpu online/cpufreq"
+    cat "/sys/devices/system/cpu/cpu${gm8_cpu}/online" 2>&1
+    readlink -f "/sys/devices/system/cpu/cpu${gm8_cpu}/cpufreq" 2>&1
+    for gm8_node in related_cpus affected_cpus scaling_min_freq scaling_max_freq scaling_governor scaling_available_frequencies; do
         gm8_path="/sys/devices/system/cpu/cpu${gm8_cpu}/cpufreq/$gm8_node"
         ls -lZ "$gm8_path" 2>&1
         cat "$gm8_path" 2>&1
     done
 done
+echo '=== Policy directories, where provided by this kernel ==='
+ls -ldZ /sys/devices/system/cpu/cpufreq/policy* 2>&1
 echo '=== Power service identity and CPU hotplug state ==='
 ps -AZ | grep -E 'power@1.3-service|gm8.dolby|dolby.*dms'
 cat /sys/devices/system/cpu/online /sys/devices/system/cpu/offline 2>&1
 ls -ldZ /sys/devices/system/cpu/cpu0/cpufreq /sys/devices/system/cpu/cpu4/cpufreq 2>&1
+echo '=== Optional RPM statistics paths (presence only) ==='
+ls -lZ /d/system_stats /sys/kernel/debug/system_stats /sys/kernel/debug/rpm_stats /sys/power/rpm_stats 2>&1
+echo '=== Google Services Framework package presence (optional GApps) ==='
+pm path com.google.android.gsf 2>&1
 echo '=== Recent targeted service failures ==='
 logcat -d -b all -t 2000 2>/dev/null | grep -E 'libperfmgr: Failed|Wifi Hal|Failed to register wifi|Failed to start supplicant|GM8Dolby|GM8Fingerprint|scontext=u:r:gm8_dolby_app'
 echo '=== Available controllers and actual cgroup mounts ==='

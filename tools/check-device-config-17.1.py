@@ -45,6 +45,11 @@ def check(device):
     nodes = {n['Name']: n for n in power['Nodes']}
     if len(nodes) != len(power['Nodes']):
         raise ValueError('Duplicate power-hint node')
+    boost = nodes['SchedBoost']
+    if (boost['Path'] != '/proc/sys/kernel/sched_boost' or
+            boost['Values'] != ['1', '0'] or
+            boost.get('DefaultIndex', 1) != 1 or boost.get('ResetOnInit') is not False):
+        raise ValueError('QHMP boost is reference-counted: do not release an unowned boost on init')
     frequencies = {
         'cpu0': {'960000', '1094400', '1209600', '1248000', '1344000', '1401000'},
         'cpu4': {'768000', '902400', '998400', '1094400'},

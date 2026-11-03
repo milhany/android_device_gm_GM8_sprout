@@ -88,10 +88,11 @@ functional cgroup or made writable to hide another controller failure.
 
 ## Open runtime items
 
-- cpu0/scaling_min_freq open failure: the diagnostic patch is ready but the
-  candidate has not run. Obtain the actual errno/ownership/online state before
-  changing permissions or the path. A fake frequency or broad SELinux allow
-  is not a fix for fd=-1.
+- The next runtime capture confirms cpu0/scaling_min_freq returns ENOENT,
+  rather than EACCES. Capture every CPU's online state, cpufreq link and
+  related_cpus before choosing a stable replacement; hotplug/policy migration
+  is a hypothesis, not yet established. The collector now includes all eight
+  CPUs. Do not add permissions, force cores online or invent a frequency.
 - RPM/debugfs accounting and the CPU time_in_state reader: verify actual
   available nodes. The status fix does not establish valid residency data.
 - Verify the running kernel's controllers, rather than assuming a successful
@@ -100,6 +101,45 @@ functional cgroup or made writable to hide another controller failure.
 - Retest Wi-Fi, Dolby and fingerprint, then repeat cold/warm launches and a
   fixed app-switch/video workload. Compare pauses/reloads, real battery drop,
   screen-off sleep and temperature. Free RAM alone is not an acceptance test.
+
+### Runtime follow-up, 2026-11-03
+
+The supplied capture contains no FATAL EXCEPTION, fatal native signal or ANR
+marker. This is limited to the captured interval, not proof of overall stability.
+Private log contents and network/device identifiers are not committed.
+
+- Dolby reaches DAP ready with enabled=true. A remaining gm8_dolby_app to
+  gpuservice Binder call denial is addressed with the same targeted binder_call
+  used by Q's platform_app graphics initialization. The compiled policy gate
+  now requires GPU discovery and this call. Audio/call-route behavior still
+  needs listening tests; no vendor-app window_service exception is added.
+- QHMP sched_set_boost(0) releases a reference and returns EINVAL when no
+  reference is held. ResetOnInit previously attempted that release before a
+  LAUNCH acquisition. Disable only this node's initialization reset; retain
+  LAUNCH acquisition, expiry and default release. Q FileNode tracks the default
+  index without writing when ResetOnInit is false. Other nodes keep their resets.
+- Wi-Fi HAL starts and scanning is present. SetupWizard explicitly disables
+  Wi-Fi, the legacy HAL reports a stop failure, then SetupWizard enables it
+  again. This is not evidence of a spontaneous supplicant crash or a successful
+  network association. Later control-socket binds fail because the
+  /dev/socket/wifihal parent is missing. Create that directory as wifi:wifi 0770
+  before HAL startup, using the existing common QCOM wifihal_socket label and
+  permissions. This fixes the missing parent, not a claimed HAL timeout cure.
+- TCP tuning writes from hal_wifi_default to proc_net remain denied. No generic
+  proc_net write permission is added. Optional packet-fate/ring-buffer features
+  being unsupported do not by themselves explain an association failure.
+- Repeated missing com.google.android.gsf.gservices provider messages require
+  checking the installed Google Services Framework package/provider. They do
+  not establish a kernel or heap defect. No GApps replacement is bundled here.
+- AppComponentFactory class-not-found messages occur on application-info
+  updates with empty dex paths; no matching fatal app exception is captured.
+  Keep them separate from a proven broken installed APK. Wallpaper permission,
+  optional fingerprint extensions, generic ppd_sun labeling and missing RPM
+  statistics remain separate items needing provider/runtime evidence.
+
+Follow-up host checks cover configuration constraints, existing native power
+logic and source syntax. A full Android build, compiled policy checks and
+hardware retesting are still required for these follow-up changes.
 
 ## Validation
 
@@ -127,6 +167,12 @@ functional cgroup or made writable to hide another controller failure.
 - Q vendor-app restrictions: system/sepolicy/public/domain.te (lineage-17.1).
 - Q Binder cache: frameworks/base/services/core/java/com/android/server/am/ActivityManagerService.java,
   getCommonServicesLocked.
+- Q graphics app access: system/sepolicy/private/platform_app.te and
+  public/service.te (gpu_service is an app_api_service).
+- Q power node initialization: system/extras/libperfmgr/Node.cc and FileNode.cc;
+  paired kernel kernel/sched/qhmp_fair.c, sched_set_boost.
+- QCOM Wi-Fi socket: hardware/qcom/wlan/qcwcn/wifi_hal/wifi_hal.cpp and
+  device/qcom/sepolicy-legacy-um/vendor/common/{file.te,file_contexts,hal_wifi.te}.
 - Q vendor profile replacement: system/core/libprocessgroup/task_profiles.cpp
   and sched_policy.cpp; unrelated capacity/I/O/timer profiles stay active.
 - Q heap template and ART defaults: frameworks/native/build/phone-xhdpi-4096-dalvik-heap.mk

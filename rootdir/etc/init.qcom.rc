@@ -320,6 +320,9 @@ on post-fs-data
     mkdir /data/vendor/ramdump/bluetooth 0770 bluetooth bluetooth
 
     # Create the directories used by the Wireless subsystem
+    # QCOM Wi-Fi HAL binds its control socket here. The common QCOM policy
+    # supplies the wifihal_socket label and HAL permissions.
+    mkdir /dev/socket/wifihal 0770 wifi wifi
     mkdir /data/vendor/wifi 0770 wifi wifi
     mkdir /data/vendor/wifi/sockets 0770 wifi wifi
     mkdir /data/vendor/wifi/hostapd 0770 wifi wifi

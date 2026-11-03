@@ -37,6 +37,11 @@ with tempfile.TemporaryDirectory(prefix='gm8-q-config-') as name:
     reject('sepolicy/vendor/gm8_dolby_app.te', lambda s: s + '\nallow gm8_dolby_app window_service:service_manager find;\n')
     reject('hidl/perf/1.0/Android.bp', lambda s: s.replace('    gen_java:', '    vendor_available: true,\n    gen_java:'))
     reject('configs/powerhint.json', lambda s: s.replace('1401000', '9999999'))
+    def reset_unowned_boost(source):
+        data = json.loads(source)
+        next(node for node in data['Nodes'] if node['Name'] == 'SchedBoost')['ResetOnInit'] = True
+        return json.dumps(data)
+    reject('configs/powerhint.json', reset_unowned_boost)
     reject('configs/task_profiles.json', lambda s: s.replace('HighPerformance', 'ProcessCapacityHigh'))
     reject('configs/task_profiles.json', lambda s: s.replace('"Actions": []', '"Actions": [{"Name":"JoinCgroup"}]', 1))
     reject('system.prop', lambda s: s + '\npm.dexopt.install=speed\n')

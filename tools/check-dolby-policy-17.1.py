@@ -27,15 +27,17 @@ def main():
         targets = [(name, 'service_manager') for name in (
             'activity_service', 'package_service', 'audio_service',
             'notification_service', 'power_service',
-            'audioserver_service')]
-        targets.append(('hal_gm8_dolby_hwservice', 'hwservice_manager'))
-        for target, target_class in targets:
+            'audioserver_service', 'gpu_service')]
+        requests = [(target, target_class, 'find') for target, target_class in targets]
+        requests.extend((('hal_gm8_dolby_hwservice', 'hwservice_manager', 'find'),
+                         ('gpuservice', 'binder', 'call')))
+        for target, target_class, permission in requests:
             result = subprocess.run([
                 str(search), str(policy), '--libpath', str(library), '--allow',
-                '-s', 'gm8_dolby_app', '-t', target, '-c', target_class, '-p', 'find'],
+                '-s', 'gm8_dolby_app', '-t', target, '-c', target_class, '-p', permission],
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if not any(line.startswith('allow ') for line in result.stdout.splitlines()):
-                raise ValueError(f'Compiled Dolby policy lacks find on {target}:{target_class}')
+                raise ValueError(f'Compiled Dolby policy lacks {permission} on {target}:{target_class}')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         detail = getattr(error, 'stderr', '') or ''
         parser.exit(1, f'Dolby policy check failed: {error}\n{detail}')

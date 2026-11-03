@@ -14,3 +14,6 @@ allow gm8_dolby_app app_api_service:service_manager find;
 # AudioEffect and AudioManager route callbacks use the framework audio service.
 allow gm8_dolby_app audioserver_service:service_manager find;
 binder_call(gm8_dolby_app, audioserver)
+
+# Q's framework graphics initialization also calls this service from apps.
+binder_call(gm8_dolby_app, gpuservice)
