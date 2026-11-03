@@ -75,6 +75,7 @@ def check_memory_profile(archive):
             raise ValueError(f'Unexpected packaged ART policy: {key}={values.get(key)}')
     profiles = json.loads(archive.read('VENDOR/etc/task_profiles.json'))
     check_legacy_profiles(profiles)
+    return values
 
 
 def require_hal(manifest, name, version, interface):
@@ -195,9 +196,25 @@ def symbols(data, label):
     return required, exported
 
 
+def check_perf_extension(archive, properties):
+    if properties.get('ro.vendor.extension_library') != 'libqti-perfd-client.so':
+        raise ValueError('The stock audio/video performance client is not selected')
+    for abi, elf_class in (('lib', 1), ('lib64', 2)):
+        name = f'VENDOR/{abi}/libqti-perfd-client.so'
+        data = archive.read(name)
+        require_arm_executable(data, name)
+        if data[4] != elf_class or struct.unpack_from('<H', data, 16)[0] != 3:
+            raise ValueError(f'Wrong shared client ABI: {name}')
+        if elf_class == 2:
+            _, exported = symbols(data, name)
+            if not {'perf_lock_acq', 'perf_lock_rel'} <= exported:
+                raise ValueError('64-bit performance client lacks required perf-lock entry points')
+
+
 def check(path):
     with zipfile.ZipFile(path) as archive:
-        check_memory_profile(archive)
+        properties = check_memory_profile(archive)
+        check_perf_extension(archive, properties)
         service = archive.read('VENDOR/bin/hw/vendor.qti.hardware.perf@1.0-service')
         library = archive.read('VENDOR/lib64/vendor.qti.hardware.perf@1.0.so')
         undefined, _ = symbols(service, 'perf service')

@@ -8,7 +8,8 @@
         "1248000"
       ],
       "DefaultIndex": 0,
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPUBigClusterMinCPUs",
@@ -17,7 +18,8 @@
         "4",
         "2"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPUBigClusterMinFreq",
@@ -27,7 +29,8 @@
         "1209600",
         "960000"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPULittleClusterMaxFreq",
@@ -36,7 +39,8 @@
         "1094400"
       ],
       "DefaultIndex": 0,
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPULittleClusterMinFreq",
@@ -45,7 +49,8 @@
         "1094400",
         "768000"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "GPUMaxFreq",
@@ -55,7 +60,8 @@
         "3"
       ],
       "DefaultIndex": 0,
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "GPUMinFreq",
@@ -65,7 +71,8 @@
         "3",
         "5"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "GPUForceRailOn",
@@ -74,7 +81,8 @@
         "1",
         "0"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "GPUForceClkOn",
@@ -83,7 +91,8 @@
         "1",
         "0"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "GPUIdleTimer",
@@ -92,7 +101,8 @@
         "10000",
         "80"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "SchedBoost",
@@ -101,7 +111,8 @@
         "1",
         "0"
       ],
-      "ResetOnInit": false
+      "ResetOnInit": false,
+      "Type": "File"
     },
     {
       "Name": "CPUBWHystTriggerCount",
@@ -110,7 +121,8 @@
         "0",
         "3"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPUBWHistMemory",
@@ -119,7 +131,8 @@
         "0",
         "20"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPUBWHystLength",
@@ -128,7 +141,8 @@
         "0",
         "10"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "CPUBWMinFreq",
@@ -138,7 +152,8 @@
         "4101",
         "2929"
       ],
-      "ResetOnInit": true
+      "ResetOnInit": true,
+      "Type": "File"
     },
     {
       "Name": "PMQoSCpuDmaLatency",
@@ -147,7 +162,8 @@
         "0x00000043",
         "0x00000064"
       ],
-      "HoldFd": true
+      "HoldFd": true,
+      "Type": "File"
     },
     {
       "Name": "PowerHALAudioState",

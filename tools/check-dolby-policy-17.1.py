@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check actual compiled Q policy for Dolby application startup and DMS access."""
+"""Check actual compiled Q policy for Dolby and the stock TimeService client."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -22,8 +22,15 @@ def main():
         result = subprocess.run([str(analyzer), str(policy), 'attribute', 'appdomain'],
                                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True)
-        if 'gm8_dolby_app' not in result.stdout.split():
-            raise ValueError('gm8_dolby_app is missing from the compiled appdomain attribute')
+        app_domains = set(result.stdout.split())
+        for domain in ('gm8_dolby_app', 'gm8_time_app'):
+            if domain not in app_domains:
+                raise ValueError(f'{domain} is missing from the compiled appdomain attribute')
+        result = subprocess.run([str(analyzer), str(policy), 'attribute', 'coredomain'],
+                                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True)
+        if {'gm8_dolby_app', 'gm8_time_app'} & set(result.stdout.split()):
+            raise ValueError('GM8 vendor app clients must not acquire coredomain')
         targets = [(name, 'service_manager') for name in (
             'activity_service', 'package_service', 'audio_service',
             'notification_service', 'power_service',
@@ -38,10 +45,16 @@ def main():
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if not any(line.startswith('allow ') for line in result.stdout.splitlines()):
                 raise ValueError(f'Compiled Dolby policy lacks {permission} on {target}:{target_class}')
+        result = subprocess.run([
+            str(search), str(policy), '--libpath', str(library), '--allow',
+            '-s', 'gm8_time_app', '-t', 'time_daemon', '-c', 'unix_stream_socket', '-p', 'connectto'],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if not any(line.startswith('allow ') for line in result.stdout.splitlines()):
+            raise ValueError('Compiled TimeService policy lacks its time_daemon socket connection')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         detail = getattr(error, 'stderr', '') or ''
-        parser.exit(1, f'Dolby policy check failed: {error}\n{detail}')
-    print('PASS: compiled Dolby app policy permits Android startup/UI/audio APIs and DMS discovery')
+        parser.exit(1, f'GM8 app policy check failed: {error}\n{detail}')
+    print('PASS: compiled vendor app domains, Dolby APIs/DMS/GPU and stock TimeService socket access')
     print('This check does not prove service availability, audio processing or route behavior.')
 
 

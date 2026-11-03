@@ -35,6 +35,7 @@ if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MFileHandle -MIPC::Open2 -MGetopt::
     exit 1
 fi
 python3 "$SCRIPT_DIR/apply-power-diagnostics-17.1.py" --top "$TOP"
+python3 "$SCRIPT_DIR/apply-wifi-stop-compat-17.1.py" --top "$TOP"
 python3 "$SCRIPT_DIR/check-device-config-17.1.py" --device "$SCRIPT_DIR/.."
 python3 "$SCRIPT_DIR/preflight.py" --top "$TOP"
 source build/envsetup.sh
@@ -43,7 +44,7 @@ if [[ -n "$GM8_PY2_DIR" ]]; then export PATH="$GM8_PY2_DIR:$PATH"; fi
 RECORD="$(dirname "$TOP")/gm8-17.1-records/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$RECORD"
 repo manifest -r -o "$RECORD/manifest.xml"
-for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 system/extras; do
+for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 system/extras hardware/interfaces frameworks/opt/net/wifi; do
     printf '%s ' "$PROJECT" >> "$RECORD/revisions.txt"
     git -C "$PROJECT" rev-parse HEAD >> "$RECORD/revisions.txt"
     git -C "$PROJECT" status --short >> "$RECORD/revisions.txt"

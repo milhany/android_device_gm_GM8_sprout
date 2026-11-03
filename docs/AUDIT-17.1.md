@@ -1,5 +1,10 @@
 # GM8 / LineageOS 17.1 source and performance audit
 
+The next installed-candidate log is reviewed in
+[RUNTIME-AUDIT-20261103.md](RUNTIME-AUDIT-20261103.md), including confirmed
+connectivity/enrollment, bounded Wi-Fi teardown, the TimeService client and
+the stock audio/video performance property.
+
 Date: 2026-11-02. Baseline device commit:
 c69d66043a02b5b2acb83b499fa48cebed2bbce6.
 Paired vendor: a22c80f76f1bc90d07d627bd43af8e959e3b22bc.

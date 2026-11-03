@@ -1,1 +1,2 @@
 user=_app seinfo=platform isPrivApp=true name=org.lineageos.gm8.dolby domain=gm8_dolby_app type=app_data_file levelFrom=user
+user=_app seinfo=platform name=com.qualcomm.timeservice domain=gm8_time_app type=app_data_file levelFrom=user

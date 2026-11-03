@@ -51,15 +51,19 @@ resume an old signing plan to include new source changes.
 
 The normal workflow:
 
-1. Probe interpreters, apply the bounded libperfmgr errno/hotplug patch and
-   validate Q source/blob inputs. Preserve that system/extras edit across syncs.
+1. Probe interpreters, apply the bounded libperfmgr errno/hotplug and Wi-Fi
+   teardown wait patches, then validate Q source/blob inputs. Preserve the
+   system/extras, hardware/interfaces and frameworks/opt/net/wifi edits across syncs.
 2. Run m nothing, neverallows, recovery policy and file-label tests.
-3. Check compiled Dolby app API/audio/DMS permissions. Direct window_service
+3. Check compiled Dolby app API/audio/DMS/GPU and TimeService socket permissions.
+   Both package-specific vendor app domains must remain outside coredomain.
+   Direct window_service
    find is forbidden for this non-core app domain; Q supplies its Binder cache.
 4. After policy checks pass, clear only obj/KERNEL_OBJ, product kernel and
    boot.img, then rebuild kernel/modules and inspect the resolved config.
 5. Build target-files/otatools. Check native Wi-Fi/perf registration and
-   dependencies, installed ART/task profiles and packaged kernel IKCONFIG.
+   dependencies, the stock media performance property/client ABIs, installed
+   ART/task profiles and packaged kernel IKCONFIG.
 6. Sign and verify APK/OTA identities, declared recovery extras and output
    metadata. Publish latest only after success; preserve the old latest on failure.
 

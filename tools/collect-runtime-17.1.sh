@@ -61,6 +61,18 @@ cat /sys/devices/system/cpu/online /sys/devices/system/cpu/offline 2>&1
 ls -ldZ /sys/devices/system/cpu/cpu0/cpufreq /sys/devices/system/cpu/cpu4/cpufreq 2>&1
 echo '=== Optional RPM statistics paths (presence only) ==='
 ls -lZ /d/system_stats /sys/kernel/debug/system_stats /sys/kernel/debug/rpm_stats /sys/power/rpm_stats 2>&1
+echo '=== Stock media performance client selection ==='
+getprop ro.vendor.extension_library
+ls -lZ /vendor/lib/libqti-perfd-client.so /vendor/lib64/libqti-perfd-client.so 2>&1
+echo '=== RTC and FPC sysfs node presence (no fingerprint templates) ==='
+ls -lZ /dev/rtc /dev/rtc0 /dev/rtc1 2>&1
+for gm8_rtc in /sys/class/rtc/rtc*/name; do
+    [ -f "$gm8_rtc" ] && cat "$gm8_rtc" 2>&1
+done
+for gm8_fpc in /sys/bus/platform/drivers/fpc1020/*; do
+    [ -d "$gm8_fpc" ] || continue
+    ls -ldZ "$gm8_fpc" "$gm8_fpc/irq" "$gm8_fpc/fingerdown_wait" 2>&1
+done
 echo '=== Google Services Framework package presence (optional GApps) ==='
 pm path com.google.android.gsf 2>&1
 echo '=== Recent targeted service failures ==='

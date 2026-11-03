@@ -1,4 +1,7 @@
 qemu.hw.mainkeys=0
+# Stock GM8 audio/video HALs resolve perf_lock_acq/rel through this property.
+# Both matching vendor client ABIs are already supplied by the pinned vendor.
+ro.vendor.extension_library=libqti-perfd-client.so
 vendor.vidc.disable.split.mode=1
 ro.hardware.nfc_nci=nqx.default
 vendor.hw.fm.init=0

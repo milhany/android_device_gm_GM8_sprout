@@ -1,0 +1,7 @@
+# Only the platform-signed stock TimeService package selects this vendor app
+# domain. Its legacy abstract socket must not require a core/vendor exception
+# or grant every platform application access to the time daemon.
+type gm8_time_app, domain;
+app_domain(gm8_time_app)
+allow gm8_time_app app_api_service:service_manager find;
+allow gm8_time_app time_daemon:unix_stream_socket connectto;
