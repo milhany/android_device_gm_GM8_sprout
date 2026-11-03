@@ -1,5 +1,16 @@
 # First Android 10 runtime correction
 
+## Current CPU hotplug follow-up (2026-11-03)
+
+The all-CPU capture establishes that CPU0 is offline while its shared frequency
+policy is accessible through CPU1 and CPU3. The current libperfmgr compatibility
+patch resolves the configured CPU0/CPU4 min/max frequency endpoints through a
+verified related_cpus sibling when the original path returns ENOENT. It handles
+boost release after a policy move; it does not force cores online or change
+frequencies/permissions. The historical errno-only description below refers to
+the earlier candidate. See AUDIT-17.1.md for the new capture, bounded resolver,
+host validation and remaining hardware checks.
+
 ## Wi-Fi and Dolby follow-up (2026-11-02)
 
 The next log reaches Android and completes fingerprint enrollment. Dolby dies

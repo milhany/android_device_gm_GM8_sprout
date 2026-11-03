@@ -51,7 +51,7 @@ resume an old signing plan to include new source changes.
 
 The normal workflow:
 
-1. Probe interpreters, apply the bounded libperfmgr errno-log patch and
+1. Probe interpreters, apply the bounded libperfmgr errno/hotplug patch and
    validate Q source/blob inputs. Preserve that system/extras edit across syncs.
 2. Run m nothing, neverallows, recovery policy and file-label tests.
 3. Check compiled Dolby app API/audio/DMS permissions. Direct window_service

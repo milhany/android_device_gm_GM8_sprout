@@ -88,11 +88,9 @@ functional cgroup or made writable to hide another controller failure.
 
 ## Open runtime items
 
-- The next runtime capture confirms cpu0/scaling_min_freq returns ENOENT,
-  rather than EACCES. Capture every CPU's online state, cpufreq link and
-  related_cpus before choosing a stable replacement; hotplug/policy migration
-  is a hypothesis, not yet established. The collector now includes all eight
-  CPUs. Do not add permissions, force cores online or invent a frequency.
+- Runtime now confirms cpu0/scaling_min_freq returns ENOENT while CPU0 is
+  offline and the same policy is hosted under CPU1. The hotplug resolver below
+  addresses the path; boost application/release still needs hardware retesting.
 - RPM/debugfs accounting and the CPU time_in_state reader: verify actual
   available nodes. The status fix does not establish valid residency data.
 - Verify the running kernel's controllers, rather than assuming a successful
@@ -141,6 +139,45 @@ Follow-up host checks cover configuration constraints, existing native power
 logic and source syntax. A full Android build, compiled policy checks and
 hardware retesting are still required for these follow-up changes.
 
+### CPU policy migration confirmed, 2026-11-03
+
+The next read-only capture shows CPU0 and CPU2 offline, CPU1/CPU3 online with
+related_cpus 0 1 2 3, and CPU3's cpufreq link resolving to CPU1. The other policy
+reports related_cpus 4 5 6 7 and remains accessible through CPU4. There are no
+policy* directories under the global cpufreq path. This matches the paired
+3.18 cpufreq.c moving its policy kobject to an online sibling; a fixed CPU1
+replacement would fail again if CPU1 went offline.
+
+The Q libperfmgr patch now retries a missing CPU0/CPU4 scaling_min_freq or
+scaling_max_freq endpoint through an accessible sibling. It rechecks
+related_cpus at each open and accepts only the original four-CPU policy. An
+existing original endpoint remains preferred. Other endpoints and non-ENOENT
+failures, including EACCES, retain their behavior. Failed resolutions preserve
+the existing 500 ms retry; current-value tracking changes only after a successful
+write. This lets a boost release follow a policy move without forcing cores
+online, changing clock values, caching another unstable CPU number or adding
+permissions. The minimum was 1209600 during capture while writes restoring
+960000 repeatedly failed; this is a real failed release path, not proof that
+it explains every pause or battery complaint.
+
+The same capture confirms the intended kernel/controller config, captured-stock
+heap values and speed-profile installation policy are running. MemAvailable
+is about 1.25 GiB, swap total is 1 GiB and swap usage about 325 MiB at this one
+snapshot. It does not show memory exhaustion at that moment or establish
+worst-case app-switch performance. Google Services Framework is installed, so
+the earlier missing-provider messages require provider/initialization evidence,
+not simply installing an assumed missing package. The Wi-Fi HAL socket parent
+is still absent on this older installed build; retest the prior init fix with
+the new full update.
+
+cpufreq_hotplug_17_1_test.py compiles the actual Q FileNode, Node and RequestGroup
+with g++/UBSan and Android boundary fixtures. It exercises boost/release across
+a representative move, min/max endpoints and both clusters, wrong/malformed
+policy rejection, failed-write retry/recovery, injected EACCES without fallback,
+unchanged unrelated-node behavior and balanced boost initialization. Patch
+application accepts vanilla/errno-only Q sources, is idempotent and rejects
+unexpected source drift. This is not a real sysfs or Android hardware test.
+
 ## Validation
 
 - All device XML/JSON and Python sources parsed; shell entry points passed
@@ -171,6 +208,9 @@ hardware retesting are still required for these follow-up changes.
   public/service.te (gpu_service is an app_api_service).
 - Q power node initialization: system/extras/libperfmgr/Node.cc and FileNode.cc;
   paired kernel kernel/sched/qhmp_fair.c, sched_set_boost.
+- Paired 3.18 CPU hotplug: drivers/cpufreq/cpufreq.c,
+  update_policy_cpu/kobject_move; include/linux/cpufreq.h,
+  related_cpus includes online and offline CPUs.
 - QCOM Wi-Fi socket: hardware/qcom/wlan/qcwcn/wifi_hal/wifi_hal.cpp and
   device/qcom/sepolicy-legacy-um/vendor/common/{file.te,file_contexts,hal_wifi.te}.
 - Q vendor profile replacement: system/core/libprocessgroup/task_profiles.cpp
