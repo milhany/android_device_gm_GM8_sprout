@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check actual compiled Q policy for Dolby and the stock TimeService client."""
+"""Check compiled Q vendor-app access and the legacy app-zygote cleanup path."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -51,10 +51,16 @@ def main():
             check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if not any(line.startswith('allow ') for line in result.stdout.splitlines()):
             raise ValueError('Compiled TimeService policy lacks its time_daemon socket connection')
+        result = subprocess.run([
+            str(search), str(policy), '--libpath', str(library), '--allow',
+            '-s', 'system_server', '-t', 'app_zygote', '-c', 'process', '-p', 'getpgid'],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if not any(line.startswith('allow ') for line in result.stdout.splitlines()):
+            raise ValueError('Compiled policy lacks system_server app_zygote process-group lookup')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         detail = getattr(error, 'stderr', '') or ''
         parser.exit(1, f'GM8 app policy check failed: {error}\n{detail}')
-    print('PASS: compiled vendor app domains, Dolby APIs/DMS/GPU and stock TimeService socket access')
+    print('PASS: compiled vendor app domains, Dolby/TimeService access and app-zygote group lookup')
     print('This check does not prove service availability, audio processing or route behavior.')
 
 

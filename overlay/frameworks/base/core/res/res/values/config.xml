@@ -353,6 +353,10 @@
     <!--  Define Google play service package for FRP-->
      <string name="config_persistentDataPackageName">com.google.android.gms</string>
 
+    <!-- Q grants configurator permissions only to this factory/system package.
+         On a vanilla install with no factory GMS, PackageManager resolves none. -->
+     <string name="config_deviceConfiguratorPackageName" translatable="false">com.google.android.gms</string>
+
     <!-- Configure wifi tcp buffersizes in the form:
          rmem_min,rmem_def,rmem_max,wmem_min,wmem_def,wmem_max -->
      <string name="config_wifi_tcp_buffers">524288,1048576,2097152,262144,524288,1048576</string>

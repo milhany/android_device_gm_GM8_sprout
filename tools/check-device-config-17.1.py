@@ -27,10 +27,11 @@ def check(device):
     framework = ET.parse(device / 'overlay/frameworks/base/core/res/res/values/config.xml').getroot()
     for tag, name, expected in (
             ('bool', 'config_dynamic_bind_ims', 'true'),
-            ('string', 'config_ims_package', 'org.codeaurora.ims')):
+            ('string', 'config_ims_package', 'org.codeaurora.ims'),
+            ('string', 'config_deviceConfiguratorPackageName', 'com.google.android.gms')):
         entries = framework.findall(f"{tag}[@name='{name}']")
         if len(entries) != 1 or (entries[0].text or '').strip() != expected:
-            raise ValueError('Q IMS requires dynamic binding to the installed org.codeaurora.ims package')
+            raise ValueError(f'GM8 framework override must set {name}={expected}')
     if 'configs/task_profiles.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json' not in make:
         raise ValueError('The legacy task-profile overrides are not installed')
     policy = (device / 'sepolicy/vendor/gm8_dolby_app.te').read_text()

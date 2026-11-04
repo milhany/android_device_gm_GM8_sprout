@@ -38,6 +38,8 @@ with tempfile.TemporaryDirectory(prefix='gm8-q-config-') as name:
     reject(framework, lambda s: s.replace('name="config_dynamic_bind_ims">true', 'name="config_dynamic_bind_ims">false'))
     reject(framework, lambda s: s.replace('name="config_dynamic_bind_ims"', 'name="missing_dynamic_bind_ims"'))
     reject(framework, lambda s: s.replace('name="config_ims_package">org.codeaurora.ims', 'name="config_ims_package">com.android.phone'))
+    reject(framework, lambda s: s.replace('name="config_deviceConfiguratorPackageName"', 'name="missing_configurator"'))
+    reject(framework, lambda s: s.replace('translatable="false">com.google.android.gms</string>', 'translatable="false"></string>'))
     reject('sepolicy/vendor/gm8_dolby_app.te', lambda s: s + '\nallow gm8_dolby_app window_service:service_manager find;\n')
     reject('hidl/perf/1.0/Android.bp', lambda s: s.replace('    gen_java:', '    vendor_available: true,\n    gen_java:'))
     reject('configs/powerhint.json', lambda s: s.replace('1401000', '9999999'))

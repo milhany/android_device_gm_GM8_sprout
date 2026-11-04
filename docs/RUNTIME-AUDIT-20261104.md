@@ -24,13 +24,12 @@ identifiers and DRM material are excluded from the repository.
 - The earlier TimeService client socket AVC is absent, but native time daemon
   accept/receive failures remain; do not claim clock persistence is repaired.
 
-## Proposed corrections requiring explicit user authorization
+## Authorized source corrections
 
-These two source corrections were prepared locally but have not been published
-or installed. Automatic approval review rejected the repository write because
-it changes persistent DeviceConfig authority and a SELinux process permission
-beyond the user's general log-review request. The published follow-up is limited
-to this report and the read-only collector; the existing ROM policy is unchanged.
+The user explicitly authorized the two corrections below on 2026-11-04 after
+reviewing their scope. They change the configurator owner and the single
+system_server/app_zygote process relation. They still require a full build and
+device validation; the assistant has not installed them on the phone.
 
 ### Factory GMS DeviceConfig owner
 
@@ -45,7 +44,7 @@ protection flag to the known configurator package. PackageManagerService obtains
 that package from this resource through ensureSystemPackageName, which requires
 an actual factory/system package; a data-only install is not accepted.
 
-Proposed: select com.google.android.gms in the existing framework overlay. This uses Q's
+Select com.google.android.gms in the existing framework overlay. This uses Q's
 normal package/permission mechanism, not a manual pm grant, privilege XML entry,
 SELinux exception or framework permission bypass. With no factory GMS in a
 vanilla installation, PackageManager resolves no owner. Verify the resulting
@@ -59,17 +58,17 @@ libprocessgroup getpgid permission failures around Chrome app-zygote cleanup.
 Q policy already permits system_server to kill app_zygote, but its getpgid rule
 targets appdomain; app_zygote is a separate public domain, not an appdomain.
 
-Proposed: permit only system_server app_zygote:process getpgid. This allows the existing
+Permit only system_server app_zygote:process getpgid. This allows the existing
 authorized cleanup to query that process group; it is not a grant to all apps,
 an isolated-app file permission, a controller change or a new kill policy.
-The prepared compiled-policy check would require this exact relation before a full build.
+The compiled-policy check requires this exact relation before a full build.
 Actual cleanup behavior and lack of AVCs still require device retesting.
 
 ## Remaining findings
 
 | Area | Evidence / boundary |
 | --- | --- |
-| Widevine | Ten attempts cannot read firmware_mnt/image/widevine.mdt with EACCES, then cannot find alternate paths. Each reports failure to initialize L1 and fallback to L3; this is not proof that all DRM playback fails. The mount is root:system with restrictive masks, while both candidate DRM init definitions omit system from their supplementary groups. The log does not identify which service binary owns the failing PID. Collect process identities/groups and actual path labels/modes before changing a service; do not world-read firmware, disable SELinux, modify provisioning or claim L1 certification. |
+| Widevine | Ten attempts cannot read firmware_mnt/image/widevine.mdt with EACCES, then cannot find alternate paths. Each reports failure to initialize L1 and fallback to L3; this is not proof that all DRM playback fails. The mount is root:system with restrictive masks, while both candidate DRM init definitions omit system from their supplementary groups. The subsequent capture identifies Widevine 1.2 as the failing service and confirms it lacks the system group. The owner reports factory L3; L3 itself is therefore expected. Establish an actual playback failure before changing service access; do not world-read firmware, disable SELinux, modify provisioning or claim L1 certification. |
 | Time daemon | Thirty accept failures and 29 failed receives remain. No TimeService connection AVC is shown. Need actual daemon/protocol/RTC state; do not add socket policy for a non-policy error. |
 | CPU accounting | Eleven cpu0/cpufreq/stats/time_in_state reads fail and uid_time_in_state is missing. These are battery/CPU attribution readers, distinct from the power hint writes whose former errors are absent. No invented residency statistics or clock changes are introduced. |
 | Isolated Chrome services | Forty-one isolated_app app_data_file setattr AVCs affect model/component files. Preserve the sandbox boundary; do not grant isolated processes general app-data access just to remove logs. A component-load failure needs specific ABI/API and file-descriptor analysis. |
@@ -88,15 +87,34 @@ metadata. It does not read firmware bytes, keys, subscriber IDs or account data.
 
 ## Validation
 
-The prepared configuration regression checks reject a missing/empty configurator
-owner and passed locally, along with changed-source syntax checks. These
-permission-related source/check changes remain unpublished pending authorization.
-The published read-only collector passes shell syntax checks; existing IMS
-selection and compiled-policy/neverallow/file-label gates are unchanged. The
-proposed app_zygote check would run against real compiled policy on the builder.
+Configuration regression checks reject a missing/empty configurator owner and
+pass locally, along with changed-source syntax checks. The read-only collector
+passes shell syntax checks and existing IMS selection constraints are retained.
+The app_zygote query is checked against real compiled policy on the builder;
+neverallow and file-label gates remain enabled.
 Full Android compilation, installed permission
-reconciliation, process cleanup, DRM process selection and hardware testing
+reconciliation, process cleanup and hardware testing
 have not been performed on the assistant host.
+
+### Subsequent read-only state
+
+The additional capture shows about 1.27 GiB MemAvailable and both frequency
+policies back at their captured default minimums (960000/768000). CPU0's
+cpufreq link resolves through CPU1. This supports correct boost release at
+this snapshot without proving every workload's behavior.
+
+The failing DRM PID is now identified as android.hardware.drm@1.2-service.widevine
+in hal_drm_widevine, UID media, primary GID media and supplementary groups
+mediadrm/drmrpc. It lacks system (1000), which owns the mounted firmware files
+in the fstab. The generic DRM 1.0 service is a different PID and is not the
+service that logged the Widevine read failure. Shell cannot stat the protected
+firmware mount; that shell denial is not evidence to open it to everyone.
+The owner subsequently confirmed that this device shipped with L3. An L1
+initialization attempt followed by working L3 is not, by itself, a playback
+defect. The EACCES is a distinct access failure; its playback impact is not
+established. No DRM access changes are included. Only reconsider a targeted
+service change if an actual playback failure is correlated with this path.
+No DRM keys, firmware bytes, provisioning or reported security level are changed.
 
 ## Primary sources
 
@@ -107,5 +125,5 @@ have not been performed on the assistant host.
 - LineageOS/android_system_sepolicy lineage-17.1 public/app_zygote.te and
   private/system_server.te: distinct app-zygote domain and existing kill access.
 - Pinned vendor Android DRM 1.2 Widevine init RC and selected Q DRM 1.0 RC,
-  plus the device modem firmware fstab masks. Actual process selection remains
-  a device-side question.
+  plus the device modem firmware fstab masks and the subsequent runtime
+  process/credential capture identifying the selected Widevine service.

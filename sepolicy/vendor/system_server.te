@@ -1,0 +1,4 @@
+# Q already permits system_server to kill app_zygote. The legacy process-group
+# cleanup also calls getpgid first; without it Chrome child-zygote cleanup fails.
+allow system_server app_zygote:process getpgid;
+
