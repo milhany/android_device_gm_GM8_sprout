@@ -19,6 +19,7 @@ HEAP_PROPERTIES = {
     'dalvik.vm.heapmaxfree': '8m',
     'pm.dexopt.install': 'speed-profile',
     'pm.dexopt.bg-dexopt': 'speed-profile',
+    'pm.dexopt.boot': 'quicken',
 }
 UNSUPPORTED_STUNE_PROFILES = {
     'HighEnergySaving', 'NormalPerformance', 'HighPerformance',

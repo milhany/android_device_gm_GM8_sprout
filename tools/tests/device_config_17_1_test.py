@@ -51,6 +51,8 @@ with tempfile.TemporaryDirectory(prefix='gm8-q-config-') as name:
     reject('configs/task_profiles.json', lambda s: s.replace('HighPerformance', 'ProcessCapacityHigh'))
     reject('configs/task_profiles.json', lambda s: s.replace('"Actions": []', '"Actions": [{"Name":"JoinCgroup"}]', 1))
     reject('system.prop', lambda s: s + '\npm.dexopt.install=speed\n')
+    reject('system.prop', lambda s: s.replace('pm.dexopt.boot=quicken', 'pm.dexopt.boot=verify'))
+    reject('system.prop', lambda s: s.replace('pm.dexopt.boot=quicken', ''))
     module.check(device)
 
 print('PASS: heap/launch, dynamic IMS selection, window lookup, HIDL/frequency, task profile and full-AOT regression checks')

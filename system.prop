@@ -114,3 +114,9 @@ ro.cutoff_voltage_mv=3200
 # ZSL/reprocess capture so Snap requests a fresh HAL-backed still frame instead
 # of re-encoding a cached YUV preview frame.
 persist.sys.camera.zsl.disabled=true
+
+# After a framework/boot-classpath update, Q's default boot=verify can leave
+# previously installed APKs/splits at verification-only until idle dexopt.
+# Use Q's lightweight first-boot filter for that update path too. Normal
+# installs and idle profile compilation retain the platform speed-profile policy.
+pm.dexopt.boot=quicken

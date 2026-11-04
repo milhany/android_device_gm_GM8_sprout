@@ -50,6 +50,10 @@ def check(device):
                 key, value = line.split('=', 1)
                 if key in runtime.HEAP_PROPERTIES and value != runtime.HEAP_PROPERTIES[key]:
                     raise ValueError('Conflicting GM8 ART setting: ' + line)
+    boot_filters = re.findall(r'^pm\.dexopt\.boot=([^\s]+)$',
+                              (device / 'system.prop').read_text(), re.MULTILINE)
+    if boot_filters != ['quicken']:
+        raise ValueError('GM8 Q update dexopt requires exactly one boot=quicken override')
     power = json.loads((device / 'configs/powerhint.json').read_text())
     nodes = {n['Name']: n for n in power['Nodes']}
     if len(nodes) != len(power['Nodes']):
