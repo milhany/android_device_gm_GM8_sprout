@@ -338,7 +338,10 @@
     <!-- Regex of wired ethernet ifaces -->
      <string name="config_ethernet_iface_regex">eth\\d</string>
 
-    <!-- ImsService package name to bind to by default, if config_dynamic_bind_ims is true -->
+    <!-- The installed Q IMS APK exposes android.telephony.ims.ImsService.
+         Without dynamic binding Q selects its deprecated com.android.phone
+         static adapter and ignores this default vendor package. -->
+     <bool name="config_dynamic_bind_ims">true</bool>
      <string name="config_ims_package">org.codeaurora.ims</string>
 
     <!-- MMS user agent string -->

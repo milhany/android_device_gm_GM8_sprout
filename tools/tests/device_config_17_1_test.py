@@ -34,6 +34,10 @@ with tempfile.TemporaryDirectory(prefix='gm8-q-config-') as name:
 
     reject('configs/gm8-dalvik-heap.mk', lambda s: s.replace('heapmaxfree=8m', 'heapmaxfree=16m'))
     reject('device.mk', lambda s: s.replace('product_launched_with_o.mk)', 'product_launched_with_o_mr1.mk)'))
+    framework = 'overlay/frameworks/base/core/res/res/values/config.xml'
+    reject(framework, lambda s: s.replace('name="config_dynamic_bind_ims">true', 'name="config_dynamic_bind_ims">false'))
+    reject(framework, lambda s: s.replace('name="config_dynamic_bind_ims"', 'name="missing_dynamic_bind_ims"'))
+    reject(framework, lambda s: s.replace('name="config_ims_package">org.codeaurora.ims', 'name="config_ims_package">com.android.phone'))
     reject('sepolicy/vendor/gm8_dolby_app.te', lambda s: s + '\nallow gm8_dolby_app window_service:service_manager find;\n')
     reject('hidl/perf/1.0/Android.bp', lambda s: s.replace('    gen_java:', '    vendor_available: true,\n    gen_java:'))
     reject('configs/powerhint.json', lambda s: s.replace('1401000', '9999999'))
@@ -47,4 +51,4 @@ with tempfile.TemporaryDirectory(prefix='gm8-q-config-') as name:
     reject('system.prop', lambda s: s + '\npm.dexopt.install=speed\n')
     module.check(device)
 
-print('PASS: old heap/launch, forbidden window lookup, unsupported HIDL/frequency, task overrides and full-AOT regression checks')
+print('PASS: heap/launch, dynamic IMS selection, window lookup, HIDL/frequency, task profile and full-AOT regression checks')

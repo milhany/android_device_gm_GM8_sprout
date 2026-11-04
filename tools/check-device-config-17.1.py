@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import xml.etree.ElementTree as ET
 
 
 def check(device):
@@ -23,6 +24,13 @@ def check(device):
     if len(pairs) != len(expected) or dict(pairs) != expected:
         raise ValueError('Heap settings differ from the captured GM8 stock policy')
     runtime.check_legacy_profiles(json.loads((device / 'configs/task_profiles.json').read_text()))
+    framework = ET.parse(device / 'overlay/frameworks/base/core/res/res/values/config.xml').getroot()
+    for tag, name, expected in (
+            ('bool', 'config_dynamic_bind_ims', 'true'),
+            ('string', 'config_ims_package', 'org.codeaurora.ims')):
+        entries = framework.findall(f"{tag}[@name='{name}']")
+        if len(entries) != 1 or (entries[0].text or '').strip() != expected:
+            raise ValueError('Q IMS requires dynamic binding to the installed org.codeaurora.ims package')
     if 'configs/task_profiles.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json' not in make:
         raise ValueError('The legacy task-profile overrides are not installed')
     policy = (device / 'sepolicy/vendor/gm8_dolby_app.te').read_text()
@@ -72,9 +80,9 @@ def main():
     args = parser.parse_args()
     try:
         check(args.device.resolve())
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
         parser.exit(1, f'GM8 Q configuration check failed: {error}\n')
-    print('PASS: GM8 Q stock heap/launch, legacy task profiles, CPU requests and known policy/build constraints')
+    print('PASS: GM8 Q stock heap/launch, dynamic IMS selection, legacy task profiles, CPU requests and policy/build constraints')
     print('Source checks do not establish hardware operation or measured performance.')
 
 
