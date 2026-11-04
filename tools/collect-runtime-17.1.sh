@@ -75,6 +75,18 @@ for gm8_fpc in /sys/bus/platform/drivers/fpc1020/*; do
 done
 echo '=== Google Services Framework package presence (optional GApps) ==='
 pm path com.google.android.gsf 2>&1
+echo '=== DeviceConfig configurator grant (optional factory GMS) ==='
+dumpsys package com.google.android.gms 2>/dev/null | grep -F 'android.permission.WRITE_DEVICE_CONFIG'
+echo '=== Widevine process identity and firmware permissions (no keys/content) ==='
+getprop init.svc.vendor.drm-widevine-hal-1-2
+getprop init.svc.vendor.drm-hal-1-0
+ps -AZ | grep -E 'android.hardware.drm@|mediadrmserver'
+for gm8_drm_pid in $(pidof android.hardware.drm@1.2-service.widevine android.hardware.drm@1.0-service); do
+    echo "DRM process $gm8_drm_pid credentials"
+    grep -E '^(Name|Uid|Gid|Groups):' "/proc/$gm8_drm_pid/status" 2>&1
+done
+ls -ldZ /vendor/firmware_mnt /vendor/firmware_mnt/image 2>&1
+ls -lZ /vendor/firmware_mnt/image/widevine.mdt /vendor/firmware/widevine.mdt 2>&1
 echo '=== Recent targeted service failures ==='
 logcat -d -b all -t 2000 2>/dev/null | grep -E 'libperfmgr: Failed|Wifi Hal|Failed to register wifi|Failed to start supplicant|GM8Dolby|GM8Fingerprint|scontext=u:r:gm8_dolby_app'
 echo '=== Available controllers and actual cgroup mounts ==='
