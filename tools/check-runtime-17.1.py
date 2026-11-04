@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+import re
 import struct
 import xml.etree.ElementTree as ET
 import zipfile
@@ -24,6 +25,31 @@ UNSUPPORTED_STUNE_PROFILES = {
     'HighEnergySaving', 'NormalPerformance', 'HighPerformance',
     'MaxPerformance', 'RealtimePerformance', 'CpuPolicySpread', 'CpuPolicyPack',
 }
+
+GM8_CPUSETS = {
+    'foreground': '0-7', 'top-app': '0-7',
+    'background': '4-7', 'system-background': '4-7', 'restricted': '4-7',
+}
+
+
+def check_cpuset_text(text):
+    active_boot = False
+    writes = []
+    for raw in text.splitlines():
+        line = raw.split('#', 1)[0].strip()
+        if line.startswith(('on ', 'service ')):
+            active_boot = line == 'on boot'
+        match = re.fullmatch(r'write /dev/cpuset/([^/]+)/cpus (\S+)', line)
+        if match and match[1] in GM8_CPUSETS:
+            if not active_boot:
+                raise ValueError('GM8 cpuset assignment must run on boot')
+            writes.append(match.groups())
+    if len(writes) != len(GM8_CPUSETS) or dict(writes) != GM8_CPUSETS:
+        raise ValueError('GM8 background CPU placement differs from the SoC-313 policy')
+
+
+def check_packaged_cpusets(archive):
+    check_cpuset_text(archive.read('VENDOR/etc/init/init.gm.rc').decode('utf-8'))
 
 
 def check_legacy_profiles(profiles):
@@ -214,6 +240,7 @@ def check_perf_extension(archive, properties):
 def check(path):
     with zipfile.ZipFile(path) as archive:
         properties = check_memory_profile(archive)
+        check_packaged_cpusets(archive)
         check_perf_extension(archive, properties)
         service = archive.read('VENDOR/bin/hw/vendor.qti.hardware.perf@1.0-service')
         library = archive.read('VENDOR/lib64/vendor.qti.hardware.perf@1.0.so')

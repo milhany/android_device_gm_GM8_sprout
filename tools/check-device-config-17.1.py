@@ -24,6 +24,7 @@ def check(device):
     if len(pairs) != len(expected) or dict(pairs) != expected:
         raise ValueError('Heap settings differ from the captured GM8 stock policy')
     runtime.check_legacy_profiles(json.loads((device / 'configs/task_profiles.json').read_text()))
+    runtime.check_cpuset_text((device / 'rootdir/etc/init.gm.rc').read_text())
     framework = ET.parse(device / 'overlay/frameworks/base/core/res/res/values/config.xml').getroot()
     for tag, name, expected in (
             ('bool', 'config_dynamic_bind_ims', 'true'),

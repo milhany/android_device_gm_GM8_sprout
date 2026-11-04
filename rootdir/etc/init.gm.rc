@@ -33,6 +33,15 @@ on property:vendor.gm8.fingerprint.sensor=sunwave
     start swfingerprint-hal-1.0
 
 on boot
+    # GM8/SoC 313: CPUs 0-3 are the faster cluster, 4-7 the power cluster.
+    # Q initializes every cpuset with all CPUs; the device must specialize it.
+    # Keep interactive apps unrestricted and move background work to 4-7.
+    write /dev/cpuset/foreground/cpus 0-7
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/background/cpus 4-7
+    write /dev/cpuset/system-background/cpus 4-7
+    write /dev/cpuset/restricted/cpus 4-7
+
     chmod 0664 /sys/module/wlan/parameters/fwpath
     chown wifi wifi /sys/module/wlan/parameters/fwpath
 
