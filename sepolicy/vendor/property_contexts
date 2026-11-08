@@ -3,3 +3,6 @@ vendor.powerhal.                        u:object_r:vendor_power_prop:s0
 
 # Volatile result of the initialized-driver fingerprint selector.
 vendor.gm8.fingerprint.sensor            u:object_r:vendor_gm8_fingerprint_prop:s0 exact string
+
+# Stock camera AE telemetry; use the existing Q userdebug camera policy.
+persist.vendor.camera.aeinfo              u:object_r:camera_prop:s0 exact string

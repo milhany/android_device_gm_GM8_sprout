@@ -36,6 +36,8 @@ if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MFileHandle -MIPC::Open2 -MGetopt::
 fi
 python3 "$SCRIPT_DIR/apply-power-diagnostics-17.1.py" --top "$TOP"
 python3 "$SCRIPT_DIR/apply-wifi-stop-compat-17.1.py" --top "$TOP"
+python3 "$SCRIPT_DIR/tests/ft8006_gesture_test.py" --kernel "$TOP/kernel/gm/msm8937"
+python3 "$SCRIPT_DIR/tests/qsee_wait_17_1_test.py" --source "$TOP/kernel/gm/msm8937/drivers/misc/qseecom.c"
 python3 "$SCRIPT_DIR/check-device-config-17.1.py" --device "$SCRIPT_DIR/.."
 python3 "$SCRIPT_DIR/preflight.py" --top "$TOP"
 source build/envsetup.sh
@@ -43,6 +45,19 @@ lunch lineage_GM8_sprout-userdebug
 if [[ -n "$GM8_PY2_DIR" ]]; then export PATH="$GM8_PY2_DIR:$PATH"; fi
 RECORD="$(dirname "$TOP")/gm8-17.1-records/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$RECORD"
+sha256sum device/gm/GM8_sprout/sepolicy/vendor/property_contexts \
+    device/gm/GM8_sprout/tools/check-camera-policy-17.1.py \
+    device/gm/GM8_sprout/tools/check-runtime-17.1.py \
+    device/gm/GM8_sprout/tools/build-17.1.sh \
+    device/gm/GM8_sprout/tools/tests/ft8006_gesture_test.py \
+    kernel/gm/msm8937/drivers/input/touchscreen/ft8006/focaltech_core.c \
+    kernel/gm/msm8937/drivers/input/touchscreen/ft8006/focaltech_core.h \
+    kernel/gm/msm8937/drivers/input/touchscreen/ft8006/focaltech_gesture.c \
+    kernel/gm/msm8937/drivers/misc/qseecom.c \
+    device/gm/GM8_sprout/tools/tests/qsee_wait_17_1_test.py \
+    device/gm/GM8_sprout/tools/tests/qsee_host.c \
+    vendor/gm/GM8_sprout/proprietary/vendor/etc/init/android.hardware.gnss@2.0-service-qti.rc \
+    > "$RECORD/stability-inputs.sha256"
 repo manifest -r -o "$RECORD/manifest.xml"
 for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 system/extras hardware/interfaces frameworks/opt/net/wifi; do
     printf '%s ' "$PROJECT" >> "$RECORD/revisions.txt"
@@ -51,8 +66,9 @@ for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 syste
 done
 m nothing -j32
 # Catch policy parsing, neverallows and file-label tests before the full ROM.
-m sepolicy_neverallows sepolicy.recovery sepolicy_tests searchpolicy -j32
+m sepolicy_neverallows sepolicy.recovery sepolicy_tests searchpolicy vendor_property_contexts -j32
 python3 "$SCRIPT_DIR/check-dolby-policy-17.1.py" --top "$TOP"
+python3 "$SCRIPT_DIR/check-camera-policy-17.1.py" --top "$TOP"
 if [[ "$STAGE" != check ]]; then
     # Clean only after source/policy checks pass. Rebuild the kernel/modules
     # together while preserving Android outputs, release keys and old ZIPs.

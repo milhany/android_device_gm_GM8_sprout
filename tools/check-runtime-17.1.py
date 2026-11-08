@@ -213,6 +213,12 @@ def check_perf_extension(archive, properties):
 
 def check(path):
     with zipfile.ZipFile(path) as archive:
+        camera_spec = importlib.util.spec_from_file_location(
+            'gm8_camera_policy', Path(__file__).with_name('check-camera-policy-17.1.py'))
+        camera_policy = importlib.util.module_from_spec(camera_spec)
+        camera_spec.loader.exec_module(camera_policy)
+        camera_policy.check_contexts(
+            archive.read('VENDOR/etc/selinux/vendor_property_contexts').decode('utf-8'))
         properties = check_memory_profile(archive)
         check_perf_extension(archive, properties)
         service = archive.read('VENDOR/bin/hw/vendor.qti.hardware.perf@1.0-service')
