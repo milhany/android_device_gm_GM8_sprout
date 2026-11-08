@@ -15,12 +15,15 @@ This is a combined source candidate, not a hardware-validated release.
 
 ## Source selection and build
 
-Fetch and select this branch in device/gm/GM8_sprout, vendor/gm/GM8_sprout
-and kernel/gm/msm8937 before invoking the existing signed-release helper.
-Use ordinary `git switch --detach FETCH_HEAD`, without a forced checkout or
-reset. If Git reports conflicting local work, preserve it and compare it
-before switching. The private candidate packages are not needed after all
-three source branches are selected.
+Fetch this branch in device/gm/GM8_sprout and extract the selector and JSON
+manifest from the fetched commit before switching. The selector pins the
+paired kernel/vendor commits. It checks all three trees before changing
+worktrees, saves recognized pre-applied private candidate changes in local
+Git stashes, and uses ordinary detached switching. Those stashes are kept,
+not popped, because their reviewed changes are in the selected candidate.
+Unknown local edits/commits and staged deletions stop selection. It does
+not use reset/forced checkout, publish local work or access signing keys.
+The private ZIP packages are not needed after the paired sources are selected.
 
 Inside the existing `gm8-build` container as builder, from the SDK29 checkout:
 

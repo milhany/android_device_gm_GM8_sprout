@@ -1,0 +1,57 @@
+{
+  "repositories": [
+    {
+      "kind": "device",
+      "checkout": "device/gm/GM8_sprout",
+      "url": "https://github.com/milhany/android_device_gm_GM8_sprout.git",
+      "base": "c6b42bb3cceae6ce4c3bb7faf269ed775862f8a8",
+      "target": null,
+      "known_local_blobs": {
+        "tools/build-17.1.sh": [
+          "f061aebff97c8f29f117bda6ccc38926d3b00591"
+        ],
+        "tools/check-runtime-17.1.py": [
+          "db9109a79ff90d6ddedd758be80bf25fe99a1d8d"
+        ],
+        "tools/check-camera-policy-17.1.py": [
+          "9ba0e87b1ef160ab5bfba0dee817e940927beae2"
+        ],
+        "sepolicy/vendor/property_contexts": [
+          "6b9d6dae2a7969a99c538f1cc02b5ad9e57488e1"
+        ],
+        "tools/tests/ft8006_gesture_test.py": [
+          "214285bfed58cda883da642565f0915ae70e6644"
+        ]
+      }
+    },
+    {
+      "kind": "vendor",
+      "checkout": "vendor/gm/GM8_sprout",
+      "url": "https://github.com/milhany/proprietary_vendor_gm_GM8_sprout.git",
+      "base": "a22c80f76f1bc90d07d627bd43af8e959e3b22bc",
+      "target": "0d1fe5461805a5c1517d248c7336a0c97512fd84",
+      "known_local_blobs": {}
+    },
+    {
+      "kind": "kernel",
+      "checkout": "kernel/gm/msm8937",
+      "url": "https://github.com/milhany/android_kernel_gm_msm8937.git",
+      "base": "79997531c5a3b9cf52d608c09e1c584e379f1ff9",
+      "target": "d9be317a7abf5ad02e6a96facfa91f083a5ac109",
+      "known_local_blobs": {
+        "drivers/input/touchscreen/ft8006/focaltech_core.c": [
+          "8a5fb90ee2cc186fb504c15a66b5cc48470af964"
+        ],
+        "drivers/input/touchscreen/ft8006/focaltech_gesture.c": [
+          "88b8b05863acf2dce91efa6ef41a391ef9179c2d"
+        ],
+        "drivers/input/touchscreen/ft8006/focaltech_core.h": [
+          "a90c41b544ada5c9141df9c18813be55728c5e61"
+        ],
+        "drivers/misc/qseecom.c": [
+          "e702b97d256d83537a568dac3436ad148611522a"
+        ]
+      }
+    }
+  ]
+}
