@@ -1,5 +1,5 @@
 #
-# General Mobile GM 8 - LineageOS 19.1
+# General Mobile GM 8 - LineageOS 20 source bring-up
 #
 
 $(call inherit-product, device/gm/GM8_sprout/device.mk)
@@ -13,7 +13,7 @@ TARGET_BOOT_ANIMATION_RES := 720
 TARGET_EXCLUDES_AUDIOFX := true
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
-# Preserve the existing Android 12.1 Google Mobile Services integration.
+# Preserve the Android 13 Google Mobile Services integration (MindTheGapps tau).
 # Do not silently produce a vanilla image when the proprietary GApps checkout
 # is missing; that made previous test builds boot without GmsCore/Play Store.
 ifneq ($(wildcard vendor/gapps/arm64/arm64-vendor.mk),)

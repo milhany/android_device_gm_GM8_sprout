@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Initial checkout example. Record a revision-pinned repo manifest for every build. -->
+<!-- GM8 Android 13 source bring-up; not a bootability declaration. -->
 <manifest>
     <remote name="gm8-github" fetch="https://github.com/" />
-    <project name="milhany/android_device_gm_GM8_sprout" path="device/gm/GM8_sprout" remote="gm8-github" revision="lineage-19.1" />
-    <project name="milhany/proprietary_vendor_gm_GM8_sprout" path="vendor/gm/GM8_sprout" remote="gm8-github" revision="lineage-19.1" />
-    <project name="milhany/android_kernel_gm_msm8937" path="kernel/gm/msm8937" remote="gm8-github" revision="lineage-19.1" />
+    <remote name="gm8-gitlab" fetch="https://gitlab.com/" />
+    <project name="milhany/android_device_gm_GM8_sprout" path="device/gm/GM8_sprout" remote="gm8-github" revision="lineage-20.0" />
+    <project name="milhany/proprietary_vendor_gm_GM8_sprout" path="vendor/gm/GM8_sprout" remote="gm8-github" revision="lineage-20.0" />
+    <project name="milhany/android_kernel_gm_msm8937" path="kernel/gm/msm8937" remote="gm8-github" revision="lineage-20.0" />
+    <project name="MindTheGapps/vendor_gapps" path="vendor/gapps" remote="gm8-gitlab" revision="tau" clone-depth="1" />
 </manifest>

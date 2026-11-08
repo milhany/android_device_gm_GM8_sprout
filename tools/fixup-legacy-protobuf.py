@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Isolate stock GM8 protobuf dependencies from Android 12 platform libraries."""
+"""Isolate stock GM8 protobuf dependencies from Android 13 platform libraries."""
 
 import argparse
 import hashlib
@@ -56,8 +56,8 @@ def main():
     if not args.blob:
         version = top / "build/core/version_defaults.mk"
         if not version.is_file() or not re.search(
-                r"^\s*PLATFORM_SDK_VERSION\s*:?=\s*32\s*$", version.read_text(), re.M):
-            raise ValueError("Legacy protobuf fixup requires Android 12.1 / SDK 32.")
+                r"^\s*PLATFORM_SDK_VERSION\s*:?=\s*33\s*$", version.read_text(), re.M):
+            raise ValueError("Legacy protobuf fixup requires Android 13 / SDK 33.")
     candidates = [args.patchelf] if args.patchelf else [
         os.environ.get("PATCHELF"),
         str(top / "prebuilts/extract-tools/linux-x86/bin/patchelf-0_9"),

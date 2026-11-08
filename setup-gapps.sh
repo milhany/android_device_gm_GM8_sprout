@@ -5,7 +5,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 GAPPS_DIR="${TOP}/vendor/gapps"
 REMOTE="https://gitlab.com/MindTheGapps/vendor_gapps.git"
-BRANCH="sigma"
+BRANCH="tau"
+# Do not select Android 13 Google packages from an older platform checkout.
+if ! grep -Eq '^[[:space:]]*PLATFORM_SDK_VERSION[[:space:]]*:?=[[:space:]]*33[[:space:]]*$' "${TOP}/build/core/version_defaults.mk"; then
+    echo 'This GApps helper requires the separate Android 13 / SDK33 checkout.' >&2
+    exit 1
+fi
+# The local manifest manages vendor/gapps on tau. For repo-managed trees,
+# prefer `repo sync vendor/gapps`; the origin checks below preserve other work.
 
 die() {
     echo "ERROR: $*" >&2
@@ -14,7 +21,7 @@ die() {
 
 if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
     echo "Usage: $0 [full-40-character-MindTheGapps-commit]"
-    echo "Without a commit, only a clean sigma checkout can be fast-forwarded."
+    echo "Without a commit, only a clean tau checkout can be fast-forwarded."
     exit 0
 fi
 [[ $# -le 1 ]] || die "Expected at most one full MindTheGapps commit SHA."
@@ -42,7 +49,7 @@ if [[ -e "${GAPPS_DIR}" ]]; then
             die "vendor/gapps is not on ${BRANCH}; pass an explicit commit to update a pinned checkout."
     fi
 else
-    echo "Cloning MindTheGapps Android 12.1 branch (${BRANCH})..."
+    echo "Cloning MindTheGapps Android 13 branch (${BRANCH})..."
     git clone --depth=1 --branch "${BRANCH}" "${REMOTE}" "${GAPPS_DIR}"
 fi
 
