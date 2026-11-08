@@ -26,6 +26,11 @@ if [[ ! -f build/core/version_defaults.mk ]] ||
     exit 1
 fi
 
+if [[ "${OUT_DIR:-out}" != out || -n "${OUT_DIR_COMMON_BASE:-}" ]]; then
+    echo "This fresh-kernel workflow requires standard out/; unset OUT_DIR and OUT_DIR_COMMON_BASE." >&2
+    exit 1
+fi
+
 if [[ "${STAGE}" != check ]]; then
     if ! /usr/bin/env -u PERL5LIB /usr/bin/perl -MGetopt::Std -MIPC::Open2 -MFileHandle -e 1; then
         echo "Kernel module signing needs the container's full Perl: sudo apt install perl" >&2
@@ -45,11 +50,25 @@ python3 device/gm/GM8_sprout/tools/apply-legacy-network-compat.py
 python3 device/gm/GM8_sprout/tools/apply-processgroup-compat.py
 python3 device/gm/GM8_sprout/tools/apply-runtime-compat.py
 python3 device/gm/GM8_sprout/tools/fixup-legacy-protobuf.py
+python3 "$SCRIPT_DIR/tests/ft8006_gesture_test.py" --kernel "$TOP/kernel/gm/msm8937"
+python3 "$SCRIPT_DIR/tests/qsee_wait_test.py" --source "$TOP/kernel/gm/msm8937/drivers/misc/qseecom.c"
+python3 "$SCRIPT_DIR/tests/power_policy_test.py"
 python3 device/gm/GM8_sprout/tools/preflight.py
 
 RECORD_DIR="$(dirname "${TOP}")/gm8-19.1-records/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "${RECORD_DIR}"
 printf 'stage=%s\nvariant=%s\n' "${STAGE}" "${BUILD_VARIANT}" > "${RECORD_DIR}/build-selection.txt"
+sha256sum kernel/gm/msm8937/drivers/misc/qseecom.c \
+    kernel/gm/msm8937/drivers/input/touchscreen/ft8006/focaltech_core.c \
+    kernel/gm/msm8937/drivers/input/touchscreen/ft8006/focaltech_core.h \
+    kernel/gm/msm8937/drivers/input/touchscreen/ft8006/focaltech_gesture.c \
+    device/gm/GM8_sprout/tools/tests/ft8006_gesture_test.py \
+    device/gm/GM8_sprout/tools/tests/qsee_wait_test.py \
+    device/gm/GM8_sprout/tools/tests/qsee_host.c \
+    device/gm/GM8_sprout/configs/powerhint.json \
+    device/gm/GM8_sprout/power-libperfmgr/hidl/Power.cpp \
+    vendor/gm/GM8_sprout/proprietary/vendor/etc/init/android.hardware.gnss@2.0-service-qti.rc \
+    > "${RECORD_DIR}/stability-inputs.sha256"
 repo manifest -r -o "${RECORD_DIR}/manifest.xml"
 for PROJECT in device/gm/GM8_sprout vendor/gm/GM8_sprout kernel/gm/msm8937 vendor/gapps; do
     printf '%s ' "${PROJECT}" >> "${RECORD_DIR}/revisions.txt"
@@ -74,8 +93,16 @@ echo "Build record: ${RECORD_DIR}"
 source build/envsetup.sh
 lunch "lineage_GM8_sprout-${BUILD_VARIANT}"
 m nothing -j32
+if [[ "${STAGE}" != check ]]; then
+    # Rebuild kernel/modules together after source and build-generation gates.
+    # Keep Android outputs, signing identities and previous release packages.
+    rm -rf -- "$TOP/out/target/product/GM8_sprout/obj/KERNEL_OBJ"
+    rm -f -- "$TOP/out/target/product/GM8_sprout/kernel" \
+        "$TOP/out/target/product/GM8_sprout/boot.img"
+    m bootimage -j32
+fi
 case "${STAGE}" in
-    boot) m bootimage -j32 ;;
+    boot) : ;;
     rom) m bacon -j32 ;;
     target-files)
         m target-files-package otatools -j32
