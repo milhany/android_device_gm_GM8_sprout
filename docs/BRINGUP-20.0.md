@@ -1,8 +1,8 @@
 # GM8 LineageOS 20 / Android 13 source bring-up
 
-Stage: source checkout and build-graph investigation. No bootable Android 13
-ROM, signed OTA or phone validation is claimed. Do not install an image
-from this initial checkpoint.
+Stage: source checkout, build-graph investigation and unsigned target-files
+compilation. No bootable Android 13 ROM, signed OTA or phone validation is
+claimed. Do not install bring-up images while runtime ports remain open.
 
 ## Bases and inherited work
 
@@ -78,6 +78,7 @@ does not bypass the APK check when a download or checkout is incomplete.
 ```sh
 bash device/gm/GM8_sprout/tools/build-20.0.sh audit
 bash device/gm/GM8_sprout/tools/build-20.0.sh configure
+bash device/gm/GM8_sprout/tools/build-20.0.sh compile
 ```
 
 Audit records a pinned repo manifest, source revisions and readiness JSON;
@@ -92,12 +93,25 @@ libraries, invokes envsetup/lunch and runs only `m nothing`. It is a build
 graph checkpoint, not full compilation, signing or image production. The
 SDK33 gate for the ELF helper and its real-ELF regression fixture are
 adapted; full stock-blob/VNDK validation still runs on the synced source
-host. Do not apply the old SDK32 framework scripts on SDK33. Neither stage
+host. Do not apply the old SDK32 framework scripts on SDK33. None of these stages
 runs them, modifies signing keys or accesses a phone.
 
-The normal first command ends at audit so sync can complete while runtime
-patches are being rebased. Boot/ROM/target-files stages are intentionally
-not exposed yet. The 19.1 release helper is not an Android 13 signing tool.
+After configure passes on the build host, compile repeats the source/host
+checks and protobuf preparation, selects the same userdebug target, then
+runs m target-files-package -j32. It does not repeat m nothing separately.
+The purpose is to expose real kernel, native, Java and packaging failures
+that build-graph generation cannot detect. The pipeline uses
+pipefail: a failed ninja/m invocation stops the helper, with output retained
+in the timestamped compile.log beside the source manifest and audit.
+
+The target-files archive normally appears under
+out/target/product/GM8_sprout/obj/PACKAGING/target_files_intermediates. It can
+contain boot/vendor/system images; it is not an installation/update ZIP.
+A successful compile does not clear runtime blockers or make the artifacts
+ready for flashing. No keys are generated, no release signing/OTA is run
+and no device is accessed. The 19.1 release helper is not an Android 13
+signing tool. SDK33 network, radio, cgroups and userdata policy still need
+their separate ports and acceptance before image installation.
 
 ## HIDL compatibility libraries
 
@@ -204,9 +218,12 @@ device measurements after a complete working build.
 Host fixtures exercise the actual read-only audit and bootstrap guards for
 SDK selection, manifest remotes, older/nonempty destination preservation,
 disk-space refusal, LFS pointer rejection and nonmutation of patches.
-Shell/Python syntax and local-manifest XML checks passed. SDK33 source sync,
-m nothing, full compilation, proprietary blob validation and all hardware
-acceptance have not run in the preparation workspace.
+Shell/Python syntax and local-manifest XML checks passed. The user has
+completed SDK33 source sync and m nothing on the build host. That is not
+hardware validation. Full Android compilation and all hardware acceptance
+remain pending. The compile helper is checked with local workflow fixtures
+for stage selection, failed preflight/compile propagation and SDK refusal;
+these fixtures do not compile Android or validate vendor runtime ABI.
 
 References:
 

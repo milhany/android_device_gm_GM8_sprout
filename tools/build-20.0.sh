@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# SDK33 source inventory and build-graph checkpoint; no boot/OTA production.
+# SDK33 audit, build graph and unsigned target-files compilation checkpoints.
 set -euo pipefail
 stage="${1:-audit}"
-case "$stage" in audit|configure) ;; *) echo 'Only audit/configure are ready; runtime ports are still open.' >&2; exit 2;; esac
+case "$stage" in audit|configure|compile) ;; *) echo 'Usage: build-20.0.sh [audit|configure|compile]' >&2; exit 2;; esac
 script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 top="$(cd "$script/../../../.." && pwd)"
 cd "$top"
@@ -18,14 +18,26 @@ python3 "$script/tests/ft8006_gesture_test.py" --kernel "$top/kernel/gm/msm8937"
 python3 "$script/tests/qsee_wait_test.py" --source "$top/kernel/gm/msm8937/drivers/misc/qseecom.c"
 python3 "$script/tests/power_policy_test.py"
 echo "Source checkpoint: $record/source-audit.json"
-if [[ "$stage" == configure ]]; then
+if [[ "$stage" != audit ]]; then
     # ELF isolation is version-independent; the source snapshot ABI, SONAMEs
     # and stock blob hashes remain checked. No SDK32 framework patch is run.
     python3 "$script/fixup-legacy-protobuf.py" --top "$top" --record "$record/protobuf-fixups.json"
     set +u
     source build/envsetup.sh
     lunch lineage_GM8_sprout-userdebug
-    m nothing -j32 2>&1 | tee "$record/configure.log"
+    if [[ "$stage" == configure ]]; then
+        m nothing -j32 2>&1 | tee "$record/configure.log"
+    else
+        echo "Full compilation log: $record/compile.log"
+        m target-files-package -j32 2>&1 | tee "$record/compile.log"
+        echo "Target-files output directory: $top/out/target/product/GM8_sprout/obj/PACKAGING/target_files_intermediates"
+        echo 'Target-files is an unsigned build artifact, not an installation OTA.'
+    fi
 fi
-echo 'No Android boot image, signed OTA or hardware/battery validation was produced.'
+if [[ "$stage" == compile ]]; then
+    echo 'Build outputs were generated; no release signing, installation or hardware/battery validation was performed.'
+    echo 'Do not install these bring-up outputs; runtime compatibility ports remain open.'
+else
+    echo 'No Android boot image, signed OTA or hardware/battery validation was produced.'
+fi
 echo 'SDK33 network, radio, processgroup and runtime ports remain open; see docs/BRINGUP-20.0.md.'
