@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -79,7 +80,8 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
 
 bootstrap = (ROOT / 'tools/bootstrap-20.0.sh').read_text()
 validation = bootstrap.split("<<'PY'\n", 1)[1].split('\nPY\n', 1)[0]
-for name in ('fresh', 'wrong-sdk', 'old-manifest', 'nonempty', 'bad-remote', 'low-space'):
+for name in ('fresh', 'interrupted-init', 'unknown-metadata', 'wrong-sdk',
+             'old-manifest', 'nonempty', 'bad-remote', 'low-space'):
     with tempfile.TemporaryDirectory(prefix='gm8-bootstrap20-') as tmp:
         parent = Path(tmp); target = parent / 'lineage-20.0'
         manifest = parent / 'local.xml'
@@ -94,6 +96,11 @@ for name in ('fresh', 'wrong-sdk', 'old-manifest', 'nonempty', 'bad-remote', 'lo
                 p.write_text('PLATFORM_SDK_VERSION := 32\n')
         if name == 'nonempty':
             target.mkdir(); (target / 'keep.txt').write_text('private work\n')
+        if name in ('interrupted-init', 'unknown-metadata'):
+            p = target / '.repo/repo/keep.txt'; p.parent.mkdir(parents=True)
+            p.write_text('existing repo launcher\n')
+            if name == 'unknown-metadata':
+                (target / '.repo/unknown-project').mkdir()
         before = {str(p.relative_to(parent)): p.read_bytes() for p in parent.rglob('*') if p.is_file()}
         free = (20 if name == 'low-space' else 1000) * 1024**3
         with mock.patch.object(sys, 'argv', ['bootstrap', str(target), str(manifest)]), \
@@ -105,7 +112,98 @@ for name in ('fresh', 'wrong-sdk', 'old-manifest', 'nonempty', 'bad-remote', 'lo
                 success = True
             except SystemExit:
                 success = False
-        assert success == (name == 'fresh'), name
+        assert success == (name in ('fresh', 'interrupted-init')), name
         after = {str(p.relative_to(parent)): p.read_bytes() for p in parent.rglob('*') if p.is_file()}
         assert before == after
         print('PASS:', name, '— actual bootstrap validator preserves existing files')
+
+# Run the actual repo-init capability choice and LFS project command. No
+# Android sync/server is involved; the LFS payload is transferred between
+# local fixture repositories, including a detached checkout and remote
+# whose name is not origin.
+init_choice = bootstrap.split('repo_init_args=', 1)[1].split('\nmkdir -p .repo/local_manifests', 1)[0]
+init_choice = 'repo_init_args=' + init_choice
+lfs_command = bootstrap.split("repo forall -e -c '\n", 1)[1].split("\n    '\n", 1)[0]
+with tempfile.TemporaryDirectory(prefix='gm8-repo-lfs20-') as tmp:
+    fixture = Path(tmp)
+    bin_dir = fixture / 'bin'; bin_dir.mkdir()
+    calls = fixture / 'repo-calls.jsonl'
+    repo_stub = bin_dir / 'repo'
+    repo_stub.write_text('''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+if args == ['init', '-h']:
+    print('Usage: repo init' + (' --git-lfs' if os.environ['GM8_TEST_NATIVE_LFS'] == '1' else ''))
+else:
+    with Path(os.environ['GM8_TEST_REPO_CALLS']).open('a') as f:
+        f.write(json.dumps(args) + '\\n')
+''')
+    repo_stub.chmod(0o755)
+    env = {**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ['PATH'],
+           'GM8_TEST_REPO_CALLS': str(calls), 'GIT_CONFIG_GLOBAL': os.devnull,
+           'GIT_CONFIG_NOSYSTEM': '1'}
+    for native in ('0', '1'):
+        calls.unlink(missing_ok=True)
+        choice = subprocess.run(['bash', '-euc', init_choice + '\n' +
+                                 'test "$repo_native_lfs" = "$GM8_TEST_EXPECTED"'],
+                                env={**env, 'GM8_TEST_NATIVE_LFS': native,
+                                     'GM8_TEST_EXPECTED': 'true' if native == '1' else 'false'},
+                                text=True, capture_output=True)
+        assert choice.returncode == 0, choice.stdout + choice.stderr
+        call = json.loads(calls.read_text().strip())
+        assert ('--git-lfs' in call) == (native == '1'), call
+        assert call[:2] == ['init', '-u'], call
+    print('PASS: old repo init omits unsupported option; native repo keeps Git LFS enabled')
+
+    def run(*args, cwd=None, checked=True, extra_env=None):
+        result = subprocess.run(args, cwd=cwd, env={**env, **(extra_env or {})},
+                                text=True, capture_output=True)
+        if checked:
+            assert result.returncode == 0, result.stdout + result.stderr
+        return result
+
+    remote = fixture / 'remote.git'; seed = fixture / 'seed'; client = fixture / 'client'
+    run('git', 'init', '--bare', str(remote))
+    run('git', 'init', str(seed))
+    run('git', 'config', 'user.name', 'GM8 test', cwd=seed)
+    run('git', 'config', 'user.email', 'test@example.invalid', cwd=seed)
+    run('git', 'lfs', 'install', '--local', cwd=seed)
+    run('git', 'lfs', 'track', '*.apk', cwd=seed)
+    payload = b'GM8 fixture APK payload\n' * 100
+    (seed / 'webview.apk').write_bytes(payload)
+    run('git', 'add', '.', cwd=seed)
+    run('git', 'commit', '-m', 'fixture LFS payload', cwd=seed)
+    run('git', 'remote', 'add', 'fixture-lfs', str(remote), cwd=seed)
+    run('git', 'push', 'fixture-lfs', 'HEAD', cwd=seed)
+    run('git', 'clone', '--origin', 'fixture-lfs', str(remote), str(client),
+        extra_env={'GIT_LFS_SKIP_SMUDGE': '1'})
+    run('git', 'checkout', '--detach', cwd=client)
+    pointer = (client / 'webview.apk').read_bytes()
+    assert pointer.startswith(b'version https://git-lfs.github.com/spec/v1\n')
+    project_env = {'REPO_PATH': 'external/chromium-webview', 'REPO_REMOTE': 'fixture-lfs'}
+    run('sh', '-c', lfs_command, cwd=client, extra_env=project_env)
+    assert (client / 'webview.apk').read_bytes() == payload
+    print('PASS: legacy path downloads and verifies real LFS bytes using the manifest remote')
+
+    plain = fixture / 'plain'; run('git', 'init', str(plain))
+    run('git', 'config', 'user.name', 'GM8 test', cwd=plain)
+    run('git', 'config', 'user.email', 'test@example.invalid', cwd=plain)
+    (plain / 'keep.txt').write_text('plain repository\n')
+    run('git', 'add', '.', cwd=plain); run('git', 'commit', '-m', 'plain', cwd=plain)
+    run('git', 'config', 'gm8.keep', 'preserved', cwd=plain)
+    run('sh', '-c', lfs_command, cwd=plain, extra_env=project_env)
+    assert run('git', 'config', '--local', 'gm8.keep', cwd=plain).stdout.strip() == 'preserved'
+    assert run('git', 'config', '--local', '--get', 'filter.lfs.clean', cwd=plain,
+               checked=False).returncode == 1
+    assert not (plain / '.git/hooks/pre-push').exists()
+    print('PASS: non-LFS projects preserve existing settings and gain no LFS filter or hook')
+
+    broken = fixture / 'broken'
+    run('git', 'clone', '--origin', 'fixture-lfs', str(remote), str(broken),
+        extra_env={'GIT_LFS_SKIP_SMUDGE': '1'})
+    run('git', 'config', 'lfs.url', (fixture / 'missing-lfs-server').as_uri(), cwd=broken)
+    failed = run('sh', '-c', lfs_command, cwd=broken, checked=False, extra_env=project_env)
+    assert failed.returncode != 0
+    assert (broken / 'webview.apk').read_bytes() == pointer
+    print('PASS: missing LFS payload propagates failure instead of accepting a pointer')

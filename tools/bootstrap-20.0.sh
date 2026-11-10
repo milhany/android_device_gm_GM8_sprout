@@ -39,13 +39,19 @@ if remotes != {'gm8-github': 'https://github.com/', 'gm8-gitlab': 'https://gitla
     raise SystemExit('Unexpected source remotes; no sync started.')
 if any(p.get('remote') != ('gm8-gitlab' if p.get('path') == 'vendor/gapps' else 'gm8-github') for p in projects):
     raise SystemExit('Unexpected project remote selection.')
-resume = (target / '.repo').is_dir()
 if target.is_symlink():
     raise SystemExit('Refusing a symlink as the new source checkout.')
-if target.exists() and any(target.iterdir()) and not resume:
+repo_dir = target / '.repo'
+default = repo_dir / 'manifests/default.xml'
+resume = default.is_file()
+# The repo launcher can create only .repo/repo before an init option is
+# rejected. Accept that narrow interrupted-init state, not an unknown tree.
+repo_tool_only = (repo_dir.is_dir() and not repo_dir.is_symlink() and
+                 {p.name for p in target.iterdir()} == {'.repo'} and
+                 {p.name for p in repo_dir.iterdir()} <= {'repo'})
+if target.exists() and any(target.iterdir()) and not (resume or repo_tool_only):
     raise SystemExit('Destination is nonempty without .repo; existing files preserved.')
 if resume:
-    default = target / '.repo/manifests/default.xml'
     setting = ET.parse(default).getroot().find('default') if default.is_file() else None
     if setting is None or setting.get('revision') not in ('lineage-20.0', 'refs/heads/lineage-20.0'):
         raise SystemExit('Existing manifest is not Lineage 20.0; checkout preserved.')
@@ -62,7 +68,16 @@ if free < minimum:
 PY
 mkdir -p "$target"
 cd "$target"
-repo init -u https://github.com/LineageOS/android.git -b lineage-20.0 --git-lfs
+repo_init_args=(-u https://github.com/LineageOS/android.git -b lineage-20.0)
+repo_init_help="$(repo init -h 2>&1)"
+repo_native_lfs=false
+if [[ "$repo_init_help" == *--git-lfs* ]]; then
+    repo_init_args+=(--git-lfs)
+    repo_native_lfs=true
+else
+    echo 'Legacy repo: LFS objects will be fetched explicitly after source sync.'
+fi
+repo init "${repo_init_args[@]}"
 mkdir -p .repo/local_manifests
 if [[ -e .repo/local_manifests/gm8.xml ]] && ! cmp -s "$manifest" .repo/local_manifests/gm8.xml; then
     echo 'Existing gm8.xml differs; preserving it. Review the local manifest before retrying.' >&2
@@ -71,4 +86,18 @@ fi
 cp "$manifest" .repo/local_manifests/gm8.xml
 set -o pipefail
 repo sync -c -j8 --no-clone-bundle --fail-fast 2>&1 | tee "$android_parent/gm8-20.0-sync.log"
+if [[ "$repo_native_lfs" == false ]]; then
+    # repo 2.17 has no --git-lfs. Materialize only projects with LFS paths,
+    # using their manifest remote; stop before audit on any transfer error.
+    repo forall -e -c '
+        set -eu
+        gm8_lfs_paths=$(git lfs ls-files --name-only)
+        if [ -n "$gm8_lfs_paths" ]; then
+            echo "Fetching Git LFS objects: $REPO_PATH"
+            git lfs install --local
+            git lfs pull -I "" -X "" "$REPO_REMOTE"
+            git lfs fsck
+        fi
+    '
+fi
 bash device/gm/GM8_sprout/tools/build-20.0.sh audit

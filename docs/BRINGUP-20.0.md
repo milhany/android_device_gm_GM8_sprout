@@ -37,7 +37,13 @@ bash bootstrap-20.0.sh reviewed-local-manifest.xml
 
 Bootstrap checks the manifest/remotes, rejects nonempty unrelated or older
 platform destinations, checks working space, initializes official Lineage
-20 with Git LFS, and syncs at j8 without force-sync or forced checkout.
+20, and syncs at j8 without force-sync or forced checkout. It probes repo
+init options before enabling native Git LFS support. With older repo
+versions such as 2.17, init omits the unsupported --git-lfs option; after
+sync, projects containing LFS files run a local LFS install, pull from their
+manifest remote, and fsck. A failed transfer stops before the audit. LFS
+include/exclude filters are cleared for that pull so required blobs are
+not silently omitted. No system-wide repo or Git configuration is replaced.
 The initial working-space guard is a conservative 400 GiB source/build
 budget; resume uses 150 GiB. It is not a measurement of this specific GM8
 build. GM8_ANDROID_PARENT selects another build parent and
@@ -46,6 +52,9 @@ Nothing is automatically deleted to make space.
 
 On a failed/limited fetch, fix the reported dependency or server rate limit
 and repeat the same bootstrap. It refuses to overwrite a different gm8.xml.
+An init rejected before manifest creation may leave only .repo/repo; that
+narrow interrupted-init state is accepted without deleting metadata. Other
+unrecognized nonempty destinations still require review.
 
 ## Available checkpoints
 
