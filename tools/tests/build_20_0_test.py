@@ -38,6 +38,7 @@ if name == 'preflight-20.0.py' and os.environ['GM8_TEST_PREFLIGHT_FAIL'] == '1':
     raise SystemExit(9)
 '''
         for name in ('preflight-20.0.py', 'fixup-legacy-protobuf.py',
+                     'tests/kernel_host_link_test.py',
                      'tests/ft8006_gesture_test.py', 'tests/qsee_wait_test.py',
                      'tests/power_policy_test.py'):
             (tools / name).write_text(leaf)

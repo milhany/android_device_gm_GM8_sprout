@@ -188,6 +188,28 @@ Reviewed sources:
 - https://github.com/LineageOS/android_hardware_interfaces/blob/lineage-20.0/audio/common/all-versions/default/service/service.cpp
 - https://github.com/LineageOS/android_frameworks_av/blob/lineage-20.0/services/audiopolicy/config/bluetooth_audio_policy_configuration.xml
 
+## Legacy kernel host linker flags
+
+The SDK33 build invokes the prebuilt host Clang with HOSTLDFLAGS including
+-fuse-ld=lld. The 3.18 single-C host rule (used by scripts/basic/fixdep)
+previously omitted HOSTLDFLAGS, although the multi-object C and C++ host
+link rules already honored it. That lost the selected linker and produced
+the reported missing ld failure under the restricted build PATH.
+
+The lineage-20.0 kernel branch now passes HOSTLDFLAGS to the single-C link.
+The kernel's ARM64 GCC 4.9 configuration and runtime source are unchanged.
+Select the updated kernel branch as well as the device branch before
+retrying compile. The build helper runs kernel_host_link_test.py against
+that kernel source before compilation.
+
+The host regression executes the actual Makefile.host rules and real
+fixdep.c with native C/C++ tools. An isolated library search path reproduces
+the old flag-loss failure; the patched rule and existing multi-object links
+produce working ELF host executables with the expected linker-defined
+symbol. This tests linker-flag propagation with the available native GCC,
+not the Android Clang 14 distribution or a complete kernel compilation.
+The latter must be validated on the build host.
+
 ## Known SDK33 ports
 
 1. Legacy network/accounting: Android 13 moved key BPF paths into
