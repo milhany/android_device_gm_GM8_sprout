@@ -79,8 +79,11 @@ extern "C" {
 #define AB_SLOT_A_SUFFIX                "_a"
 #define AB_SLOT_B_SUFFIX                "_b"
 #define PTN_XBL                         "xbl"
-// Required by the Android 12.1 CAF bootctrl source's UFS partition filter.
+// Names required by the CAF bootctrl UFS partition filter.
+// They are not added to the GM8 partition swap/update lists below.
 #define PTN_XBL_CFG                     "xbl_config"
+#define PTN_MULTIIMGOEM                 "multiimgoem"
+#define PTN_MULTIIMGQTI                 "multiimgqti"
 #define PTN_SWAP_LIST                   PTN_XBL, \
         "abl", "aboot", "aes", "apdp", "bootlocker", "cmnlib", "cmnlib32", \
         "cmnlib64", "devcfg", "dtbo", "hosd", "hyp", "laf", "keymaster", \

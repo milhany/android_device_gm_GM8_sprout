@@ -210,6 +210,21 @@ symbol. This tests linker-flag propagation with the available native GCC,
 not the Android Clang 14 distribution or a complete kernel compilation.
 The latter must be validated on the build host.
 
+## CAF bootctrl partition-name compatibility
+
+The selected lineage-20.0-caf boot_control.cpp refers to PTN_MULTIIMGOEM
+and PTN_MULTIIMGQTI in its UFS exclusion predicate. Add their canonical
+multiimgoem / multiimgqti string definitions beside PTN_XBL_CFG in the
+device GPT header. This is a header/source compatibility fix.
+
+PTN_SWAP_LIST, AB_PTN_LIST, slot attributes and all GPT read/write functions
+are unchanged. The new names are not added to GM8's partition lists.
+A native C++17 compile check reproduced the missing identifiers with the
+old header and compiled the actual CAF selection loop with the new one.
+The eMMC/UFS list checks passed without accessing any disk. Full Android
+recovery/vendor bootctrl compilation and slot switching remain subject to
+build-host and device validation.
+
 ## Known SDK33 ports
 
 1. Legacy network/accounting: Android 13 moved key BPF paths into
