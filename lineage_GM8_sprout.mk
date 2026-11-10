@@ -31,7 +31,7 @@ PRODUCT_PACKAGE_OVERLAYS := device/gm/GM8_sprout/overlay-gms $(PRODUCT_PACKAGE_O
 
 # Device-specific applications not supplied by the common phone profile.
 PRODUCT_PACKAGES += \
-    Snap \
+    Aperture \
     Contacts \
     DeskClock \
     Dialer \

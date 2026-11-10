@@ -170,10 +170,7 @@ service time_daemon /system/vendor/bin/time_daemon
    user root
    group root
 
-service audiod /system/vendor/bin/audiod
-   class late_start
-   user system
-   group system
+# Soundcard/DSP monitoring is handled by the audio HAL's sndmonitor.
 
 on boot
     # The service is named vendor.rmt_storage in init.qcom.rc.  It is a core

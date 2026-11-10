@@ -16,6 +16,7 @@ BLOCKERS = [
     'Review SDK33 Wi-Fi KeyStore/MAC persistence behavior against the current secure-service fix.',
     'Rebase/review processgroup and task-profile behavior for the legacy cgroup-v1 kernel.',
     'Review optional charging-HAL, SystemUI and recents behavior instead of applying SDK32 framework patches blindly.',
+    'Review SDK33 userdata fstab/FBE and migration policy; inherited encryptable=footer is not an Android 13 FDE implementation.',
     'Complete SDK33 Soong, module, SELinux/VINTF, vendor ABI and boot acceptance checks.',
     'Complete Android 13 GApps, signing and hardware/battery acceptance after a full build.',
 ]

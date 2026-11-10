@@ -45,6 +45,8 @@ AUDIO_FEATURE_ENABLED_FLAC_OFFLOAD := true
 AUDIO_FEATURE_ENABLED_FLUENCE := true
 AUDIO_FEATURE_ENABLED_HFP := true
 AUDIO_FEATURE_ENABLED_KPI_OPTIMIZE := true
+# Monitor soundcard/DSP state inside the HAL instead of a separate audiod.
+AUDIO_FEATURE_ENABLED_SND_MONITOR := true
 AUDIO_FEATURE_ENABLED_MULTI_VOICE_SESSIONS := true
 AUDIO_FEATURE_ENABLED_PCM_OFFLOAD := true
 AUDIO_FEATURE_ENABLED_PCM_OFFLOAD_24 := true
@@ -86,7 +88,8 @@ OVERRIDE_PRODUCT_COMPRESSED_APEX := false
 BOARD_USES_QCNE := true
 
 # Encryption
-TARGET_LEGACY_HW_DISK_ENCRYPTION := true
+# SDK33 has no legacy Qualcomm FDE backend. The inherited userdata fstab
+# and the supported FBE/migration policy still require bring-up validation.
 
 # Filesystem
 TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/configs/config.fs

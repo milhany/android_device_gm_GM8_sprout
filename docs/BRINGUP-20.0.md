@@ -110,6 +110,42 @@ still receives the compatibility libraries from the platform provider.
 This resolves duplicate ownership at build-graph generation; vendor ABI
 and hardware operation still require the later build/runtime checks.
 
+## SDK33 product package alignment
+
+The first Android 13 build-graph pass exposed inherited requests that are
+not provided under those names. Missing-module checks remain enabled;
+none of these entries is hidden with a build-broken allowlist.
+
+| Inherited request | SDK33 selection and source evidence |
+| --- | --- |
+| Snap | Aperture, provided by packages/apps/Aperture/app/Android.bp. Camera hardware acceptance is pending. |
+| android.hardware.gnss@1.2.vendor; android.hardware.gnss@3.0.vendor | Remove nonexistent standard HIDL versions. hardware/interfaces/gnss provides 1.0, 1.1, 2.0 and 2.1; Qualcomm vendor.qti.gnss versions are separate. Keep the existing GNSS 2.1 request and vendor stack. |
+| android.hardware.graphics.composer@2.1-impl | The 2.1 service in hardware/interfaces loads HwcLoader directly. Keep that service and the CAF HWC2 module. |
+| android.hardware.soundtrigger@2.2-service | The common android.hardware.audio.service tries SoundTrigger 2.3/2.2/2.1/2.0 in order. Keep the 2.2 implementation and common audio service. |
+| audiod | Enable AUDIO_FEATURE_ENABLED_SND_MONITOR in the selected CAF HAL and remove the obsolete separate init service. The HAL monitors the same /proc/asound card/CPE state and notifies its stream listeners. Existing audio policy grants proc_asound/proc_audiod access; runtime DSP restart behavior is still untested. |
+| libqdMetaData.vendor | Use libqdMetaData; the selected CAF display Android.bp declares it vendor: true. |
+| liboverlay | The selected SDM HWC2 uses libqdutils/libqdMetaData, not the removed HWC1 overlay module. |
+| libOmxSwVencHevc | Not provided by the selected msm8937 media build. The device codec XML advertises AVC encoding and HEVC decoding; retain both. No HEVC encoder is advertised by this change. |
+| dhcpcd.conf; libQWiFiSoftApCfg | Remove legacy package requests absent from SDK33. Keep the NetworkStack/Wi-Fi, hostapd and supplicant stack. Reconciliation of inherited legacy DHCP init declarations remains part of the network port. |
+| rcs_service_aidl; rcs_service_aidl.xml; rcs_service_api; rcs_service_api.xml | These are old Suntek client API jars, not the Qualcomm IMS service. Remove the obsolete requests; the vendor Qualcomm IMS/RCS files are unchanged. RCS, VoLTE and VoWiFi registration still require testing. |
+| vendor.qti.hardware.cryptfshw@1.0-service-qti.qsee | The selected SDK33 interface manifest/source no longer provides this FDE service. Remove its request, obsolete TARGET_LEGACY_HW_DISK_ENCRYPTION flag and unsatisfied VINTF declaration. Do not claim userdata encryption support as a result. |
+
+Android 13 removed full-disk encryption. The selected vold cryptfs.cpp now
+implements deprecated external/adoptable-volume metadata handling, not the
+old userdata FDE service. The inherited encryptable=footer fstab is left
+unchanged in this build-graph change; its SDK33 parsing, the supported FBE
+policy and any migration procedure remain explicit runtime blockers.
+This source update performs no formatting, key deletion or data migration.
+
+Reviewed upstream sources:
+
+- https://github.com/LineageOS/android_hardware_interfaces/blob/lineage-20.0/graphics/composer/2.1/default/service.cpp
+- https://github.com/LineageOS/android_hardware_interfaces/blob/lineage-20.0/audio/common/all-versions/default/service/service.cpp
+- https://github.com/LineageOS/android_hardware_qcom_audio/blob/lineage-20.0-caf-msm8996/hal/audio_extn/sndmonitor.c
+- https://github.com/LineageOS/android_hardware_qcom_display/blob/lineage-20.0-caf-msm8996/libqdutils/Android.bp
+- https://github.com/LineageOS/android_system_vold/blob/lineage-20.0/cryptfs.cpp
+- https://source.android.com/docs/security/features/encryption/full-disk
+
 ## Known SDK33 ports
 
 1. Legacy network/accounting: Android 13 moved key BPF paths into

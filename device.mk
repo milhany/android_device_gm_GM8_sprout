@@ -38,10 +38,10 @@ PRODUCT_PACKAGES += \
     bootctrl.msm8937
 
 # Audio
+# SoundTrigger 2.2 is registered by android.hardware.audio.service.
 PRODUCT_PACKAGES += GM8Dolby
 
 PRODUCT_PACKAGES += \
-    audiod \
     audio.a2dp.default \
     audio.bluetooth.default \
     audio.primary.default \
@@ -57,8 +57,7 @@ PRODUCT_PACKAGES += \
     android.hardware.audio@6.0-impl \
     android.hardware.audio.effect@6.0-impl \
     android.hardware.bluetooth.audio@2.0-impl \
-    android.hardware.soundtrigger@2.2-impl \
-    android.hardware.soundtrigger@2.2-service
+    android.hardware.soundtrigger@2.2-impl
 
 PRODUCT_COPY_FILES += \
     frameworks/av/services/audiopolicy/config/a2dp_in_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/a2dp_in_audio_policy_configuration.xml \
@@ -75,7 +74,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio/audio_policy_configuration.xml \
     $(LOCAL_PATH)/configs/audio/mixer_paths_mtp.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_paths_mtp.xml
 
-# Android 12.1 wrappers for legacy proprietary HALs
+# SDK33 wrappers for legacy proprietary HALs
 PRODUCT_PACKAGES += \
     android.hardware.biometrics.fingerprint@2.1-service \
     android.hardware.sensors@1.0-impl \
@@ -101,13 +100,13 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/component-overrides.xml:$(TARGET_COPY_OUT_VENDOR)/etc/sysconfig/component-overrides.xml
 
 # Display
+# SDM HWC2 links libqdMetaData directly; no HWC1 liboverlay package.
 PRODUCT_PACKAGES += \
     gralloc.msm8937 \
     hwcomposer.msm8937 \
     libdisplayconfig \
-    liboverlay \
     libqdMetaData.system \
-    libqdMetaData.vendor \
+    libqdMetaData \
     libtinyxml \
     libvulkan \
     memtrack.msm8937
@@ -115,7 +114,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     android.hardware.graphics.allocator@2.0-impl \
     android.hardware.graphics.allocator@2.0-service \
-    android.hardware.graphics.composer@2.1-impl \
     android.hardware.graphics.composer@2.1-service \
     android.hardware.graphics.mapper@2.0-impl \
     android.hardware.memtrack@1.0-impl \
@@ -187,9 +185,7 @@ PRODUCT_PACKAGES += \
     android.hardware.bluetooth@1.0.vendor \
     android.hardware.drm@1.4.vendor \
     android.hardware.gatekeeper@1.0.vendor \
-    android.hardware.gnss@1.2.vendor \
     android.hardware.gnss@2.1.vendor \
-    android.hardware.gnss@3.0.vendor \
     android.hardware.keymaster@3.0.vendor \
     android.hardware.power@1.2.vendor \
     android.hardware.radio@1.4.vendor \
@@ -207,9 +203,8 @@ PRODUCT_PACKAGES += \
     libhwbinder \
     libhwbinder.vendor
 
-# HW crypto
-PRODUCT_PACKAGES += \
-    vendor.qti.hardware.cryptfshw@1.0-service-qti.qsee
+# Legacy Qualcomm FDE service is not provided by SDK33. Keep userdata
+# encryption/fstab acceptance open; see docs/BRINGUP-20.0.md.
 
 # IMS
 PRODUCT_PACKAGES += \
@@ -259,7 +254,6 @@ PRODUCT_PACKAGES += \
     libOmxCore \
     libOmxEvrcEnc \
     libOmxQcelp13Enc \
-    libOmxSwVencHevc \
     libOmxVdec \
     libOmxVenc \
     libstagefrighthw
@@ -330,12 +324,8 @@ PRODUCT_PACKAGES += \
     qti-telephony-utils \
     qti_telephony_utils.xml
 
-# RCS
-PRODUCT_PACKAGES += \
-    rcs_service_aidl \
-    rcs_service_aidl.xml \
-    rcs_service_api \
-    rcs_service_api.xml
+# Legacy Suntek RCS client jars are not part of SDK33. Qualcomm IMS/RCS
+# vendor components remain supplied by the vendor tree.
 
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
@@ -343,7 +333,7 @@ PRODUCT_SOONG_NAMESPACES += \
 
 # Soundtrigger
 PRODUCT_PACKAGES += \
-    android.hardware.soundtrigger@2.0-core\
+    android.hardware.soundtrigger@2.0-core \
     android.hardware.soundtrigger@2.0
 
 # Telephony
@@ -371,9 +361,7 @@ PRODUCT_PACKAGES += \
     wcnss_service \
     libwifi-hal \
     libwifi-hal-qcom \
-    dhcpcd.conf \
-    wificond \
-    libQWiFiSoftApCfg
+    wificond
 
 PRODUCT_PACKAGES += \
     hostapd \
