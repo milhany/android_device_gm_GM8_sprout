@@ -39,9 +39,11 @@ Bootstrap checks the manifest/remotes, rejects nonempty unrelated or older
 platform destinations, checks working space, initializes official Lineage
 20, and syncs at j8 without force-sync or forced checkout. It probes repo
 init options before enabling native Git LFS support. With older repo
-versions such as 2.17, init omits the unsupported --git-lfs option; after
-sync, projects containing LFS files run a local LFS install, pull from their
-manifest remote, and fsck. A failed transfer stops before the audit. LFS
+versions such as 2.17, init omits the unsupported --git-lfs option. In both
+native and legacy modes, projects containing LFS files run a local LFS
+install, pull from their manifest remote, and fsck after sync. Native LFS
+capability alone does not materialize pointers left in an earlier checkout.
+A failed transfer stops before the audit. LFS
 include/exclude filters are cleared for that pull so required blobs are
 not silently omitted. No system-wide repo or Git configuration is replaced.
 The initial working-space guard is a conservative 400 GiB source/build
@@ -55,6 +57,21 @@ and repeat the same bootstrap. It refuses to overwrite a different gm8.xml.
 An init rejected before manifest creation may leave only .repo/repo; that
 narrow interrupted-init state is accepted without deleting metadata. Other
 unrecognized nonempty destinations still require review.
+
+The current official manifest uses a separate project at
+external/chromium-webview/prebuilt/arm64 (the parent chromium-webview
+directory is not the WebView APK repository). To repair only this input
+after a completed sync, use:
+
+```sh
+git -C external/chromium-webview/prebuilt/arm64 lfs install --local
+git -C external/chromium-webview/prebuilt/arm64 lfs pull -I "" -X "" github
+git -C external/chromium-webview/prebuilt/arm64 lfs fsck
+bash device/gm/GM8_sprout/tools/build-20.0.sh configure
+```
+
+Preflight distinguishes an unresolved LFS pointer from a non-ZIP APK. It
+does not bypass the APK check when a download or checkout is incomplete.
 
 ## Available checkpoints
 

@@ -70,10 +70,8 @@ mkdir -p "$target"
 cd "$target"
 repo_init_args=(-u https://github.com/LineageOS/android.git -b lineage-20.0)
 repo_init_help="$(repo init -h 2>&1)"
-repo_native_lfs=false
 if [[ "$repo_init_help" == *--git-lfs* ]]; then
     repo_init_args+=(--git-lfs)
-    repo_native_lfs=true
 else
     echo 'Legacy repo: LFS objects will be fetched explicitly after source sync.'
 fi
@@ -86,18 +84,17 @@ fi
 cp "$manifest" .repo/local_manifests/gm8.xml
 set -o pipefail
 repo sync -c -j8 --no-clone-bundle --fail-fast 2>&1 | tee "$android_parent/gm8-20.0-sync.log"
-if [[ "$repo_native_lfs" == false ]]; then
-    # repo 2.17 has no --git-lfs. Materialize only projects with LFS paths,
-    # using their manifest remote; stop before audit on any transfer error.
-    repo forall -e -c '
-        set -eu
-        gm8_lfs_paths=$(git lfs ls-files --name-only)
-        if [ -n "$gm8_lfs_paths" ]; then
-            echo "Fetching Git LFS objects: $REPO_PATH"
-            git lfs install --local
-            git lfs pull -I "" -X "" "$REPO_REMOTE"
-            git lfs fsck
-        fi
-    '
-fi
+# An existing checkout can retain pointers even after native LFS support is
+# enabled. Materialize LFS projects in both modes, using their manifest remote;
+# stop before audit on any transfer error.
+repo forall -e -c '
+    set -eu
+    gm8_lfs_paths=$(git lfs ls-files --name-only)
+    if [ -n "$gm8_lfs_paths" ]; then
+        echo "Fetching Git LFS objects: $REPO_PATH"
+        git lfs install --local
+        git lfs pull -I "" -X "" "$REPO_REMOTE"
+        git lfs fsck
+    fi
+'
 bash device/gm/GM8_sprout/tools/build-20.0.sh audit

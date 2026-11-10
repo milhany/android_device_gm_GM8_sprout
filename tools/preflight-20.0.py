@@ -52,8 +52,13 @@ def audit(top):
     if not webview_apks:
         errors.append('Missing ARM64 WebView APK; complete repo sync with Git LFS enabled')
     for path in webview_apks:
-        if not zipfile.is_zipfile(path):
-            errors.append('Invalid APK or unresolved LFS pointer: ' + str(path.relative_to(top)))
+        with path.open('rb') as stream:
+            prefix = stream.read(200)
+        if prefix.startswith(b'version https://git-lfs.github.com/spec/v1\n'):
+            errors.append('Unresolved Git LFS pointer: ' + str(path.relative_to(top)) +
+                          '; materialize LFS in the owning prebuilt/arm64 project')
+        elif not zipfile.is_zipfile(path):
+            errors.append('Invalid APK (not a ZIP archive): ' + str(path.relative_to(top)))
     for path in list(device.rglob('*.xml')) + list(device.rglob('*.json')):
         try:
             if path.suffix == '.xml': ET.parse(path)

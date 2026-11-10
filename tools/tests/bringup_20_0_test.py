@@ -72,6 +72,10 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
     good = webview.read_bytes()
     webview.write_text('version https://git-lfs.github.com/spec/v1\noid sha256:fixture\n')
     assert any('LFS pointer' in e for e in module.audit(top)['errors'])
+    webview.write_bytes(b'not an APK archive\n')
+    bad_zip_errors = module.audit(top)['errors']
+    assert any('not a ZIP archive' in e for e in bad_zip_errors)
+    assert not any('LFS pointer' in e for e in bad_zip_errors)
     webview.write_bytes(good)
     required = top / 'packages/modules/Connectivity/netd/BpfHandler.cpp'
     required.unlink()
@@ -123,14 +127,14 @@ for name in ('fresh', 'interrupted-init', 'unknown-metadata', 'wrong-sdk',
 # whose name is not origin.
 init_choice = bootstrap.split('repo_init_args=', 1)[1].split('\nmkdir -p .repo/local_manifests', 1)[0]
 init_choice = 'repo_init_args=' + init_choice
-lfs_command = bootstrap.split("repo forall -e -c '\n", 1)[1].split("\n    '\n", 1)[0]
+lfs_command = bootstrap.split("repo forall -e -c '\n", 1)[1].split("\n'\n", 1)[0]
 with tempfile.TemporaryDirectory(prefix='gm8-repo-lfs20-') as tmp:
     fixture = Path(tmp)
     bin_dir = fixture / 'bin'; bin_dir.mkdir()
     calls = fixture / 'repo-calls.jsonl'
     repo_stub = bin_dir / 'repo'
     repo_stub.write_text('''#!/usr/bin/env python3
-import json, os, sys
+import json, os, subprocess, sys
 from pathlib import Path
 args = sys.argv[1:]
 if args == ['init', '-h']:
@@ -138,6 +142,11 @@ if args == ['init', '-h']:
 else:
     with Path(os.environ['GM8_TEST_REPO_CALLS']).open('a') as f:
         f.write(json.dumps(args) + '\\n')
+    if args[:3] == ['forall', '-e', '-c']:
+        project_env = dict(os.environ, REPO_PATH='external/chromium-webview/prebuilt/arm64',
+                           REPO_REMOTE='fixture-lfs')
+        sys.exit(subprocess.run(['sh', '-c', args[3]],
+                               cwd=os.environ['GM8_TEST_LFS_PROJECT'], env=project_env).returncode)
 ''')
     repo_stub.chmod(0o755)
     env = {**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ['PATH'],
@@ -145,10 +154,8 @@ else:
            'GIT_CONFIG_NOSYSTEM': '1'}
     for native in ('0', '1'):
         calls.unlink(missing_ok=True)
-        choice = subprocess.run(['bash', '-euc', init_choice + '\n' +
-                                 'test "$repo_native_lfs" = "$GM8_TEST_EXPECTED"'],
-                                env={**env, 'GM8_TEST_NATIVE_LFS': native,
-                                     'GM8_TEST_EXPECTED': 'true' if native == '1' else 'false'},
+        choice = subprocess.run(['bash', '-euc', init_choice],
+                                env={**env, 'GM8_TEST_NATIVE_LFS': native},
                                 text=True, capture_output=True)
         assert choice.returncode == 0, choice.stdout + choice.stderr
         call = json.loads(calls.read_text().strip())
@@ -207,3 +214,34 @@ else:
     assert failed.returncode != 0
     assert (broken / 'webview.apk').read_bytes() == pointer
     print('PASS: missing LFS payload propagates failure instead of accepting a pointer')
+
+    # Exercise the complete real post-validation bootstrap control flow.
+    # A native-capable repo may have left an earlier checkout as pointers;
+    # capability detection must not skip materialization or audit gating.
+    workflow = 'repo_init_args=' + bootstrap.split('repo_init_args=', 1)[1]
+    manifest = fixture / 'reviewed.xml'; manifest.write_text('<manifest />\n')
+    for name, native, fail in (('legacy', '0', False), ('native', '1', False),
+                               ('native-failed-lfs', '1', True)):
+        work = fixture / name; work.mkdir()
+        apk_project = work / 'external/chromium-webview/prebuilt/arm64'
+        apk_project.parent.mkdir(parents=True)
+        run('git', 'clone', '--origin', 'fixture-lfs', str(remote), str(apk_project),
+            extra_env={'GIT_LFS_SKIP_SMUDGE': '1'})
+        assert (apk_project / 'webview.apk').read_bytes() == pointer
+        if fail:
+            run('git', 'config', 'lfs.url', (fixture / 'missing-lfs-server').as_uri(),
+                cwd=apk_project)
+        audit_marker = work / 'audit-ran'
+        build = work / 'device/gm/GM8_sprout/tools/build-20.0.sh'
+        build.parent.mkdir(parents=True)
+        build.write_text('set -eu\ntest "$1" = audit\n'
+                         'touch "$GM8_TEST_AUDIT_MARKER"\n')
+        outcome = run('bash', '-euo', 'pipefail', '-c', workflow, cwd=work, checked=False,
+                      extra_env={'GM8_TEST_NATIVE_LFS': native,
+                                 'GM8_TEST_LFS_PROJECT': str(apk_project),
+                                 'GM8_TEST_AUDIT_MARKER': str(audit_marker),
+                                 'manifest': str(manifest), 'android_parent': str(work)})
+        assert (outcome.returncode != 0) == fail, outcome.stdout + outcome.stderr
+        assert audit_marker.exists() == (not fail)
+        assert (apk_project / 'webview.apk').read_bytes() == (pointer if fail else payload)
+        print('PASS:', name, '— real bootstrap materialization/audit gate')
