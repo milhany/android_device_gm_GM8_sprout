@@ -99,6 +99,17 @@ The normal first command ends at audit so sync can complete while runtime
 patches are being rebased. Boot/ROM/target-files stages are intentionally
 not exposed yet. The 19.1 release helper is not an Android 13 signing tool.
 
+## HIDL compatibility libraries
+
+LineageOS 20 already provides android.hidl.base@1.0 and
+android.hidl.manager@1.0 through hardware/lineage/compat, including vendor
+variants backed by libhidlbase. The inherited device-local
+libhidl/Android.mk aliases are removed on this branch to avoid duplicate
+module definitions. Product package requests remain so legacy userspace
+still receives the compatibility libraries from the platform provider.
+This resolves duplicate ownership at build-graph generation; vendor ABI
+and hardware operation still require the later build/runtime checks.
+
 ## Known SDK33 ports
 
 1. Legacy network/accounting: Android 13 moved key BPF paths into
