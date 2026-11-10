@@ -146,6 +146,34 @@ Reviewed upstream sources:
 - https://github.com/LineageOS/android_system_vold/blob/lineage-20.0/cryptfs.cpp
 - https://source.android.com/docs/security/features/encryption/full-disk
 
+## Bluetooth audio APEX boundary
+
+The SDK33 audio.a2dp.default module declares only com.android.bluetooth
+in apex_available, so it cannot be directly requested as a platform
+PRODUCT_PACKAGES entry (including its automatically selected 32-bit
+variant). Remove that request rather than extending the platform's APEX
+availability.
+
+Keep audio.bluetooth.default, android.hardware.bluetooth.audio@2.0-impl,
+the common audio service and bluetooth_audio_policy_configuration.xml.
+The selected audio.bluetooth.default is a vendor/proprietary HAL with
+HIDL session support; the common audio service registers the Bluetooth
+Audio 2.0 provider. The policy defines A2DP headphone/speaker output routes.
+
+Remove the separate legacy a2dp_in include/copy as well: it advertises an
+A2DP sink/receive module backed by the removed legacy platform HAL. This
+change does not provide that optional sink role through another backend.
+Primary audio, SCO call routes and Bluetooth playback policy are retained.
+Bluetooth playback, microphone/call behavior and reconnect remain pending
+hardware acceptance.
+
+Reviewed sources:
+
+- https://github.com/LineageOS/android_packages_modules_Bluetooth/blob/lineage-20.0/system/audio_a2dp_hw/Android.bp
+- https://github.com/LineageOS/android_packages_modules_Bluetooth/blob/lineage-20.0/system/audio_bluetooth_hw/Android.bp
+- https://github.com/LineageOS/android_hardware_interfaces/blob/lineage-20.0/audio/common/all-versions/default/service/service.cpp
+- https://github.com/LineageOS/android_frameworks_av/blob/lineage-20.0/services/audiopolicy/config/bluetooth_audio_policy_configuration.xml
+
 ## Known SDK33 ports
 
 1. Legacy network/accounting: Android 13 moved key BPF paths into
