@@ -14,7 +14,8 @@ for case in ('audit', 'configure', 'compile', 'compile-failure',
              'network-firewall-failure', 'policy-port-failure', 'network-policy',
              'network-policy-failure', 'socket-port-failure', 'network-sockets',
              'network-sockets-failure', 'permissions-port-failure', 'network-permissions',
-             'network-permissions-failure', 'wrong-sdk', 'invalid-stage'):
+             'network-permissions-failure', 'snapshots-port-failure', 'network-snapshots',
+             'network-snapshots-failure', 'wrong-sdk', 'invalid-stage'):
     with tempfile.TemporaryDirectory(prefix='gm8-build20-') as tmp:
         parent = Path(tmp)
         top = parent / 'lineage-20.0'
@@ -26,6 +27,7 @@ for case in ('audit', 'configure', 'compile', 'compile-failure',
         version.write_text('PLATFORM_SDK_VERSION := ' + ('32' if case == 'wrong-sdk' else '33') + '\n')
         trace = parent / 'trace'
         env = {**os.environ, 'GM8_TEST_TRACE': str(trace),
+               'GM8_TEST_SNAPSHOTS_PORT_FAIL': '1' if case == 'snapshots-port-failure' else '0',
                'GM8_TEST_PERMISSIONS_PORT_FAIL': '1' if case == 'permissions-port-failure' else '0',
                'GM8_TEST_SOCKET_PORT_FAIL': '1' if case == 'socket-port-failure' else '0',
                'GM8_TEST_POLICY_PORT_FAIL': '1' if case == 'policy-port-failure' else '0',
@@ -33,7 +35,7 @@ for case in ('audit', 'configure', 'compile', 'compile-failure',
                'GM8_TEST_STATS_PORT_FAIL': '1' if case == 'stats-port-failure' else '0',
                'GM8_TEST_PORT_FAIL': '1' if case == 'port-failure' else '0',
                'GM8_TEST_PREFLIGHT_FAIL': '1' if case == 'preflight-failure' else '0',
-               'GM8_TEST_M_EXIT': '17' if case in ('compile-failure', 'network-stats-failure', 'network-firewall-failure', 'network-policy-failure', 'network-sockets-failure', 'network-permissions-failure') else '0'}
+               'GM8_TEST_M_EXIT': '17' if case in ('compile-failure', 'network-stats-failure', 'network-firewall-failure', 'network-policy-failure', 'network-sockets-failure', 'network-permissions-failure', 'network-snapshots-failure') else '0'}
         bin_dir = parent / 'bin'; bin_dir.mkdir()
         repo = bin_dir / 'repo'
         repo.write_text('#!/bin/sh\nset -eu\nprintf "repo %s\\n" "$*" >> "$GM8_TEST_TRACE"\n'
@@ -57,6 +59,8 @@ if name == 'apply-socket-20.0.py' and os.environ['GM8_TEST_SOCKET_PORT_FAIL'] ==
     raise SystemExit(27)
 if name == 'apply-permissions-20.0.py' and os.environ['GM8_TEST_PERMISSIONS_PORT_FAIL'] == '1':
     raise SystemExit(28)
+if name == 'apply-snapshots-20.0.py' and os.environ['GM8_TEST_SNAPSHOTS_PORT_FAIL'] == '1':
+    raise SystemExit(29)
 if name == 'preflight-20.0.py' and os.environ['GM8_TEST_PREFLIGHT_FAIL'] == '1':
     raise SystemExit(9)
 '''
@@ -64,7 +68,7 @@ if name == 'preflight-20.0.py' and os.environ['GM8_TEST_PREFLIGHT_FAIL'] == '1':
                      'tests/processgroup_20_0_test.py', 'apply-network-stats-20.0.py',
                      'tests/network_stats_20_0_test.py', 'apply-firewall-20.0.py',
                      'tests/firewall_20_0_test.py', 'apply-network-policy-20.0.py',
-                     'tests/network_policy_20_0_test.py', 'apply-socket-20.0.py', 'tests/socket_20_0_test.py', 'apply-permissions-20.0.py', 'tests/permissions_20_0_test.py',
+                     'tests/network_policy_20_0_test.py', 'apply-socket-20.0.py', 'tests/socket_20_0_test.py', 'apply-permissions-20.0.py', 'tests/permissions_20_0_test.py', 'apply-snapshots-20.0.py', 'tests/snapshots_20_0_test.py',
                      'tests/kernel_host_link_test.py',
                      'tests/ft8006_gesture_test.py', 'tests/qsee_wait_test.py',
                      'tests/power_policy_test.py'):
@@ -77,13 +81,13 @@ m() {
     return "$GM8_TEST_M_EXIT"
 }
 ''')
-        stage = case if case in ('audit', 'configure', 'compile', 'network-stats', 'network-firewall', 'network-policy', 'network-sockets', 'network-permissions') else (
-            'invalid' if case == 'invalid-stage' else 'network-permissions' if case == 'network-permissions-failure' else 'network-sockets' if case == 'network-sockets-failure' else 'network-stats' if case == 'network-stats-failure' else 'network-firewall' if case == 'network-firewall-failure' else 'network-policy' if case == 'network-policy-failure' else 'compile')
+        stage = case if case in ('audit', 'configure', 'compile', 'network-stats', 'network-firewall', 'network-policy', 'network-sockets', 'network-permissions', 'network-snapshots') else (
+            'invalid' if case == 'invalid-stage' else 'network-snapshots' if case == 'network-snapshots-failure' else 'network-permissions' if case == 'network-permissions-failure' else 'network-sockets' if case == 'network-sockets-failure' else 'network-stats' if case == 'network-stats-failure' else 'network-firewall' if case == 'network-firewall-failure' else 'network-policy' if case == 'network-policy-failure' else 'compile')
         result = subprocess.run(['bash', str(entry), stage], env=env, text=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         calls = trace.read_text().splitlines() if trace.exists() else []
         make_calls = [x for x in calls if x.startswith('m ')]
-        expected = 17 if case in ('compile-failure', 'network-stats-failure', 'network-firewall-failure', 'network-policy-failure', 'network-sockets-failure', 'network-permissions-failure') else 28 if case == 'permissions-port-failure' else 27 if case == 'socket-port-failure' else 26 if case == 'policy-port-failure' else 25 if case == 'firewall-port-failure' else 24 if case == 'stats-port-failure' else 9 if case == 'preflight-failure' else 23 if case == 'port-failure' else (
+        expected = 17 if case in ('compile-failure', 'network-stats-failure', 'network-firewall-failure', 'network-policy-failure', 'network-sockets-failure', 'network-permissions-failure', 'network-snapshots-failure') else 29 if case == 'snapshots-port-failure' else 28 if case == 'permissions-port-failure' else 27 if case == 'socket-port-failure' else 26 if case == 'policy-port-failure' else 25 if case == 'firewall-port-failure' else 24 if case == 'stats-port-failure' else 9 if case == 'preflight-failure' else 23 if case == 'port-failure' else (
             1 if case == 'wrong-sdk' else 2 if case == 'invalid-stage' else 0)
         assert result.returncode == expected, (case, result.returncode, result.stdout)
         if case == 'configure':
@@ -92,6 +96,8 @@ m() {
             assert make_calls == ['m target-files-package -j32']
         elif case in ('network-stats', 'network-stats-failure'):
             assert make_calls == ['m libservice-connectivity -j32']
+        elif case in ('network-snapshots', 'network-snapshots-failure'):
+            assert make_calls == ['m service-connectivity -j32']
         elif case in ('network-permissions', 'network-permissions-failure'):
             assert make_calls == ['m netd service-connectivity -j32']
         elif case in ('network-sockets', 'network-sockets-failure'):
@@ -112,6 +118,7 @@ m() {
             assert 'apply-network-policy-20.0.py' not in calls
             assert 'apply-socket-20.0.py' not in calls
             assert 'apply-permissions-20.0.py' not in calls
+            assert 'apply-snapshots-20.0.py' not in calls
             assert 'network_policy_20_0_test.py' not in calls
         if case == 'port-failure':
             assert calls[-1] == 'apply-processgroup-20.0.py'
@@ -131,12 +138,15 @@ m() {
         if case == 'permissions-port-failure':
             assert calls[-1] == 'apply-permissions-20.0.py'
             assert 'preflight-20.0.py' not in calls
+        if case == 'snapshots-port-failure':
+            assert calls[-1] == 'apply-snapshots-20.0.py'
+            assert 'preflight-20.0.py' not in calls
         if case == 'preflight-failure':
             assert not any('fixup' in x or x.startswith('lunch ') or 'test.py' in x for x in calls)
         if case in ('wrong-sdk', 'invalid-stage'):
             assert not calls
             assert not (parent / 'gm8-20.0-records').exists()
-        if case in ('configure', 'compile', 'compile-failure', 'network-stats', 'network-stats-failure', 'network-firewall', 'network-firewall-failure', 'network-policy', 'network-policy-failure', 'network-sockets', 'network-sockets-failure', 'network-permissions', 'network-permissions-failure'):
+        if case in ('configure', 'compile', 'compile-failure', 'network-stats', 'network-stats-failure', 'network-firewall', 'network-firewall-failure', 'network-policy', 'network-policy-failure', 'network-sockets', 'network-sockets-failure', 'network-permissions', 'network-permissions-failure', 'network-snapshots', 'network-snapshots-failure'):
             assert 'lunch lineage_GM8_sprout-userdebug' in calls
             assert 'fixup-legacy-protobuf.py' in calls
             assert calls.index('apply-processgroup-20.0.py') < calls.index('preflight-20.0.py')
@@ -146,6 +156,8 @@ m() {
             assert 'network_policy_20_0_test.py' in calls
             assert 'socket_20_0_test.py' in calls
             assert 'permissions_20_0_test.py' in calls
+            assert 'snapshots_20_0_test.py' in calls
+            assert calls.index('apply-snapshots-20.0.py') < calls.index('preflight-20.0.py')
             assert calls.index('apply-permissions-20.0.py') < calls.index('preflight-20.0.py')
             assert calls.index('apply-socket-20.0.py') < calls.index('preflight-20.0.py')
             assert calls.index('apply-network-policy-20.0.py') < calls.index('preflight-20.0.py')
@@ -184,6 +196,12 @@ m() {
             logs = list((parent / 'gm8-20.0-records').glob('*/network-permissions.log'))
             assert len(logs) == 1 and 'fixture native build output' in logs[0].read_text()
             assert ('Java permission routing and native socket backend compiled' in result.stdout) == (case == 'network-permissions')
+            assert 'm target-files-package' not in calls
+            assert 'Build outputs were generated' not in result.stdout
+        if case in ('network-snapshots', 'network-snapshots-failure'):
+            logs = list((parent / 'gm8-20.0-records').glob('*/network-snapshots.log'))
+            assert len(logs) == 1 and 'fixture native build output' in logs[0].read_text()
+            assert ('Cumulative qtaguid snapshot reader compiled' in result.stdout) == (case == 'network-snapshots')
             assert 'm target-files-package' not in calls
             assert 'Build outputs were generated' not in result.stdout
         if case == 'compile':

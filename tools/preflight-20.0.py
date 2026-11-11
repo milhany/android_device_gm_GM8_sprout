@@ -13,7 +13,7 @@ import zipfile
 
 
 BLOCKERS = [
-    'Validate staged Java/native socket permissions and tagging on hardware; complete persistent NetworkStats/counter sets, BpfHandler/loader readiness, VPN/CLAT and tethering.',
+    'Validate staged socket permissions/tagging and cumulative snapshot reads; complete NetworkStatsService counter-set/purge/map integration, BpfHandler/loader readiness, VPN/CLAT and tethering.',
     'Review/rebase SDK33 RadioConfig and data/PhoneSwitcher behavior for the GM8 legacy data switch.',
     'Review SDK33 Wi-Fi KeyStore/MAC persistence behavior against the current secure-service fix.',
     'Validate the reviewed SDK33 cgroup-v1 process-tracking source port and task profiles on hardware.',
@@ -50,6 +50,7 @@ def audit(top):
         'system/netd/server/NetdNativeService.cpp',
         'system/netd/server/BandwidthController.cpp', 'system/netd/server/BandwidthController.h',
         'packages/modules/Connectivity/service/src/com/android/server/BpfNetMaps.java',
+        'packages/modules/Connectivity/service-t/src/com/android/server/net/NetworkStatsFactory.java',
     ]
     for path in paths:
         if not (top / path).is_file():

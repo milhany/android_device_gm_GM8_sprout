@@ -42,6 +42,7 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
         'system/netd/server/NetdNativeService.cpp',
         'system/netd/server/BandwidthController.cpp', 'system/netd/server/BandwidthController.h',
         'packages/modules/Connectivity/service/src/com/android/server/BpfNetMaps.java',
+        'packages/modules/Connectivity/service-t/src/com/android/server/net/NetworkStatsFactory.java',
         'packages/modules/Connectivity/service-t/jni/com_android_server_net_NetworkStatsService.cpp',
         'packages/modules/Connectivity/service/Android.bp',
     ]

@@ -84,6 +84,7 @@ bash device/gm/GM8_sprout/tools/build-20.0.sh network-firewall
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-policy
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-sockets
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-permissions
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-snapshots
 ```
 
 Audit records a pinned repo manifest, source revisions and readiness JSON;
@@ -165,6 +166,70 @@ duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
 
+## Legacy cumulative snapshot reader checkpoint
+
+NetworkStatsFactory's default constructor previously forced BPF stats.
+The snapshot checkpoint selects with ro.kernel.ebpf.supported (default
+true), matching the earlier SDK33 ports. In legacy mode the factory does
+not construct a query-only BpfNetMaps object or request BPF map swaps.
+It reads iface_stat_all, iface_stat_fmt and UID stats through the existing
+Java qtaguid readers. Cumulative UID snapshots replace mPersistSnapshot;
+subsequent deltas feed the existing adjusted snapshot, rather than adding
+full cumulative totals on every poll. UID, foreground/background set,
+interface and accounting-tag distinctions are retained.
+
+The old native legacy tokenizer assumes well-formed input and is not
+selected by this factory path. The modern/default BPF path keeps the
+native reader, map swap and incremental accumulation. A BPF read failure
+still fails; it does not fall back to legacy data. No native API or library
+dependency is added by the source patch.
+
+A latent legacy error path is also fixed: missing iface_stat_fmt formerly
+returned null after allowing thread disk reads, before the finally block
+could restore StrictMode. It now throws the underlying I/O failure and
+restores the caller policy. Missing/malformed UID files similarly fail;
+negative totals are rejected instead of entering cumulative arithmetic.
+Failed UID parses do not replace the prior good snapshot. This is a read
+path, with no proc writes or counter-set/purge claims.
+
+Host tests compile/run the full modified Java factory. Actual GM8
+pp_stats_header/pp_stats_line and pp_iface_stat_header/pp_iface_stat_line
+function bodies generate UID and 17-column interface text using kernel
+structure/seq_file fixtures. Tests cover repeated and increasing snapshots,
+foreground/background rows, UID/interface/tag filters, high tag conversion,
+cloned return data, inactive versus active interface totals, invalid row
+indices, truncation, counter overflow/negative totals, missing files and
+StrictMode restoration. Modern/default tests inject a native read error to
+check that BPF selection remains intact with no legacy fallback.
+
+Android collection/arithmetic, ProcFileReader, StrictMode and BpfNetMaps
+objects are host fixtures. A tiny JNI library deliberately fails BPF reads
+and aborts if the factory mistakenly selects native legacy parsing. This
+verifies Java dispatch and polling control flow, not Android's complete
+arithmetic/VPN/CLAT semantics, real JNI implementation, on-disk recorder
+persistence, device SELinux or hardware traffic accounting.
+
+Run the actual Android component checkpoint with:
+
+```sh
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-snapshots
+```
+
+It requests m service-connectivity -j32 and preserves network-snapshots.log.
+The guarded helper refuses a wrong SDK or conflicting source and supports
+read-only checks and repeated application while preserving unrelated edits.
+No boot image, OTA, signing or phone operation is requested. Actual Android
+compilation of this factory port is pending. NetworkStatsService still
+needs counter-set/purge routing and guarded legacy map initialization;
+BpfHandler/loader startup, VPN/CLAT, radio and hardware acceptance remain
+open before any installation.
+
+Reviewed sources:
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service-t/src/com/android/server/net/NetworkStatsFactory.java
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service-t/src/com/android/server/net/NetworkStatsService.java
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service-t/jni/com_android_server_net_NetworkStatsFactory.cpp
+- https://github.com/milhany/android_kernel_gm_msm8937/blob/8f533dcdfaf66be77b8e2c5dbeeb29f773952975/net/netfilter/xt_qtaguid.c
+
 ## Paired SDK33 Java permission routing
 
 The Java permission checkpoint uses the existing INetd reference supplied
@@ -204,8 +269,9 @@ bash device/gm/GM8_sprout/tools/build-20.0.sh network-permissions
 
 It requests m netd service-connectivity -j32, retains network-permissions.log
 and stops on failed prerequisite/tests/build pipelines. No OTA, boot image,
-signing or device operation is requested. Actual paired Android compilation
-and real networking/boot acceptance remain pending. Next ports remain the
+signing or device operation is requested. The paired Java/native permission component passed the actual Android
+build on the user host (34 seconds). Real networking/boot acceptance
+remains pending. Next ports remain the
 persistent NetworkStats/counter-set path and explicit legacy BPF-loader /
 netd startup readiness, then VPN/CLAT/tethering and hardware acceptance.
 

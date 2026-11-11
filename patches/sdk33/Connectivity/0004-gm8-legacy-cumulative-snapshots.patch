@@ -1,0 +1,104 @@
+diff --git a/service-t/src/com/android/server/net/NetworkStatsFactory.java b/service-t/src/com/android/server/net/NetworkStatsFactory.java
+--- a/service-t/src/com/android/server/net/NetworkStatsFactory.java
++++ b/service-t/src/com/android/server/net/NetworkStatsFactory.java
+@@ -30,6 +30,7 @@
+ import android.os.ServiceSpecificException;
+ import android.os.StrictMode;
+ import android.os.SystemClock;
++import android.os.SystemProperties;
+ 
+ import com.android.internal.annotations.GuardedBy;
+ import com.android.internal.annotations.VisibleForTesting;
+@@ -62,7 +63,6 @@
+     private static final String TAG = "NetworkStatsFactory";
+ 
+     private static final boolean USE_NATIVE_PARSING = true;
+-    private static final boolean VALIDATE_NATIVE_STATS = false;
+ 
+     /** Path to {@code /proc/net/xt_qtaguid/iface_stat_all}. */
+     private final File mStatsXtIfaceAll;
+@@ -164,7 +164,7 @@
+     }
+ 
+     public NetworkStatsFactory(@NonNull Context ctx) {
+-        this(ctx, new File("/proc/"), true);
++        this(ctx, new File("/proc/"), SystemProperties.getBoolean("ro.kernel.ebpf.supported", true));
+     }
+ 
+     @VisibleForTesting
+@@ -173,7 +173,7 @@
+         mStatsXtIfaceFmt = new File(procRoot, "net/xt_qtaguid/iface_stat_fmt");
+         mStatsXtUid = new File(procRoot, "net/xt_qtaguid/stats");
+         mUseBpfStats = useBpfStats;
+-        mBpfNetMaps = new BpfNetMaps();
++        mBpfNetMaps = useBpfStats ? new BpfNetMaps() : null;
+         synchronized (mPersistentDataLock) {
+             mPersistSnapshot = new NetworkStats(SystemClock.elapsedRealtime(), -1);
+             mTunAnd464xlatAdjustedStats = new NetworkStats(SystemClock.elapsedRealtime(), -1);
+@@ -260,9 +260,6 @@
+             return readBpfNetworkStatsDev();
+ 
+         final StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskReads();
+-
+-        // return null when kernel doesn't support
+-        if (!mStatsXtIfaceFmt.exists()) return null;
+ 
+         final NetworkStats stats = new NetworkStats(SystemClock.elapsedRealtime(), 6);
+         final NetworkStats.Entry entry = new NetworkStats.Entry();
+@@ -330,34 +327,20 @@
+             // Take a defensive copy. mPersistSnapshot is mutated in some cases below
+             final NetworkStats prev = mPersistSnapshot.clone();
+ 
+-            if (USE_NATIVE_PARSING) {
++            // The selected legacy JNI parser is not used here. Its old bounded
++            // buffer/token handling has not been accepted for GM8. Use the
++            // existing checked Java qtaguid reader for cumulative snapshots.
++            if (USE_NATIVE_PARSING && mUseBpfStats) {
+                 final NetworkStats stats =
+                         new NetworkStats(SystemClock.elapsedRealtime(), 0 /* initialSize */);
+-                if (mUseBpfStats) {
+-                    requestSwapActiveStatsMapLocked();
+-                    // Stats are always read from the inactive map, so they must be read after the
+-                    // swap
+-                    if (nativeReadNetworkStatsDetail(stats, mStatsXtUid.getAbsolutePath(), UID_ALL,
+-                            INTERFACES_ALL, TAG_ALL, mUseBpfStats) != 0) {
+-                        throw new IOException("Failed to parse network stats");
+-                    }
+-
+-                    // BPF stats are incremental; fold into mPersistSnapshot.
+-                    mPersistSnapshot.setElapsedRealtime(stats.getElapsedRealtime());
+-                    mPersistSnapshot.combineAllValues(stats);
+-                } else {
+-                    if (nativeReadNetworkStatsDetail(stats, mStatsXtUid.getAbsolutePath(), UID_ALL,
+-                            INTERFACES_ALL, TAG_ALL, mUseBpfStats) != 0) {
+-                        throw new IOException("Failed to parse network stats");
+-                    }
+-                    if (VALIDATE_NATIVE_STATS) {
+-                        final NetworkStats javaStats = javaReadNetworkStatsDetail(mStatsXtUid,
+-                                UID_ALL, INTERFACES_ALL, TAG_ALL);
+-                        assertEquals(javaStats, stats);
+-                    }
+-
+-                    mPersistSnapshot = stats;
++                requestSwapActiveStatsMapLocked();
++                // BPF snapshots are incremental and must be read after the swap.
++                if (nativeReadNetworkStatsDetail(stats, mStatsXtUid.getAbsolutePath(), UID_ALL,
++                        INTERFACES_ALL, TAG_ALL, mUseBpfStats) != 0) {
++                    throw new IOException("Failed to parse network stats");
+                 }
++                mPersistSnapshot.setElapsedRealtime(stats.getElapsedRealtime());
++                mPersistSnapshot.combineAllValues(stats);
+             } else {
+                 mPersistSnapshot = javaReadNetworkStatsDetail(mStatsXtUid, UID_ALL, INTERFACES_ALL,
+                         TAG_ALL);
+@@ -436,6 +419,10 @@
+                 entry.rxPackets = reader.nextLong();
+                 entry.txBytes = reader.nextLong();
+                 entry.txPackets = reader.nextLong();
++                if (entry.rxBytes < 0 || entry.rxPackets < 0
++                        || entry.txBytes < 0 || entry.txPackets < 0) {
++                    throw new ProtocolException("negative counters for idx " + idx);
++                }
+ 
+                 if ((limitIfaces == null || CollectionUtils.contains(limitIfaces, entry.iface))
+                         && (limitUid == UID_ALL || limitUid == entry.uid)

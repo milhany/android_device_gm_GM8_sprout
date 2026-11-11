@@ -2,7 +2,7 @@
 # SDK33 audit, build graph and unsigned target-files compilation checkpoints.
 set -euo pipefail
 stage="${1:-audit}"
-case "$stage" in audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions) ;; *) echo 'Usage: build-20.0.sh [audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions]' >&2; exit 2;; esac
+case "$stage" in audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions|network-snapshots) ;; *) echo 'Usage: build-20.0.sh [audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions|network-snapshots]' >&2; exit 2;; esac
 script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 top="$(cd "$script/../../../.." && pwd)"
 cd "$top"
@@ -21,6 +21,7 @@ if [[ "$stage" != audit ]]; then
     python3 "$script/apply-network-policy-20.0.py" --top "$top"
     python3 "$script/apply-socket-20.0.py" --top "$top"
     python3 "$script/apply-permissions-20.0.py" --top "$top"
+    python3 "$script/apply-snapshots-20.0.py" --top "$top"
 fi
 python3 "$script/preflight-20.0.py" --top "$top" --output "$record/source-audit.json"
 python3 "$script/tests/kernel_host_link_test.py" --kernel "$top/kernel/gm/msm8937"
@@ -35,6 +36,7 @@ if [[ "$stage" != audit ]]; then
     python3 "$script/tests/network_policy_20_0_test.py" --top "$top"
     python3 "$script/tests/socket_20_0_test.py" --top "$top"
     python3 "$script/tests/permissions_20_0_test.py" --top "$top"
+    python3 "$script/tests/snapshots_20_0_test.py" --top "$top"
     # ELF isolation is version-independent; the source snapshot ABI, SONAMEs
     # and stock blob hashes remain checked. No SDK32 framework patch is run.
     python3 "$script/fixup-legacy-protobuf.py" --top "$top" --record "$record/protobuf-fixups.json"
@@ -43,6 +45,10 @@ if [[ "$stage" != audit ]]; then
     lunch lineage_GM8_sprout-userdebug
     if [[ "$stage" == configure ]]; then
         m nothing -j32 2>&1 | tee "$record/configure.log"
+    elif [[ "$stage" == network-snapshots ]]; then
+        echo "Cumulative snapshot compilation log: $record/network-snapshots.log"
+        m service-connectivity -j32 2>&1 | tee "$record/network-snapshots.log"
+        echo 'Cumulative qtaguid snapshot reader compiled; NetworkStatsService counter-set/purge and BPF startup remain pending.'
     elif [[ "$stage" == network-permissions ]]; then
         echo "Paired permission-routing compilation log: $record/network-permissions.log"
         m netd service-connectivity -j32 2>&1 | tee "$record/network-permissions.log"
