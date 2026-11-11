@@ -39,6 +39,8 @@ def audit(top):
         'vendor/gm/GM8_sprout/GM8_sprout-vendor.mk',
         'kernel/gm/msm8937/Makefile',
         'packages/modules/Connectivity/netd/BpfHandler.cpp',
+        'packages/modules/Connectivity/service-t/jni/com_android_server_net_NetworkStatsService.cpp',
+        'packages/modules/Connectivity/service/Android.bp',
         'packages/modules/Connectivity/service/native/TrafficController.cpp',
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/RadioConfig.java',
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/data/PhoneSwitcher.java',
@@ -108,14 +110,16 @@ def audit(top):
              for flag in data_entries[0][4].split(',')):
         errors.append('SDK33 bring-up /data must not claim unsupported FDE/FBE encryption')
     ports = []
-    for patch in sorted((device / 'patches/sdk33/system_core').glob('*.patch')):
-        command = ['git', '-C', str(top / 'system/core'), 'apply']
-        forward = subprocess.run(command + ['--check', str(patch)], capture_output=True)
-        reverse = subprocess.run(command + ['--reverse', '--check', str(patch)], capture_output=True)
-        ports.append({'project': 'system/core', 'patch': str(patch.relative_to(device)),
-                      'patch_sha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
-                      'applied': reverse.returncode == 0, 'context_applies': forward.returncode == 0,
-                      'hardware_accepted': False})
+    for folder, project in (('system_core', 'system/core'),
+                            ('Connectivity', 'packages/modules/Connectivity')):
+        for patch in sorted((device / 'patches/sdk33' / folder).glob('*.patch')):
+            command = ['git', '-C', str(top / project), 'apply']
+            forward = subprocess.run(command + ['--check', str(patch)], capture_output=True)
+            reverse = subprocess.run(command + ['--reverse', '--check', str(patch)], capture_output=True)
+            ports.append({'project': project, 'patch': str(patch.relative_to(device)),
+                          'patch_sha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
+                          'applied': reverse.returncode == 0, 'context_applies': forward.returncode == 0,
+                          'hardware_accepted': False})
     return {'sdk': 33, 'created_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'source_inputs_complete': not errors, 'errors': errors, 'revisions': revisions,
             'sdk32_patch_context_checks': patches, 'sdk33_source_ports': ports,
@@ -141,4 +145,3 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
-

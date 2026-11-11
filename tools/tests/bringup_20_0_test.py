@@ -38,6 +38,8 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/RadioConfig.java',
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/data/PhoneSwitcher.java',
         'system/core/libprocessgroup/processgroup.cpp', 'system/netd/fixture.txt',
+        'packages/modules/Connectivity/service-t/jni/com_android_server_net_NetworkStatsService.cpp',
+        'packages/modules/Connectivity/service/Android.bp',
     ]
     for name in inputs:
         p = top / name; p.parent.mkdir(parents=True, exist_ok=True); p.write_text('fixture\n')
@@ -66,7 +68,13 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
     sdk33_patch = top / 'device/gm/GM8_sprout/patches/sdk33/system_core/probe.patch'
     sdk33_patch.parent.mkdir(parents=True)
     sdk33_patch.write_text('--- a/libprocessgroup/processgroup.cpp\n+++ b/libprocessgroup/processgroup.cpp\n@@ -1 +1 @@\n-fixture\n+sdk33-fixture\n')
+    stats_patch = top / 'device/gm/GM8_sprout/patches/sdk33/Connectivity/probe.patch'
+    stats_patch.parent.mkdir(parents=True)
+    stats_patch.write_text('--- a/service-t/jni/com_android_server_net_NetworkStatsService.cpp\n+++ b/service-t/jni/com_android_server_net_NetworkStatsService.cpp\n@@ -1 +1 @@\n-fixture\n+stats-fixture\n')
     r = module.audit(top)
+    assert len(r['sdk33_source_ports']) == 2
+    assert r['sdk33_source_ports'][1]['project'] == 'packages/modules/Connectivity'
+    assert r['sdk33_source_ports'][1]['context_applies'] and not r['sdk33_source_ports'][1]['applied']
     assert r['sdk33_source_ports'][0]['context_applies']
     assert not r['sdk33_source_ports'][0]['applied']
     assert not r['sdk33_source_ports'][0]['hardware_accepted']
@@ -272,4 +280,3 @@ else:
         assert audit_marker.exists() == (not fail)
         assert (apk_project / 'webview.apk').read_bytes() == (pointer if fail else payload)
         print('PASS:', name, '— real bootstrap materialization/audit gate')
-

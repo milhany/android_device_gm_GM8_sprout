@@ -79,6 +79,7 @@ does not bypass the APK check when a download or checkout is incomplete.
 bash device/gm/GM8_sprout/tools/build-20.0.sh audit
 bash device/gm/GM8_sprout/tools/build-20.0.sh configure
 bash device/gm/GM8_sprout/tools/build-20.0.sh compile
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-stats
 ```
 
 Audit records a pinned repo manifest, source revisions and readiness JSON;
@@ -96,9 +97,10 @@ SDK33 gate for the ELF helper and its real-ELF regression fixture are
 adapted; full stock-blob/VNDK validation still runs on the synced source
 host. Do not apply the old SDK32 framework scripts on SDK33. None of these stages
 runs them, modifies signing keys or accesses a phone. Audit stays read-only;
-configure/compile apply only the SDK33 processgroup port described below
-before recording the source audit. The audit records that port's patch hash
-and staged/applied state without treating it as hardware acceptance.
+configure/compile/network-stats apply the separately reviewed SDK33
+processgroup and TrafficStats read-side ports before recording the source
+audit. The audit records each port's patch hash and staged/applied state
+without treating it as hardware acceptance. No SDK32 framework helper runs.
 
 After configure passes on the build host, compile repeats the source/host
 checks and protobuf preparation, selects the same userdebug target, then
@@ -158,6 +160,77 @@ configuration reporting, legacy FDE detection, ambiguous selection,
 duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
+
+## SDK33 TrafficStats queries on the legacy kernel
+
+The selected Android 13 native TrafficStats entry points unconditionally
+read BPF maps. The GM8 build-tree config has BPF_SYSCALL=n and CGROUP_BPF
+absent, while xt_qtaguid is enabled. The SDK33 read-side patch restores real
+queries from /proc/net/xt_qtaguid/iface_stat_fmt and stats when the existing
+ro.kernel.ebpf.supported property is explicitly false.
+
+The property defaults to true and is cached once. BPF-enabled/default
+devices retain the BPF reader. A failed BPF read does not silently fall back
+to a second accounting source. Legacy read errors remain the TrafficStats
+UNKNOWN value (-1), not a fabricated successful zero. Valid empty counters
+or an absent UID in a readable valid snapshot are zero, as in the legacy
+query API.
+
+The interface reader supports the GM8 kernel's actual ifname /
+total_skb_rx_bytes header and 17-column format, plus the older five-column
+format. It aggregates interfaces or selects an exact name. TCP packet
+queries return UNKNOWN when the selected rows lack TCP counters. The UID
+reader aggregates counter sets only from tag-zero rows, avoiding double
+counting the tagged rows already included in that aggregate. Per-UID TCP
+packet queries remain unsupported.
+
+Rows are bounded to 4096 bytes. Negative, malformed and overflowing fields,
+truncated rows, read errors or aggregate overflow do not publish partial
+results. The patch adds no writes to procfs, socket tags or permissions.
+
+Important scope: this restores only the three native TrafficStats query
+entry points (total/interface/UID). It does **not** implement the persistent
+NetworkStatsService map/counter-set path, UID firewall/data-saver backend,
+socket tagging, accounting hooks, VPN isolation, CLAT, tethering, or BPF
+startup readiness. These remain open before a boot or installation test.
+No loader abort suppression or fake bpf.progs_loaded value is introduced.
+
+The kernel source also confirms that xt_qtaguid registers the owner match
+itself. The disabled standard NETFILTER_XT_MATCH_OWNER option does not, by
+itself, show that this kernel lacks owner matching. No kernel option is
+changed by this read-side port.
+
+### Component build
+
+```sh
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-stats
+```
+
+This stage prepares the reviewed source ports, records the source manifest
+and audit, runs the source/host checks, selects the existing userdebug target
+and runs only m libservice-connectivity -j32. Output is retained in the
+timestamped network-stats.log. A failed native build stops the workflow.
+No target-files, boot image, installation ZIP, signing or phone operation is
+requested. Android header/API/ABI compilation still needs to pass on the
+user's real build host; the local native fixtures are not that build.
+
+The six read-side regressions compile the actual selected kernel's
+pp_iface_stat_header/pp_iface_stat_line bodies together with the new reader
+and the actual patched JNI query/dispatch bodies. Kernel data structures,
+JNI/property access, BPF callbacks and the procfs location are fixtures.
+Temporary files contain the real formatter's output. Coverage includes
+interface/UID/set/tag aggregation, TCP availability, malformed and oversized
+rows, overflow, missing/unreadable files, explicit legacy selection,
+unchanged BPF/default selection and no fallback hiding BPF failures.
+SDK/context rejection, existing-header protection, idempotence, reverse
+application and unrelated-edit preservation also pass. They do not test
+a running kernel's packet hooks, permission labels or actual network traffic.
+
+Reviewed sources:
+
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service-t/jni/com_android_server_net_NetworkStatsService.cpp
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service/Android.bp
+- https://github.com/milhany/android_kernel_gm_msm8937/blob/8f533dcdfaf66be77b8e2c5dbeeb29f773952975/net/netfilter/xt_qtaguid.c
 
 ## SDK33 cgroup-v1 process tracking
 
@@ -386,5 +459,3 @@ References:
 - https://gitlab.com/MindTheGapps/vendor_gapps/-/tree/tau
 - https://source.android.com/docs/setup/start/requirements
 - https://gerrit.googlesource.com/git-repo/+/refs/heads/main/man/repo-init.1
-
-

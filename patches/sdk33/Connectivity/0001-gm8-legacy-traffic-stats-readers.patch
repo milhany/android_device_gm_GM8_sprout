@@ -1,0 +1,235 @@
+diff --git a/service-t/jni/LegacyTrafficStats.h b/service-t/jni/LegacyTrafficStats.h
+new file mode 100644
+--- /dev/null
++++ b/service-t/jni/LegacyTrafficStats.h
+@@ -0,0 +1,165 @@
++/*
++ * Copyright (C) 2026 GM8 contributors
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++#include <cerrno>
++#include <charconv>
++#include <cstdint>
++#include <cstdio>
++#include <cstring>
++#include <limits>
++#include <memory>
++#include <sstream>
++#include <string>
++#include <system_error>
++#include <vector>
++
++// Read-only TrafficStats queries for the GM8 xt_qtaguid ABI. This does not
++// install accounting hooks, tag sockets, modify counter sets or enforce rules.
++namespace android::net::legacytraffic {
++
++constexpr uint64_t UNKNOWN = std::numeric_limits<uint64_t>::max();
++
++struct FileCloser {
++    void operator()(FILE* stream) const { fclose(stream); }
++};
++using File = std::unique_ptr<FILE, FileCloser>;
++
++inline bool parseUnsigned(const std::string& token, uint64_t* value, int base = 10) {
++    if (token.empty()) return false;
++    const char* begin = token.data();
++    const char* end = begin + token.size();
++    if (base == 16) {
++        if (token.size() <= 2 || token[0] != '0' || token[1] != 'x') return false;
++        begin += 2;
++    }
++    const auto result = std::from_chars(begin, end, *value, base);
++    return result.ec == std::errc() && result.ptr == end;
++}
++
++inline bool addCounter(uint64_t value, uint64_t* sum) {
++    if (value > std::numeric_limits<uint64_t>::max() - *sum) return false;
++    *sum += value;
++    return true;
++}
++
++// The selected kernel's longest rows are well below 4096 bytes. Bound input
++// even when the proc file is replaced with a malformed fixture or future ABI.
++inline int readFields(FILE* stream, std::vector<std::string>* fields) {
++    char line[4096];
++    fields->clear();
++    if (!fgets(line, sizeof(line), stream)) return ferror(stream) ? -EIO : 0;
++    const size_t length = strlen(line);
++    if (length == 0 || (line[length - 1] != '\n' && !feof(stream))) return -EOVERFLOW;
++    std::istringstream input(line);
++    std::string token;
++    while (input >> token) fields->push_back(token);
++    return 1;
++}
++
++inline int closeFile(File* stream) {
++    if (fclose(stream->release()) == 0) return 0;
++    return errno ? -errno : -EIO;
++}
++
++template <typename Stats>
++int readIfaceStats(const char* path, const char* iface, Stats* output) {
++    File stream(fopen(path, "re"));
++    if (!stream) return errno ? -errno : -EIO;
++    Stats stats = {};
++    std::vector<std::string> fields;
++    bool first = true, matched = false, tcpComplete = true;
++    int result;
++    while ((result = readFields(stream.get(), &fields)) > 0) {
++        if (fields.empty()) continue;
++        const bool header = fields.size() >= 5 &&
++                ((fields[0] == "ifname" && fields[1] == "total_skb_rx_bytes") ||
++                 (fields[0] == "iface" && fields[1] == "rx_bytes"));
++        if (first && header) {
++            first = false;
++            continue;
++        }
++        first = false;
++        // GM8 prints iface plus 16 counters; the older five-column ABI has no TCP counts.
++        if ((fields.size() != 5 && fields.size() != 17) || fields[0].size() >= 32) return -EPROTO;
++        uint64_t counters[16] = {};
++        for (size_t i = 1; i < fields.size(); ++i) {
++            if (!parseUnsigned(fields[i], &counters[i - 1])) return -EPROTO;
++        }
++        if (iface && fields[0] != iface) continue;
++        matched = true;
++        if (!addCounter(counters[0], &stats.rxBytes) ||
++            !addCounter(counters[1], &stats.rxPackets) ||
++            !addCounter(counters[2], &stats.txBytes) ||
++            !addCounter(counters[3], &stats.txPackets)) return -EOVERFLOW;
++        if (fields.size() == 17) {
++            if (!addCounter(counters[5], &stats.tcpRxPackets) ||
++                !addCounter(counters[11], &stats.tcpTxPackets)) return -EOVERFLOW;
++        } else {
++            tcpComplete = false;
++        }
++    }
++    if (result < 0) return result;
++    if ((result = closeFile(&stream)) != 0) return result;
++    if (!matched || !tcpComplete) stats.tcpRxPackets = stats.tcpTxPackets = UNKNOWN;
++    *output = stats;
++    return 0;
++}
++
++template <typename Stats>
++int readUidStats(const char* path, uint32_t uid, Stats* output) {
++    File stream(fopen(path, "re"));
++    if (!stream) return errno ? -errno : -EIO;
++    Stats stats = {};
++    std::vector<std::string> fields;
++    bool first = true;
++    int result;
++    while ((result = readFields(stream.get(), &fields)) > 0) {
++        if (fields.empty()) continue;
++        if (first && fields.size() >= 9 && fields[0] == "idx" && fields[1] == "iface") {
++            first = false;
++            continue;
++        }
++        first = false;
++        if (fields.size() < 9 || fields[1].size() >= 32) return -EPROTO;
++        uint64_t index, tag, rowUid, counterSet;
++        if (!parseUnsigned(fields[0], &index) || index > UINT32_MAX ||
++            !parseUnsigned(fields[2], &tag, 16) ||
++            !parseUnsigned(fields[3], &rowUid) || rowUid > UINT32_MAX ||
++            !parseUnsigned(fields[4], &counterSet) || counterSet > UINT32_MAX) return -EPROTO;
++        uint64_t counters[4] = {};
++        for (size_t i = 5; i < fields.size(); ++i) {
++            uint64_t value;
++            if (!parseUnsigned(fields[i], &value)) return -EPROTO;
++            if (i < 9) counters[i - 5] = value;
++        }
++        // Tag-zero rows already include tagged traffic. Counting both doubles usage.
++        if (rowUid != uid || tag != 0) continue;
++        if (!addCounter(counters[0], &stats.rxBytes) ||
++            !addCounter(counters[1], &stats.rxPackets) ||
++            !addCounter(counters[2], &stats.txBytes) ||
++            !addCounter(counters[3], &stats.txPackets)) return -EOVERFLOW;
++    }
++    if (result < 0) return result;
++    if ((result = closeFile(&stream)) != 0) return result;
++    // Per-UID TCP packet queries are unsupported by this reader.
++    stats.tcpRxPackets = stats.tcpTxPackets = UNKNOWN;
++    *output = stats;
++    return 0;
++}
++
++}  // namespace android::net::legacytraffic
+diff --git a/service-t/jni/com_android_server_net_NetworkStatsService.cpp b/service-t/jni/com_android_server_net_NetworkStatsService.cpp
+--- a/service-t/jni/com_android_server_net_NetworkStatsService.cpp
++++ b/service-t/jni/com_android_server_net_NetworkStatsService.cpp
+@@ -16,6 +16,7 @@
+ 
+ #define LOG_TAG "NetworkStatsNative"
+ 
++#include <android-base/properties.h>
+ #include <cutils/qtaguid.h>
+ #include <dirent.h>
+ #include <errno.h>
+@@ -28,6 +29,7 @@
+ #include <utils/Log.h>
+ #include <utils/misc.h>
+ 
++#include "LegacyTrafficStats.h"
+ #include "bpf/BpfUtils.h"
+ #include "netdbpf/BpfNetworkStats.h"
+ 
+@@ -67,10 +69,20 @@
+     }
+ }
+ 
++// This immutable platform property is shared with the other legacy network ports.
++// A BPF read failure on a BPF-capable device must not silently switch backends.
++static bool useBpfTrafficStats() {
++    static const bool enabled = android::base::GetBoolProperty("ro.kernel.ebpf.supported", true);
++    return enabled;
++}
++
+ static jlong getTotalStat(JNIEnv* env, jclass clazz, jint type) {
+     Stats stats = {};
+ 
+-    if (bpfGetIfaceStats(NULL, &stats) == 0) {
++    const int result = useBpfTrafficStats()
++            ? bpfGetIfaceStats(NULL, &stats)
++            : net::legacytraffic::readIfaceStats("/proc/net/xt_qtaguid/iface_stat_fmt", nullptr, &stats);
++    if (result == 0) {
+         return getStatsType(&stats, (StatsType) type);
+     } else {
+         return UNKNOWN;
+@@ -85,7 +97,10 @@
+ 
+     Stats stats = {};
+ 
+-    if (bpfGetIfaceStats(iface8.c_str(), &stats) == 0) {
++    const int result = useBpfTrafficStats()
++            ? bpfGetIfaceStats(iface8.c_str(), &stats)
++            : net::legacytraffic::readIfaceStats("/proc/net/xt_qtaguid/iface_stat_fmt", iface8.c_str(), &stats);
++    if (result == 0) {
+         return getStatsType(&stats, (StatsType) type);
+     } else {
+         return UNKNOWN;
+@@ -95,7 +110,10 @@
+ static jlong getUidStat(JNIEnv* env, jclass clazz, jint uid, jint type) {
+     Stats stats = {};
+ 
+-    if (bpfGetUidStats(uid, &stats) == 0) {
++    const int result = useBpfTrafficStats()
++            ? bpfGetUidStats(uid, &stats)
++            : net::legacytraffic::readUidStats("/proc/net/xt_qtaguid/stats", uid, &stats);
++    if (result == 0) {
+         return getStatsType(&stats, (StatsType) type);
+     } else {
+         return UNKNOWN;
