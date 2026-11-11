@@ -82,6 +82,8 @@ bash device/gm/GM8_sprout/tools/build-20.0.sh compile
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-stats
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-firewall
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-policy
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-sockets
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-permissions
 ```
 
 Audit records a pinned repo manifest, source revisions and readiness JSON;
@@ -163,14 +165,58 @@ duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
 
+## Paired SDK33 Java permission routing
+
+The Java permission checkpoint uses the existing INetd reference supplied
+by ConnectivityService.getBpfNetMaps(netd) and shared with PermissionMonitor.
+On T with ro.kernel.ebpf.supported=false, setNetPermForUids now forwards to
+the reviewed native Controllers-owned appId table. No new Binder, AIDL,
+APEX export or Java public API is introduced. The existing checked
+RemoteException and ServiceSpecificException paths are retained; missing
+legacy netd returns ENODEV. Modern/default BPF dispatch and pre-T dispatch
+are unchanged. The unsupported UID ingress/VPN and BPF map operations are
+not silently allowed by this change.
+
+The helper refuses to install this route without both the native socket
+backend and the reviewed policy baseline. The predecessor policy helper
+recognizes this specific successor, verifies the baseline on a temporary
+copy with the successor reversed, and never undoes live source edits. The
+read-only source audit records verified_with_successor for the predecessor
+instead of incorrectly reporting it absent. Conflicting source remains an
+error; no reset, force checkout or policy bypass is used.
+
+Six host regressions cover apply/check/repeat/reverse, missing native
+backend, SDK/source refusal, conflicting predecessor detection, read-only
+audit state, the actual BpfNetMaps Java class and actual
+PermissionMonitor.sendAppIdsTrafficPermission method. Grouping for masks
+12, 4, 8, 0 and -1, explicit appId arrays, empty/unknown groups, real error
+identity, caller error logging, null netd, pre-T behavior and default/BPF
+dispatch are exercised with Android/Binder/JNI fixtures. This does not run
+a real Android Binder call, install an APK, enforce INTERNET on a GM8 kernel
+or establish BPF startup readiness. The preceding native fixture and
+bandwidth/firewall regressions continue to pass with the new route present.
+
+Run the next actual Android checkpoint with:
+
+```sh
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-permissions
+```
+
+It requests m netd service-connectivity -j32, retains network-permissions.log
+and stops on failed prerequisite/tests/build pipelines. No OTA, boot image,
+signing or device operation is requested. Actual paired Android compilation
+and real networking/boot acceptance remain pending. Next ports remain the
+persistent NetworkStats/counter-set path and explicit legacy BPF-loader /
+netd startup readiness, then VPN/CLAT/tethering and hardware acceptance.
+
 ## Native SDK33 socket backend checkpoint
 
-The next checkpoint adds a native-only legacy socket backend to platform
+The native socket checkpoint adds a legacy socket backend to platform
 netd. Controllers owns one LegacySocketTagger instance; the existing
 FwmarkServer tag/untag cases and permission Binder entry point share it.
 No libnetd_updatable exports, AIDL versions, APEX ABI or modern BPF paths
-are changed. This backend has host-fixture validation; its actual Android
-build and kernel/SELinux acceptance are pending.
+are changed. The native component passed the actual Android build on the
+user host (6 minutes 31 seconds). Kernel/SELinux acceptance is pending.
 
 Permission updates require NETWORK_STACK or MAINLINE_NETWORK_STACK, reject
 unsupported permission bits or non-appId values, and validate the entire
@@ -193,10 +239,9 @@ The passive and tag_tracking_passive parameters must be readable and N;
 the backend does not silently accept the kernel's passive no-op mode.
 It never modifies those parameters or relaxes SELinux.
 
-This does **not** activate complete socket permission handling at boot.
-BpfNetMaps still explicitly rejects legacy setNetPermForUids until the
-paired Java route is reviewed/applied. Netd's BPF initialization/loader
-requirements are also unchanged. INTERNET enforcement must be verified
+The later paired Java permission checkpoint routes setNetPermForUids to
+this backend. This still does **not** establish complete socket permission
+handling at boot. Netd's BPF initialization/loader requirements are unchanged. INTERNET enforcement must be verified
 against the final kernel CONFIG_ANDROID_PARANOID_NETWORK and Android's
 inet-group assignment; storing an INTERNET bit is not a replacement for
 that enforcement. Counter-set/delete-tag-data and persistent accounting,
@@ -251,13 +296,13 @@ retryable. The public query-only T constructor can have no netd reference;
 a later legacy policy operation then fails ENODEV instead of dereferencing
 null.
 
-UID ingress-interface filtering, socket permission synchronization and BPF
-map swap/dump explicitly throw EOPNOTSUPP in legacy mode until their
-separate implementations exist. VPN lockdown/global UID chains remain
-unsupported by the native standard-UID backend. In particular, no
-successful socket permission update is claimed. The PermissionMonitor /
-socket-tagging path and persistent NetworkStatsService map/counter-set
-path remain boot-critical open work before installation.
+UID ingress-interface filtering and BPF map swap/dump explicitly throw
+EOPNOTSUPP in legacy mode until their separate implementations exist. VPN
+lockdown/global UID chains remain unsupported by the native standard-UID
+backend. The later paired permission checkpoint restores the real native
+appId-table update route, with hardware permission enforcement still pending.
+The persistent NetworkStatsService map/counter-set path remains
+boot-critical open work before installation.
 
 ### Bandwidth/accounting rule selection
 
@@ -308,7 +353,7 @@ UID-firewall prerequisite, validates both projects before changing either,
 preserves unrelated work and rolls back newly applied members if application
 fails.
 
-Six local regressions compile/run the real modified BpfNetMaps Java class
+The policy regressions compile/run the real modified BpfNetMaps Java class
 and selected real native BandwidthController/Binder/accounting bodies with
 Android/Binder/iptables dependencies supplied by fixtures. They cover:
 

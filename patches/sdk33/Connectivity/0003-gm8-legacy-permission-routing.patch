@@ -1,0 +1,15 @@
+diff --git a/service/src/com/android/server/BpfNetMaps.java b/service/src/com/android/server/BpfNetMaps.java
+--- a/service/src/com/android/server/BpfNetMaps.java
++++ b/service/src/com/android/server/BpfNetMaps.java
+@@ -318,7 +318,10 @@
+      * @throws RemoteException when netd has crashed.
+      */
+     public void setNetPermForUids(final int permissions, final int[] uids) throws RemoteException {
+-        rejectLegacyBpfOperation("Socket permission synchronization");
++        if (LEGACY_NETWORK) {
++            requireNetd().trafficSetNetPermForUids(permissions, uids);
++            return;
++        }
+         if (USE_NETD) {
+             mNetd.trafficSetNetPermForUids(permissions, uids);
+             return;

@@ -46,6 +46,10 @@ class PolicyTest(unittest.TestCase):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, target)
             self.assertEqual(run(['git', 'init', '-q'], self.top / project).returncode, 0)
+        successor = ROOT / 'patches/sdk33/Connectivity/0003-gm8-legacy-permission-routing.patch'
+        if successor.is_file() and self.apply('packages/modules/Connectivity', successor,
+                                              '--reverse', '--check').returncode == 0:
+            self.assertEqual(self.apply('packages/modules/Connectivity', successor, '--reverse').returncode, 0)
         for project, patch in self.patches():
             if self.apply(project, patch, '--reverse', '--check').returncode == 0:
                 self.assertEqual(self.apply(project, patch, '--reverse').returncode, 0)

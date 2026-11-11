@@ -7,12 +7,13 @@ import hashlib
 from pathlib import Path
 import re
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
 
 BLOCKERS = [
-    'Complete legacy socket tagging/permissions, persistent NetworkStats/counter sets, BpfHandler/loader readiness, VPN/CLAT and tethering; UID/bandwidth routing is staged.',
+    'Validate staged Java/native socket permissions and tagging on hardware; complete persistent NetworkStats/counter sets, BpfHandler/loader readiness, VPN/CLAT and tethering.',
     'Review/rebase SDK33 RadioConfig and data/PhoneSwitcher behavior for the GM8 legacy data switch.',
     'Review SDK33 Wi-Fi KeyStore/MAC persistence behavior against the current secure-service fix.',
     'Validate the reviewed SDK33 cgroup-v1 process-tracking source port and task profiles on hardware.',
@@ -121,9 +122,21 @@ def audit(top):
             command = ['git', '-C', str(top / project), 'apply']
             forward = subprocess.run(command + ['--check', str(patch)], capture_output=True)
             reverse = subprocess.run(command + ['--reverse', '--check', str(patch)], capture_output=True)
+            verified_with_successor = False
+            if (folder == 'Connectivity' and patch.name == '0002-gm8-legacy-network-policy-routing.patch'
+                    and reverse.returncode != 0):
+                successor = patch.parent / '0003-gm8-legacy-permission-routing.patch'
+                helper = device / 'tools/apply-network-policy-20.0.py'
+                if successor.is_file() and helper.is_file() and subprocess.run(
+                        command + ['--reverse', '--check', str(successor)], capture_output=True).returncode == 0:
+                    verified_with_successor = subprocess.run(
+                        [sys.executable, str(helper), '--top', str(top), '--check'],
+                        capture_output=True).returncode == 0
             ports.append({'project': project, 'patch': str(patch.relative_to(device)),
                           'patch_sha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
-                          'applied': reverse.returncode == 0, 'context_applies': forward.returncode == 0,
+                          'applied': reverse.returncode == 0 or verified_with_successor,
+                          'verified_with_successor': verified_with_successor,
+                          'context_applies': forward.returncode == 0,
                           'hardware_accepted': False})
     return {'sdk': 33, 'created_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'source_inputs_complete': not errors, 'errors': errors, 'revisions': revisions,

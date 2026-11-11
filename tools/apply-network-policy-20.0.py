@@ -3,8 +3,10 @@
 import argparse
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 
 def main():
@@ -24,6 +26,25 @@ def main():
                               input=patch_text, cwd=top / project,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+    def applied_with_permission_route(project, patch):
+        if project != 'packages/modules/Connectivity': return False
+        successor = patch.parent / '0003-gm8-legacy-permission-routing.patch'
+        if not successor.is_file() or apply(project, successor, '--reverse', '--check').returncode:
+            return False
+        # Verify the predecessor on an isolated copy. Never undo the successor
+        # in the user's checkout, including during a check-only build.
+        with tempfile.TemporaryDirectory(prefix='gm8-policy-check-') as directory:
+            stage = Path(directory)
+            relative = Path('service/src/com/android/server/BpfNetMaps.java')
+            target = stage / relative
+            target.parent.mkdir(parents=True)
+            shutil.copyfile(top / project / relative, target)
+            result = subprocess.run(['git', 'apply', '--reverse', str(successor)],
+                                    cwd=stage, capture_output=True)
+            if result.returncode: return False
+            return subprocess.run(['git', 'apply', '--reverse', '--check', str(patch)],
+                                  cwd=stage, capture_output=True).returncode == 0
+
     prerequisite = device / 'patches/sdk33/system_netd/0001-gm8-legacy-uid-firewall.patch'
     if not (top / 'system/netd').is_dir() or not prerequisite.is_file() or apply(
             'system/netd', prerequisite, '--reverse', '--check').returncode != 0:
@@ -38,6 +59,7 @@ def main():
             print('Missing source or patch: ' + project, file=sys.stderr)
             return 1
         if apply(project, patch, '--reverse', '--check').returncode == 0: continue
+        if applied_with_permission_route(project, patch): continue
         result = apply(project, patch, '--check')
         if result.returncode:
             if project == 'packages/modules/Connectivity':
@@ -67,7 +89,7 @@ def main():
             return 1
         completed.append((project, patch))
     print('SDK33 Java UID/bandwidth routing and native legacy bandwidth policy are applied.')
-    print('Socket permission/tagging, persistent accounting, VPN/CLAT and BPF startup remain open.')
+    print('Complete socket/accounting acceptance, VPN/CLAT and BPF startup remain open.')
     return 0
 
 
