@@ -45,6 +45,8 @@ def audit(top):
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/RadioConfig.java',
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/data/PhoneSwitcher.java',
         'system/core/libprocessgroup/processgroup.cpp',
+        'system/netd/server/FirewallController.cpp', 'system/netd/server/FirewallController.h',
+        'system/netd/server/NetdNativeService.cpp',
     ]
     for path in paths:
         if not (top / path).is_file():
@@ -111,7 +113,8 @@ def audit(top):
         errors.append('SDK33 bring-up /data must not claim unsupported FDE/FBE encryption')
     ports = []
     for folder, project in (('system_core', 'system/core'),
-                            ('Connectivity', 'packages/modules/Connectivity')):
+                            ('Connectivity', 'packages/modules/Connectivity'),
+                            ('system_netd', 'system/netd')):
         for patch in sorted((device / 'patches/sdk33' / folder).glob('*.patch')):
             command = ['git', '-C', str(top / project), 'apply']
             forward = subprocess.run(command + ['--check', str(patch)], capture_output=True)

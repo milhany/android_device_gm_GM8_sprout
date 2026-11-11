@@ -80,6 +80,7 @@ bash device/gm/GM8_sprout/tools/build-20.0.sh audit
 bash device/gm/GM8_sprout/tools/build-20.0.sh configure
 bash device/gm/GM8_sprout/tools/build-20.0.sh compile
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-stats
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-firewall
 ```
 
 Audit records a pinned repo manifest, source revisions and readiness JSON;
@@ -97,9 +98,9 @@ SDK33 gate for the ELF helper and its real-ELF regression fixture are
 adapted; full stock-blob/VNDK validation still runs on the synced source
 host. Do not apply the old SDK32 framework scripts on SDK33. None of these stages
 runs them, modifies signing keys or accesses a phone. Audit stays read-only;
-configure/compile/network-stats apply the separately reviewed SDK33
-processgroup and TrafficStats read-side ports before recording the source
-audit. The audit records each port's patch hash and staged/applied state
+configure/compile/network-stats/network-firewall apply the separately
+reviewed SDK33 processgroup, TrafficStats read-side and native UID-firewall
+backend ports before recording the source audit. The audit records each port's patch hash and staged/applied state
 without treating it as hardware acceptance. No SDK32 framework helper runs.
 
 After configure passes on the build host, compile repeats the source/host
@@ -161,6 +162,113 @@ duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
 
+## Native SDK33 legacy UID-firewall backend
+
+This is a native backend checkpoint, not a completed Android 13 firewall or
+network port. SDK33 BpfNetMaps Java routing still needs its paired change;
+it currently uses the BPF implementation. Bandwidth/data-saver rules,
+socket tagging/permissions, persistent accounting, VPN isolation and BPF
+startup acceptance remain open. No loader failure is suppressed and no
+readiness property is fabricated.
+
+The separate system/netd patch restores native standard-UID rule storage,
+rendering and three existing Binder entry points for legacy mode:
+
+- firewallSetUidRule
+- firewallEnableChildChain
+- firewallReplaceUidChain
+
+The existing immutable ro.kernel.ebpf.supported property selects legacy
+mode only when false; the default/BPF path leaves the legacy backend
+disabled and these legacy Binder entry points unsupported. Binder calls in
+legacy mode retain NETD_LOCKING_RPC and both NETWORK_STACK /
+MAINLINE_NETWORK_STACK permission checks. Invalid inputs and writer errors
+return actual errors; a bulk-replace result is true only on success.
+
+The supported IDs come from the selected SDK33 ConnectivityManager:
+
+| ID | Chain | Type |
+| --- | --- | --- |
+| 1 | fw_dozable | Allowlist |
+| 2 | fw_standby | Denylist |
+| 3 | fw_powersave | Allowlist |
+| 4 | fw_restricted | Allowlist |
+| 5 | fw_low_power_standby | Allowlist |
+| 7 | fw_oem_deny_1 | Denylist |
+| 8 | fw_oem_deny_2 | Denylist |
+| 9 | fw_oem_deny_3 | Denylist |
+
+Global UID-chain 0 and VPN lockdown-chain 6 are explicitly unsupported by
+this backend; unknown IDs, unknown names, mismatched chain types, negative
+UIDs and invalid rules are rejected. Existing global/interface firewall
+APIs are retained; adding an interface allow rule in legacy mode places it
+after the standard-UID anchor so it cannot bypass these restrictions.
+
+Allowlist chains end in DROP. Denylist chains implicitly return after
+their UID drops. System UIDs, ESP and TCP RST exceptions follow the reviewed
+SDK33 owner policy. The legacy allowlist renderer also retains the IPv6
+control types used by the earlier Android native firewall. There is no
+blanket loopback exemption for socket-owned application traffic.
+
+Every owner match includes an explicit --uid-owner argument. This matters
+on GM8: xt_qtaguid accounts traffic when its match does not request a UID.
+Using repeated socket-only matches in firewall chains could count packets
+again. The no-socket exception uses the explicit inverted UID range from
+the selected GM8 init_user_ns matching contract. No kernel matcher or
+configuration is changed.
+
+Two private anchor chains keep standard UID restrictions ahead of global
+interface rules. Enable/disable rewrites only those anchors. UID updates
+rewrite the selected child chain, deduplicate UIDs, and commit the local
+cache after both IPv4 and IPv6 writes succeed. Repeated unchanged single
+UID/enable requests are no-ops only while cached state remains trusted.
+Global parent resets preserve the anchors.
+
+iptables transactions are per-family; this does not create cross-family
+atomicity. A failed standard-chain or anchor update attempts both previous
+family configurations and returns an error. A failed rollback invalidates
+the backend: later requests return ENODEV until re-initialization instead
+of reporting cached no-op success. Legacy global/interface restore errors
+also invalidate readiness. Initialization does not attach anchors until
+both families have initialized successfully.
+
+### Component build
+
+```sh
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-firewall
+```
+
+This stage applies the guarded SDK33 ports, records the source manifest and
+patch states, runs the host checks and builds only m netd -j32, retaining
+network-firewall.log. It does not request a target-files package, boot
+image, signing, OTA, kernel rebuild or phone operation. The actual Android
+compilation of this new backend is pending on the user's build host.
+
+The six firewall regressions compile the modified complete native
+FirewallController and the actual three Binder method bodies against
+Android service fixtures. A small iptables command model evaluates UID
+allow/drop behavior, policy intersections, critical exceptions, eight
+chain IDs, invalid inputs, permissions, interface ordering, initialization,
+family failures, rollback/cache behavior and modern/default selection.
+The selected SDK33 Java IDs and GM8 kernel owner/accounting contract are
+also checked. Helper checks cover wrong SDK, source/header conflicts,
+idempotence, reverse application and preservation of unrelated edits.
+
+For native GCC compatibility, the fixture spells the unchanged AOSP
+out-of-class auto function-pointer definition using its existing explicit
+header type. Production source keeps the AOSP declaration. Fixtures do not
+run Android Binder authorization, iptables-restore, kernel packet filtering
+or SELinux policy, and do not establish hardware/power behavior. Real
+compiler and phone acceptance remain separate checkpoints.
+
+Reviewed sources:
+
+- https://github.com/LineageOS/android_system_netd/blob/43d137e94717639b96f5020607920f734433be92/server/FirewallController.cpp
+- https://github.com/LineageOS/android_system_netd/blob/43d137e94717639b96f5020607920f734433be92/server/NetdNativeService.cpp
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/framework/src/android/net/ConnectivityManager.java
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/bpf_progs/netd.c
+- https://github.com/milhany/android_kernel_gm_msm8937/blob/8f533dcdfaf66be77b8e2c5dbeeb29f773952975/net/netfilter/xt_qtaguid.c
+
 ## SDK33 TrafficStats queries on the legacy kernel
 
 The selected Android 13 native TrafficStats entry points unconditionally
@@ -211,8 +319,9 @@ and audit, runs the source/host checks, selects the existing userdebug target
 and runs only m libservice-connectivity -j32. Output is retained in the
 timestamped network-stats.log. A failed native build stops the workflow.
 No target-files, boot image, installation ZIP, signing or phone operation is
-requested. Android header/API/ABI compilation still needs to pass on the
-user's real build host; the local native fixtures are not that build.
+requested. The user has now compiled this TrafficStats component successfully on the
+real Android build host (2026-11-11). That confirms this component's build,
+not end-to-end network operation or hardware acceptance.
 
 The six read-side regressions compile the actual selected kernel's
 pp_iface_stat_header/pp_iface_stat_line bodies together with the new reader

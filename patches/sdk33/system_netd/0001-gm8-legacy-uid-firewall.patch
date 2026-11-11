@@ -1,0 +1,412 @@
+diff --git a/server/FirewallController.cpp b/server/FirewallController.cpp
+--- a/server/FirewallController.cpp
++++ b/server/FirewallController.cpp
+@@ -27,6 +27,7 @@
+ #define LOG_NDEBUG 0
+ 
+ #include <android-base/file.h>
++#include <android-base/properties.h>
+ #include <android-base/stringprintf.h>
+ #include <android-base/strings.h>
+ #include <log/log.h>
+@@ -63,21 +64,39 @@
+     "redirect",
+ };
+ 
+-FirewallController::FirewallController(void) {
++FirewallController::FirewallController(void)
++    : mLegacyUidFirewall([](bool ipv6, const std::string& command) {
++          return execIptablesRestore(ipv6 ? V6 : V4, command);
++      }) {
+     // If no rules are set, it's in DENYLIST mode
+     mFirewallType = DENYLIST;
+     mIfaceRules = {};
+ }
+ 
++bool FirewallController::isLegacyMode() {
++    static const bool legacy = !android::base::GetBoolProperty("ro.kernel.ebpf.supported", true);
++    return legacy;
++}
++
+ int FirewallController::setupIptablesHooks(void) {
+-    return flushRules();
++    mLegacyUidFirewall.invalidate();
++    int result = flushRules();
++    if (result != 0 || !isLegacyMode()) return result;
++    result = mLegacyUidFirewall.initialize();
++    if (result != 0) return result;
++    // Install anchors only after both families have initialized successfully.
++    result = flushRules();
++    if (result != 0) mLegacyUidFirewall.invalidate();
++    return result;
+ }
+ 
+ int FirewallController::setFirewallType(FirewallType ftype) {
++    if (isLegacyMode() && !mLegacyUidFirewall.ready()) return -ENODEV;
+     int res = 0;
+     if (mFirewallType != ftype) {
+         // flush any existing rules
+-        resetFirewall();
++        const int resetResult = resetFirewall();
++        if (resetResult != 0 && isLegacyMode()) return resetResult;
+ 
+         if (ftype == ALLOWLIST) {
+             // create default rule to drop all traffic
+@@ -88,6 +107,10 @@
+                 "-A fw_FORWARD -j REJECT\n"
+                 "COMMIT\n";
+             res = execIptablesRestore(V4V6, command.c_str());
++            if (res != 0 && isLegacyMode()) {
++                mLegacyUidFirewall.invalidate();
++                return -EREMOTEIO;
++            }
+         }
+ 
+         // Set this after calling disableFirewall(), since it defaults to ALLOWLIST there
+@@ -101,17 +124,38 @@
+             "*filter\n"
+             ":fw_INPUT -\n"
+             ":fw_OUTPUT -\n"
+-            ":fw_FORWARD -\n"
+-            "-6 -A fw_OUTPUT ! -o lo -s ::1 -j DROP\n"
+-            "COMMIT\n";
+-
+-    return (execIptablesRestore(V4V6, command.c_str()) == 0) ? 0 : -EREMOTEIO;
++            ":fw_FORWARD -\n";
++    if (isLegacyMode() && mLegacyUidFirewall.ready()) {
++        command += "-A fw_INPUT -j fw_gm8_INPUT\n"
++                   "-A fw_OUTPUT -j fw_gm8_OUTPUT\n";
++    }
++    command += "-6 -A fw_OUTPUT ! -o lo -s ::1 -j DROP\nCOMMIT\n";
++    return (execIptablesRestore(V4V6, command) == 0) ? 0 : -EREMOTEIO;
++}
++
++int FirewallController::setUidRule(int32_t chain, int uid, int32_t rule) {
++    if (!isLegacyMode()) return -EOPNOTSUPP;
++    return mLegacyUidFirewall.setRule(chain, uid, rule);
++}
++
++int FirewallController::enableChildChains(int32_t chain, bool enable) {
++    if (!isLegacyMode()) return -EOPNOTSUPP;
++    return mLegacyUidFirewall.enableChain(chain, enable);
++}
++
++int FirewallController::replaceUidChain(const std::string& name, bool allowlist,
++                                        const std::vector<int32_t>& uids) {
++    if (!isLegacyMode()) return -EOPNOTSUPP;
++    return mLegacyUidFirewall.replaceChain(name, allowlist, uids);
+ }
+ 
+ int FirewallController::resetFirewall(void) {
++    if (isLegacyMode() && !mLegacyUidFirewall.ready()) return -ENODEV;
+     mFirewallType = ALLOWLIST;
+     mIfaceRules.clear();
+-    return flushRules();
++    const int result = flushRules();
++    if (result != 0 && isLegacyMode()) mLegacyUidFirewall.invalidate();
++    return result;
+ }
+ 
+ int FirewallController::isFirewallEnabled(void) {
+@@ -124,6 +168,8 @@
+         // Unsupported in DENYLIST mode
+         return -EINVAL;
+     }
++
++    if (isLegacyMode() && !mLegacyUidFirewall.ready()) return -ENODEV;
+ 
+     if (!isIfaceName(iface)) {
+         errno = ENOENT;
+@@ -136,21 +182,32 @@
+     const char* op;
+     if (rule == ALLOW && mIfaceRules.find(iface) == mIfaceRules.end()) {
+         op = "-I";
+-        mIfaceRules.insert(iface);
++        if (!isLegacyMode()) mIfaceRules.insert(iface);
+     } else if (rule == DENY && mIfaceRules.find(iface) != mIfaceRules.end()) {
+         op = "-D";
+-        mIfaceRules.erase(iface);
++        if (!isLegacyMode()) mIfaceRules.erase(iface);
+     } else {
+         return 0;
+     }
+ 
++    // An interface allow rule must not bypass the standard UID restrictions.
++    // In legacy mode each parent has its UID anchor in position one.
++    const char* position = isLegacyMode() && strcmp(op, "-I") == 0 ? "2 " : "";
+     std::string command = Join(std::vector<std::string> {
+         "*filter",
+-        StringPrintf("%s fw_INPUT -i %s -j RETURN", op, iface),
+-        StringPrintf("%s fw_OUTPUT -o %s -j RETURN", op, iface),
++        StringPrintf("%s fw_INPUT %s-i %s -j RETURN", op, position, iface),
++        StringPrintf("%s fw_OUTPUT %s-o %s -j RETURN", op, position, iface),
+         "COMMIT\n"
+     }, "\n");
+-    return (execIptablesRestore(V4V6, command) == 0) ? 0 : -EREMOTEIO;
++    if (execIptablesRestore(V4V6, command) != 0) {
++        if (isLegacyMode()) mLegacyUidFirewall.invalidate();
++        return -EREMOTEIO;
++    }
++    if (isLegacyMode()) {
++        if (rule == ALLOW) mIfaceRules.insert(iface);
++        else mIfaceRules.erase(iface);
++    }
++    return 0;
+ }
+ 
+ /* static */
+diff --git a/server/FirewallController.h b/server/FirewallController.h
+--- a/server/FirewallController.h
++++ b/server/FirewallController.h
+@@ -24,6 +24,7 @@
+ #include <vector>
+ 
+ #include "NetdConstants.h"
++#include "LegacyUidFirewall.h"
+ #include "bpf/BpfUtils.h"
+ 
+ namespace android {
+@@ -50,9 +51,12 @@
+   /* Match traffic going in/out over the given iface. */
+   int setInterfaceRule(const char*, FirewallRule);
+   /* Match traffic owned by given UID. This is specific to a particular chain. */
+-  int setUidRule(ChildChain, int, FirewallRule);
++  int setUidRule(int32_t, int, int32_t);
+ 
+-  int enableChildChains(ChildChain, bool);
++  int enableChildChains(int32_t, bool);
++
++  int replaceUidChain(const std::string&, bool, const std::vector<int32_t>&);
++  static bool isLegacyMode();
+ 
+   static std::string makeCriticalCommands(IptablesTarget target, const char* chainName);
+ 
+@@ -71,6 +75,7 @@
+   static int (*execIptablesRestore)(IptablesTarget target, const std::string& commands);
+ 
+ private:
++  LegacyUidFirewall mLegacyUidFirewall;
+   FirewallType mFirewallType;
+   std::set<std::string> mIfaceRules;
+   int flushRules(void);
+diff --git a/server/LegacyUidFirewall.h b/server/LegacyUidFirewall.h
+new file mode 100644
+--- /dev/null
++++ b/server/LegacyUidFirewall.h
+@@ -0,0 +1,173 @@
++/*
++ * Copyright (C) 2026 GM8 contributors
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#pragma once
++
++#include <cerrno>
++#include <cstdint>
++#include <functional>
++#include <map>
++#include <set>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace android::net {
++
++// SDK33 standard UID chains on the GM8 qtaguid kernel. The owning
++// FirewallController mutex must be held. This is not a VPN-isolation backend.
++class LegacyUidFirewall {
++public:
++    using Writer = std::function<int(bool ipv6, const std::string&)>;
++    struct Chain { int32_t id; const char* name; bool allowlist; };
++    // IDs are the SDK33 ConnectivityManager FIREWALL_CHAIN_* values.
++    inline static constexpr Chain CHAINS[] = {
++            {1, "fw_dozable", true}, {2, "fw_standby", false},
++            {3, "fw_powersave", true}, {4, "fw_restricted", true},
++            {5, "fw_low_power_standby", true}, {7, "fw_oem_deny_1", false},
++            {8, "fw_oem_deny_2", false}, {9, "fw_oem_deny_3", false},
++    };
++    inline static constexpr const char* INPUT_ANCHOR = "fw_gm8_INPUT";
++    inline static constexpr const char* OUTPUT_ANCHOR = "fw_gm8_OUTPUT";
++
++    explicit LegacyUidFirewall(Writer writer) : mWriter(std::move(writer)) {}
++    bool ready() const { return mReady; }
++    void invalidate() { mReady = false; }
++
++    int initialize() {
++        mReady = false;
++        mRules.clear();
++        mEnabled.clear();
++        for (bool ipv6 : {false, true}) {
++            std::string command = "*filter\n";
++            for (const auto& chain : CHAINS) command += rulesBody(chain, {}, ipv6);
++            command += anchorsBody({}) + "COMMIT\n";
++            if (mWriter(ipv6, command) != 0) return -EREMOTEIO;
++        }
++        mReady = true;
++        return 0;
++    }
++
++    int setRule(int32_t id, int32_t uid, int32_t rule) {
++        const Chain* chain = findChain(id);
++        if (!chain) return unsupported(id);
++        if (uid < 0 || (rule != 1 && rule != 2)) return -EINVAL;
++        if (!mReady) return -ENODEV;
++        auto candidate = mRules[id];
++        if (chain->allowlist == (rule == 1)) candidate.insert(uid);
++        else candidate.erase(uid);
++        if (candidate == mRules[id]) return 0;
++        return replace(*chain, candidate);
++    }
++
++    int replaceChain(const std::string& name, bool allowlist, const std::vector<int32_t>& uids) {
++        const Chain* chain = nullptr;
++        for (const auto& item : CHAINS) if (name == item.name) chain = &item;
++        if (!chain || chain->allowlist != allowlist) return -EINVAL;
++        std::set<int32_t> candidate;
++        for (int32_t uid : uids) {
++            if (uid < 0) return -EINVAL;
++            candidate.insert(uid);
++        }
++        if (!mReady) return -ENODEV;
++        // Always rewrite on bulk replace, including an unchanged set.
++        return replace(*chain, candidate);
++    }
++
++    int enableChain(int32_t id, bool enable) {
++        if (!findChain(id)) return unsupported(id);
++        if (!mReady) return -ENODEV;
++        auto candidate = mEnabled;
++        if (enable) candidate.insert(id);
++        else candidate.erase(id);
++        if (candidate == mEnabled) return 0;
++        const std::string next = "*filter\n" + anchorsBody(candidate) + "COMMIT\n";
++        const std::string previous = "*filter\n" + anchorsBody(mEnabled) + "COMMIT\n";
++        const int result = writePair(next, next, previous, previous);
++        if (result == 0) mEnabled = std::move(candidate);
++        return result;
++    }
++
++private:
++    Writer mWriter;
++    bool mReady = false;
++    std::map<int32_t, std::set<int32_t>> mRules;
++    std::set<int32_t> mEnabled;
++
++    static const Chain* findChain(int32_t id) {
++        for (const auto& chain : CHAINS) if (chain.id == id) return &chain;
++        return nullptr;
++    }
++    static int unsupported(int32_t id) {
++        // NONE/global UID rules and LOCKDOWN_VPN require separate implementations.
++        return id == 0 || id == 6 ? -EOPNOTSUPP : -EINVAL;
++    }
++    static std::string anchorsBody(const std::set<int32_t>& enabled) {
++        std::string text;
++        for (const char* anchor : {INPUT_ANCHOR, OUTPUT_ANCHOR}) {
++            text += ":" + std::string(anchor) + " -\n";
++            for (int32_t id : enabled) {
++                const Chain* chain = findChain(id);
++                text += "-A " + std::string(anchor) + " -j " + chain->name + "\n";
++            }
++        }
++        return text;
++    }
++    static std::string rulesBody(const Chain& chain, const std::set<int32_t>& uids, bool ipv6) {
++        const std::string name = chain.name;
++        std::string text = ":" + name + " -\n";
++        // SDK33 bpf_owner_match bypasses system UIDs, ESP and TCP RSTs.
++        text += "-A " + name + " -m owner --uid-owner 0-9999 -j RETURN\n";
++        // Use an explicit UID match. A socket-only qtaguid rule also accounts
++        // traffic; repeating it in firewall chains would corrupt counters.
++        // The GM8 match interprets this range in init_user_ns.
++        text += "-A " + name + " -m owner ! --uid-owner 0-4294967294 -j RETURN\n";
++        text += "-A " + name + " -p esp -j RETURN\n";
++        text += "-A " + name + " -p tcp --tcp-flags RST RST -j RETURN\n";
++        if (ipv6 && chain.allowlist) {
++            for (const char* type : {"packet-too-big", "router-solicitation", "router-advertisement",
++                                     "neighbour-solicitation", "neighbour-advertisement", "redirect"}) {
++                text += "-A " + name + " -p icmpv6 --icmpv6-type " + type + " -j RETURN\n";
++            }
++        }
++        for (int32_t uid : uids) {
++            text += "-A " + name + " -m owner --uid-owner " + std::to_string(uid) +
++                    (chain.allowlist ? " -j RETURN\n" : " -j DROP\n");
++        }
++        if (chain.allowlist) text += "-A " + name + " -j DROP\n";
++        return text;
++    }
++    int replace(const Chain& chain, const std::set<int32_t>& candidate) {
++        const auto& previous = mRules[chain.id];
++        const int result = writePair("*filter\n" + rulesBody(chain, candidate, false) + "COMMIT\n",
++                                     "*filter\n" + rulesBody(chain, candidate, true) + "COMMIT\n",
++                                     "*filter\n" + rulesBody(chain, previous, false) + "COMMIT\n",
++                                     "*filter\n" + rulesBody(chain, previous, true) + "COMMIT\n");
++        if (result == 0) mRules[chain.id] = candidate;
++        return result;
++    }
++    int writePair(const std::string& next4, const std::string& next6,
++                  const std::string& previous4, const std::string& previous6) {
++        if (mWriter(false, next4) == 0 && mWriter(true, next6) == 0) return 0;
++        // iptables transactions are per-family, not cross-family. Attempt both
++        // rollbacks and keep the error visible. Unknown state requires re-init.
++        const int rollback4 = mWriter(false, previous4);
++        const int rollback6 = mWriter(true, previous6);
++        if (rollback4 != 0 || rollback6 != 0) mReady = false;
++        return -EREMOTEIO;
++    }
++};
++
++}  // namespace android::net
+diff --git a/server/NetdNativeService.cpp b/server/NetdNativeService.cpp
+--- a/server/NetdNativeService.cpp
++++ b/server/NetdNativeService.cpp
+@@ -208,9 +208,13 @@
+     return binder::Status::ok();
+ }
+ 
+-binder::Status NetdNativeService::firewallReplaceUidChain(const std::string&, bool,
+-                                                          const std::vector<int32_t>&, bool*) {
+-    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++binder::Status NetdNativeService::firewallReplaceUidChain(const std::string& name, bool allowlist,
++                                                          const std::vector<int32_t>& uids, bool* ret) {
++    if (!FirewallController::isLegacyMode()) return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
++    const int result = gCtls->firewallCtrl.replaceUidChain(name, allowlist, uids);
++    *ret = result == 0;
++    return statusFromErrcode(result);
+ }
+ 
+ binder::Status NetdNativeService::bandwidthEnableDataSaver(bool enable, bool *ret) {
+@@ -1126,12 +1130,16 @@
+     return statusFromErrcode(res);
+ }
+ 
+-binder::Status NetdNativeService::firewallSetUidRule(int32_t, int32_t, int32_t) {
+-    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
+-}
+-
+-binder::Status NetdNativeService::firewallEnableChildChain(int32_t, bool) {
+-    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++binder::Status NetdNativeService::firewallSetUidRule(int32_t chain, int32_t uid, int32_t rule) {
++    if (!FirewallController::isLegacyMode()) return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
++    return statusFromErrcode(gCtls->firewallCtrl.setUidRule(chain, uid, rule));
++}
++
++binder::Status NetdNativeService::firewallEnableChildChain(int32_t chain, bool enable) {
++    if (!FirewallController::isLegacyMode()) return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
++    return statusFromErrcode(gCtls->firewallCtrl.enableChildChains(chain, enable));
+ }
+ 
+ binder::Status NetdNativeService::firewallAddUidInterfaceRules(const std::string&,

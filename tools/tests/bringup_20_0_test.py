@@ -38,6 +38,8 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/RadioConfig.java',
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/data/PhoneSwitcher.java',
         'system/core/libprocessgroup/processgroup.cpp', 'system/netd/fixture.txt',
+        'system/netd/server/FirewallController.cpp', 'system/netd/server/FirewallController.h',
+        'system/netd/server/NetdNativeService.cpp',
         'packages/modules/Connectivity/service-t/jni/com_android_server_net_NetworkStatsService.cpp',
         'packages/modules/Connectivity/service/Android.bp',
     ]
@@ -71,8 +73,13 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
     stats_patch = top / 'device/gm/GM8_sprout/patches/sdk33/Connectivity/probe.patch'
     stats_patch.parent.mkdir(parents=True)
     stats_patch.write_text('--- a/service-t/jni/com_android_server_net_NetworkStatsService.cpp\n+++ b/service-t/jni/com_android_server_net_NetworkStatsService.cpp\n@@ -1 +1 @@\n-fixture\n+stats-fixture\n')
+    firewall_patch = top / 'device/gm/GM8_sprout/patches/sdk33/system_netd/probe.patch'
+    firewall_patch.parent.mkdir(parents=True)
+    firewall_patch.write_text('--- a/server/FirewallController.cpp\n+++ b/server/FirewallController.cpp\n@@ -1 +1 @@\n-fixture\n+firewall-fixture\n')
     r = module.audit(top)
-    assert len(r['sdk33_source_ports']) == 2
+    assert len(r['sdk33_source_ports']) == 3
+    assert r['sdk33_source_ports'][2]['project'] == 'system/netd'
+    assert r['sdk33_source_ports'][2]['context_applies'] and not r['sdk33_source_ports'][2]['applied']
     assert r['sdk33_source_ports'][1]['project'] == 'packages/modules/Connectivity'
     assert r['sdk33_source_ports'][1]['context_applies'] and not r['sdk33_source_ports'][1]['applied']
     assert r['sdk33_source_ports'][0]['context_applies']

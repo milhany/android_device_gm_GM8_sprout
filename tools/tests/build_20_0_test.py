@@ -10,7 +10,8 @@ BUILD = (ROOT / 'tools/build-20.0.sh').read_text()
 
 for case in ('audit', 'configure', 'compile', 'compile-failure',
              'preflight-failure', 'port-failure', 'stats-port-failure', 'network-stats',
-             'network-stats-failure', 'wrong-sdk', 'invalid-stage'):
+             'network-stats-failure', 'firewall-port-failure', 'network-firewall',
+             'network-firewall-failure', 'wrong-sdk', 'invalid-stage'):
     with tempfile.TemporaryDirectory(prefix='gm8-build20-') as tmp:
         parent = Path(tmp)
         top = parent / 'lineage-20.0'
@@ -22,10 +23,11 @@ for case in ('audit', 'configure', 'compile', 'compile-failure',
         version.write_text('PLATFORM_SDK_VERSION := ' + ('32' if case == 'wrong-sdk' else '33') + '\n')
         trace = parent / 'trace'
         env = {**os.environ, 'GM8_TEST_TRACE': str(trace),
+               'GM8_TEST_FIREWALL_PORT_FAIL': '1' if case == 'firewall-port-failure' else '0',
                'GM8_TEST_STATS_PORT_FAIL': '1' if case == 'stats-port-failure' else '0',
                'GM8_TEST_PORT_FAIL': '1' if case == 'port-failure' else '0',
                'GM8_TEST_PREFLIGHT_FAIL': '1' if case == 'preflight-failure' else '0',
-               'GM8_TEST_M_EXIT': '17' if case in ('compile-failure', 'network-stats-failure') else '0'}
+               'GM8_TEST_M_EXIT': '17' if case in ('compile-failure', 'network-stats-failure', 'network-firewall-failure') else '0'}
         bin_dir = parent / 'bin'; bin_dir.mkdir()
         repo = bin_dir / 'repo'
         repo.write_text('#!/bin/sh\nset -eu\nprintf "repo %s\\n" "$*" >> "$GM8_TEST_TRACE"\n'
@@ -41,12 +43,15 @@ if name == 'apply-processgroup-20.0.py' and os.environ['GM8_TEST_PORT_FAIL'] == 
     raise SystemExit(23)
 if name == 'apply-network-stats-20.0.py' and os.environ['GM8_TEST_STATS_PORT_FAIL'] == '1':
     raise SystemExit(24)
+if name == 'apply-firewall-20.0.py' and os.environ['GM8_TEST_FIREWALL_PORT_FAIL'] == '1':
+    raise SystemExit(25)
 if name == 'preflight-20.0.py' and os.environ['GM8_TEST_PREFLIGHT_FAIL'] == '1':
     raise SystemExit(9)
 '''
         for name in ('preflight-20.0.py', 'fixup-legacy-protobuf.py', 'apply-processgroup-20.0.py',
                      'tests/processgroup_20_0_test.py', 'apply-network-stats-20.0.py',
-                     'tests/network_stats_20_0_test.py',
+                     'tests/network_stats_20_0_test.py', 'apply-firewall-20.0.py',
+                     'tests/firewall_20_0_test.py',
                      'tests/kernel_host_link_test.py',
                      'tests/ft8006_gesture_test.py', 'tests/qsee_wait_test.py',
                      'tests/power_policy_test.py'):
@@ -59,13 +64,13 @@ m() {
     return "$GM8_TEST_M_EXIT"
 }
 ''')
-        stage = case if case in ('audit', 'configure', 'compile', 'network-stats') else (
-            'invalid' if case == 'invalid-stage' else 'network-stats' if case == 'network-stats-failure' else 'compile')
+        stage = case if case in ('audit', 'configure', 'compile', 'network-stats', 'network-firewall') else (
+            'invalid' if case == 'invalid-stage' else 'network-stats' if case == 'network-stats-failure' else 'network-firewall' if case == 'network-firewall-failure' else 'compile')
         result = subprocess.run(['bash', str(entry), stage], env=env, text=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         calls = trace.read_text().splitlines() if trace.exists() else []
         make_calls = [x for x in calls if x.startswith('m ')]
-        expected = 17 if case in ('compile-failure', 'network-stats-failure') else 24 if case == 'stats-port-failure' else 9 if case == 'preflight-failure' else 23 if case == 'port-failure' else (
+        expected = 17 if case in ('compile-failure', 'network-stats-failure', 'network-firewall-failure') else 25 if case == 'firewall-port-failure' else 24 if case == 'stats-port-failure' else 9 if case == 'preflight-failure' else 23 if case == 'port-failure' else (
             1 if case == 'wrong-sdk' else 2 if case == 'invalid-stage' else 0)
         assert result.returncode == expected, (case, result.returncode, result.stdout)
         if case == 'configure':
@@ -74,6 +79,8 @@ m() {
             assert make_calls == ['m target-files-package -j32']
         elif case in ('network-stats', 'network-stats-failure'):
             assert make_calls == ['m libservice-connectivity -j32']
+        elif case in ('network-firewall', 'network-firewall-failure'):
+            assert make_calls == ['m netd -j32']
         else:
             assert not make_calls
         if case == 'audit':
@@ -81,23 +88,30 @@ m() {
             assert 'processgroup_20_0_test.py' not in calls
             assert 'apply-network-stats-20.0.py' not in calls
             assert 'network_stats_20_0_test.py' not in calls
+            assert 'apply-firewall-20.0.py' not in calls
+            assert 'firewall_20_0_test.py' not in calls
         if case == 'port-failure':
             assert calls[-1] == 'apply-processgroup-20.0.py'
             assert 'preflight-20.0.py' not in calls
         if case == 'stats-port-failure':
             assert calls[-1] == 'apply-network-stats-20.0.py'
             assert 'preflight-20.0.py' not in calls
+        if case == 'firewall-port-failure':
+            assert calls[-1] == 'apply-firewall-20.0.py'
+            assert 'preflight-20.0.py' not in calls
         if case == 'preflight-failure':
             assert not any('fixup' in x or x.startswith('lunch ') or 'test.py' in x for x in calls)
         if case in ('wrong-sdk', 'invalid-stage'):
             assert not calls
             assert not (parent / 'gm8-20.0-records').exists()
-        if case in ('configure', 'compile', 'compile-failure', 'network-stats', 'network-stats-failure'):
+        if case in ('configure', 'compile', 'compile-failure', 'network-stats', 'network-stats-failure', 'network-firewall', 'network-firewall-failure'):
             assert 'lunch lineage_GM8_sprout-userdebug' in calls
             assert 'fixup-legacy-protobuf.py' in calls
             assert calls.index('apply-processgroup-20.0.py') < calls.index('preflight-20.0.py')
             assert 'processgroup_20_0_test.py' in calls
             assert 'network_stats_20_0_test.py' in calls
+            assert 'firewall_20_0_test.py' in calls
+            assert calls.index('apply-firewall-20.0.py') < calls.index('preflight-20.0.py')
             assert calls.index('apply-network-stats-20.0.py') < calls.index('preflight-20.0.py')
         if case in ('compile', 'compile-failure'):
             logs = list((parent / 'gm8-20.0-records').glob('*/compile.log'))
@@ -108,6 +122,12 @@ m() {
             logs = list((parent / 'gm8-20.0-records').glob('*/network-stats.log'))
             assert len(logs) == 1 and 'fixture native build output' in logs[0].read_text()
             assert ('Native TrafficStats component compiled' in result.stdout) == (case == 'network-stats')
+            assert 'm target-files-package' not in calls
+            assert 'Build outputs were generated' not in result.stdout
+        if case in ('network-firewall', 'network-firewall-failure'):
+            logs = list((parent / 'gm8-20.0-records').glob('*/network-firewall.log'))
+            assert len(logs) == 1 and 'fixture native build output' in logs[0].read_text()
+            assert ('Native netd UID-firewall backend compiled' in result.stdout) == (case == 'network-firewall')
             assert 'm target-files-package' not in calls
             assert 'Build outputs were generated' not in result.stdout
         if case == 'compile':
