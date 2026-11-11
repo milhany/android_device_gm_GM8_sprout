@@ -49,6 +49,14 @@ class PolicyTest(unittest.TestCase):
         for project, patch in self.patches():
             if self.apply(project, patch, '--reverse', '--check').returncode == 0:
                 self.assertEqual(self.apply(project, patch, '--reverse').returncode, 0)
+            elif project == 'packages/modules/Connectivity':
+                previous = patch.read_text().replace('EIO', 'EREMOTEIO')
+                checked = subprocess.run(['git', 'apply', '--reverse', '--check', '-'],
+                    input=previous, text=True, capture_output=True, cwd=self.top / project)
+                if checked.returncode == 0:
+                    reverted = subprocess.run(['git', 'apply', '--reverse', '-'],
+                        input=previous, text=True, capture_output=True, cwd=self.top / project)
+                    self.assertEqual(reverted.returncode, 0, reverted.stderr)
         self.version = self.top / 'build/core/version_defaults.mk'
         self.version.parent.mkdir(parents=True)
         self.version.write_text('PLATFORM_SDK_VERSION := 33\n')
@@ -86,6 +94,31 @@ class PolicyTest(unittest.TestCase):
         self.assertNotEqual(self.helper('--check').returncode, 0)
         self.assertEqual(self.snapshot(), self.before)
         self.version.write_text('PLATFORM_SDK_VERSION := 32\n')
+        before = self.snapshot()
+        self.assertNotEqual(self.helper().returncode, 0)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_previous_errno_patch_upgrades_without_losing_edits(self):
+        result = self.helper(); self.assertEqual(result.returncode, 0, result.stderr)
+        self.java.write_text(self.java.read_text().replace('EIO', 'EREMOTEIO')
+                             + '\n// preserve unrelated Java edit\n')
+        before = self.snapshot()
+        self.assertNotEqual(self.helper('--check').returncode, 0)
+        self.assertEqual(self.snapshot(), before)
+        result = self.helper(); self.assertEqual(result.returncode, 0, result.stderr)
+        after = self.snapshot()
+        self.assertNotIn('EREMOTEIO', self.java.read_text())
+        self.assertIn('// preserve unrelated Java edit', self.java.read_text())
+        self.assertEqual(after['system/netd/server/BandwidthController.cpp'],
+                         before['system/netd/server/BandwidthController.cpp'])
+        self.assertEqual(self.helper('--check').returncode, 0)
+        self.assertEqual(self.helper().returncode, 0)
+        self.assertEqual(self.snapshot(), after)
+
+    def test_unreviewed_old_errno_source_is_not_upgraded(self):
+        result = self.helper(); self.assertEqual(result.returncode, 0, result.stderr)
+        self.java.write_text(self.java.read_text().replace('EIO', 'EREMOTEIO')
+                             .replace('private static final String TAG', 'private static final String OTHER_TAG'))
         before = self.snapshot()
         self.assertNotEqual(self.helper().returncode, 0)
         self.assertEqual(self.snapshot(), before)
@@ -158,7 +191,7 @@ bool isIfaceName(const std::string&);
             'android/os/RemoteException.java': 'package android.os; public class RemoteException extends Exception { public RemoteException(String s) {super(s);} }',
             'android/os/ServiceSpecificException.java': 'package android.os; public class ServiceSpecificException extends RuntimeException { public final int errorCode; public ServiceSpecificException(int c,String s){super(s);errorCode=c;} }',
             'android/os/SystemProperties.java': 'package android.os; public class SystemProperties {public static boolean getBoolean(String k,boolean d){return Boolean.parseBoolean(System.getProperty(k,Boolean.toString(d)));}}',
-            'android/system/OsConstants.java': 'package android.system; public class OsConstants { public static final int EOPNOTSUPP=95,ENODEV=19,EREMOTEIO=121;}',
+            'android/system/OsConstants.java': 'package android.system; public class OsConstants { public static final int EOPNOTSUPP=95,ENODEV=19,EIO=5;}',
             'android/system/Os.java': 'package android.system; public class Os {public static String strerror(int n){return Integer.toString(n);}}',
             'android/util/Log.java': 'package android.util; public class Log {public static int e(String t,String s){return 0;}}',
             'com/android/modules/utils/build/SdkLevel.java': 'package com.android.modules.utils.build; public class SdkLevel {public static boolean isAtLeastT(){return Boolean.parseBoolean(System.getProperty("gm8.sdk.t","true"));}}',

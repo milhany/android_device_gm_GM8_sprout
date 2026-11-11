@@ -1,0 +1,37 @@
+diff --git a/service/src/com/android/server/BpfNetMaps.java b/service/src/com/android/server/BpfNetMaps.java
+--- a/service/src/com/android/server/BpfNetMaps.java
++++ b/service/src/com/android/server/BpfNetMaps.java
+@@ -18,7 +18,7 @@
+ 
+ import static android.system.OsConstants.EOPNOTSUPP;
+ import static android.system.OsConstants.ENODEV;
+-import static android.system.OsConstants.EREMOTEIO;
++import static android.system.OsConstants.EIO;
+ 
+ import android.net.INetd;
+ import android.os.RemoteException;
+@@ -97,7 +97,7 @@
+         try {
+             operation.run(requireNetd());
+         } catch (RemoteException e) {
+-            throw new ServiceSpecificException(EREMOTEIO, "Legacy netd Binder failure: " + e);
++            throw new ServiceSpecificException(EIO, "Legacy netd Binder failure: " + e);
+         }
+     }
+ 
+@@ -213,13 +213,13 @@
+         if (LEGACY_NETWORK) {
+             try {
+                 return requireNetd().firewallReplaceUidChain(chainName, isAllowlist, uids)
+-                        ? 0 : EREMOTEIO;
++                        ? 0 : EIO;
+             } catch (ServiceSpecificException e) {
+                 Log.e(TAG, "Legacy replaceUidChain failed: " + e);
+                 return e.errorCode;
+             } catch (RemoteException e) {
+                 Log.e(TAG, "Legacy replaceUidChain Binder failure: " + e);
+-                return EREMOTEIO;
++                return EIO;
+             }
+         }
+         final int err = native_replaceUidChain(chainName, isAllowlist, uids);

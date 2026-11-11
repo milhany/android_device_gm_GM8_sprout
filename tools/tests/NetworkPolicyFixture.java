@@ -74,10 +74,10 @@ public class NetworkPolicyFixture {
         error(22, () -> maps.addNiceApp(-1));
         check(maps.replaceUidChain("bad", true, new int[]{}) == 22);
         netd.failure = 0; netd.replaceOk = false;
-        check(maps.replaceUidChain("fw_dozable", true, new int[]{}) == 121);
+        check(maps.replaceUidChain("fw_dozable", true, new int[]{}) == 5);
         netd.dead = true;
-        error(121, () -> maps.setChildChain(1, false));
-        check(maps.replaceUidChain("fw_dozable", true, new int[]{}) == 121);
+        error(5, () -> maps.setChildChain(1, false));
+        check(maps.replaceUidChain("fw_dozable", true, new int[]{}) == 5);
         int calls = netd.calls.size();
         error(95, () -> maps.addUidInterfaceRules("tun0", new int[]{10001}));
         error(95, () -> maps.removeUidInterfaceRules(new int[]{10001}));

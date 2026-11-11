@@ -175,9 +175,14 @@ On T with ro.kernel.ebpf.supported=false, BpfNetMaps routes standard UID
 set/enable/replace operations and naughty/nice UID changes through the
 restored netd Binder entry points. The default/BPF path and pre-T interface/
 permission routing are retained. Void Binder errors remain
-ServiceSpecificException; RemoteException becomes EREMOTEIO. Bulk
+ServiceSpecificException; RemoteException becomes EIO. Bulk
 replace preserves its existing **positive errno** Java return convention,
-including EREMOTEIO for a false Binder result and ENODEV when netd is absent.
+including EIO for a false Binder result and ENODEV when netd is absent.
+EIO is exported by Android 13 OsConstants; EREMOTEIO is not. The helper
+upgrades the earlier reviewed EREMOTEIO patch in place after validating
+its complete reverse context, preserving unrelated source edits. A check-only
+run reports a required upgrade without changing files. Host Java fixtures
+deliberately omit EREMOTEIO; they do not substitute for the Android API build.
 
 Native-library loading is kept on T, including the legacy kernel, because
 other Connectivity JNI APIs (including TrafficStats) need it. Only BPF map

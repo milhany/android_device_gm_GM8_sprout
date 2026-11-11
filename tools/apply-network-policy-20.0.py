@@ -19,8 +19,9 @@ def main():
         return 1
     device = Path(__file__).resolve().parents[1]
 
-    def apply(project, patch, *flags):
-        return subprocess.run(['git', 'apply', *flags, str(patch)], cwd=top / project,
+    def apply(project, patch, *flags, patch_text=None):
+        return subprocess.run(['git', 'apply', *flags, '-' if patch_text is not None else str(patch)],
+                              input=patch_text, cwd=top / project,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     prerequisite = device / 'patches/sdk33/system_netd/0001-gm8-legacy-uid-firewall.patch'
@@ -39,6 +40,16 @@ def main():
         if apply(project, patch, '--reverse', '--check').returncode == 0: continue
         result = apply(project, patch, '--check')
         if result.returncode:
+            if project == 'packages/modules/Connectivity':
+                # Recognize the exact earlier reviewed patch, then use a narrow
+                # upgrade instead of reverting the user's whole source tree.
+                previous = patch.read_text().replace('EIO', 'EREMOTEIO')
+                upgrade = patch.parent / 'upgrades/0001-gm8-java-public-errno.patch'
+                if (upgrade.is_file() and apply(project, patch, '--reverse', '--check',
+                        patch_text=previous).returncode == 0
+                        and apply(project, upgrade, '--check').returncode == 0):
+                    pending.append((project, upgrade))
+                    continue
             print(project + ' differs; no files changed.\n' + result.stderr, file=sys.stderr)
             return 1
         pending.append((project, patch))
