@@ -163,13 +163,72 @@ duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
 
+## Native SDK33 socket backend checkpoint
+
+The next checkpoint adds a native-only legacy socket backend to platform
+netd. Controllers owns one LegacySocketTagger instance; the existing
+FwmarkServer tag/untag cases and permission Binder entry point share it.
+No libnetd_updatable exports, AIDL versions, APEX ABI or modern BPF paths
+are changed. This backend has host-fixture validation; its actual Android
+build and kernel/SELinux acceptance are pending.
+
+Permission updates require NETWORK_STACK or MAINLINE_NETWORK_STACK, reject
+unsupported permission bits or non-appId values, and validate the entire
+batch before modifying state. All permission bits are retained in a
+mutex-protected table. UPDATE_DEVICE_STATS authorizes cross-UID charging;
+revoking/uninstalling the appId removes that authority. Per-user caller
+UIDs use the same appId union semantics as PermissionMonitor. Root, system
+and DNS exceptions match the selected SDK33 BpfHandler. Caller-supplied
+UID=-1 is resolved from the actual fwmark peer credentials. App-facing
+CLAT tagging is denied, including for privileged callers.
+
+Actual GM8 qtaguid commands use the upper 32 bits of a 64-bit accounting
+tag, an explicit charge UID, and one proc write per command. Open/write
+failures and short writes are returned as failures; EINTR is retried.
+IPv4/IPv6 TCP/UDP socket validation is retained. The backend holds
+/dev/xt_qtaguid open for the lifetime of the controller, allowing kernel
+process-exit tracking. The selected kernel's inet_release calls
+qtaguid_untag(sock, true), so closed sockets also release their tags.
+The passive and tag_tracking_passive parameters must be readable and N;
+the backend does not silently accept the kernel's passive no-op mode.
+It never modifies those parameters or relaxes SELinux.
+
+This does **not** activate complete socket permission handling at boot.
+BpfNetMaps still explicitly rejects legacy setNetPermForUids until the
+paired Java route is reviewed/applied. Netd's BPF initialization/loader
+requirements are also unchanged. INTERNET enforcement must be verified
+against the final kernel CONFIG_ANDROID_PARANOID_NETWORK and Android's
+inet-group assignment; storing an INTERNET bit is not a replacement for
+that enforcement. Counter-set/delete-tag-data and persistent accounting,
+VPN/CLAT, loader readiness and real networking remain open. No OTA or
+installation readiness is claimed.
+
+Host tests compile the actual new backend plus the actual modified
+fwmark case bodies and Binder method. They exercise own-UID and permitted
+cross-UID requests, multiple Android users, atomic invalid batches,
+revocation/uninstall, CLAT rejection, maximum tag encoding, TCP/UDP,
+unsupported socket metadata, kernel/file errors, short writes, EINTR,
+passive-state refusal, held-device lifetime, and unchanged modern dispatch.
+Real IPv4/IPv6 sockets are used; proc files, errors, unsupported metadata,
+Binder permissions and Android headers are fixtures, not a GM8 kernel.
+Guarded patch tests also cover repeat/check/reverse, missing prerequisites,
+source conflicts and private-file preservation. The build-entry fixtures
+cover network-sockets success/failure and failure propagation.
+
+Reviewed primary sources:
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/netd/BpfHandler.cpp
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service/src/com/android/server/connectivity/PermissionMonitor.java
+- https://github.com/LineageOS/android_system_netd/blob/43d137e94717639b96f5020607920f734433be92/server/FwmarkServer.cpp
+- https://github.com/milhany/android_kernel_gm_msm8937/blob/8f533dcdfaf66be77b8e2c5dbeeb29f773952975/net/netfilter/xt_qtaguid.c
+- https://github.com/milhany/android_kernel_gm_msm8937/blob/8f533dcdfaf66be77b8e2c5dbeeb29f773952975/net/ipv4/af_inet.c
+
 ## Paired SDK33 Java routing and bandwidth policy
 
 The native UID backend and native TrafficStats component have passed their
-actual Android component builds on the user's host. The next checkpoint
-pairs Java policy dispatch with a native legacy bandwidth/data-saver
-backend. This pair's actual Android build and all hardware/network
-acceptance remain pending.
+actual Android component builds on the user's host. Java policy dispatch
+and the native legacy bandwidth/data-saver pair also passed the actual
+Android component build after the EIO API correction (35 seconds).
+Hardware/network acceptance remains pending.
 
 On T with ro.kernel.ebpf.supported=false, BpfNetMaps routes standard UID
 set/enable/replace operations and naughty/nice UID changes through the

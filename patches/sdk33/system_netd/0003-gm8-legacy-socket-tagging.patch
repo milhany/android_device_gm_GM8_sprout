@@ -1,0 +1,295 @@
+diff --git a/server/Android.bp b/server/Android.bp
+--- a/server/Android.bp
++++ b/server/Android.bp
+@@ -48,6 +48,7 @@
+     header_libs: ["bpf_headers"],
+     srcs: [
+         "BandwidthController.cpp",
++        "LegacySocketTagger.cpp",
+         "Controllers.cpp",
+         "NetdConstants.cpp",
+         "FirewallController.cpp",
+diff --git a/server/Controllers.h b/server/Controllers.h
+--- a/server/Controllers.h
++++ b/server/Controllers.h
+@@ -24,6 +24,7 @@
+ #include "InterfaceController.h"
+ #include "IptablesRestoreController.h"
+ #include "NetworkController.h"
++#include "LegacySocketTagger.h"
+ #include "PppController.h"
+ #include "StrictController.h"
+ #include "TcpSocketMonitor.h"
+@@ -40,6 +41,7 @@
+     Controllers();
+ 
+     NetworkController netCtrl;
++    LegacySocketTagger legacySocketTagger;
+     TetherController tetherCtrl;
+     PppController pppCtrl;
+     BandwidthController bandwidthCtrl;
+diff --git a/server/FwmarkServer.cpp b/server/FwmarkServer.cpp
+--- a/server/FwmarkServer.cpp
++++ b/server/FwmarkServer.cpp
+@@ -29,6 +29,7 @@
+ #include <netd_resolv/resolv.h>  // NETID_UNSET
+ 
+ #include "Fwmark.h"
++#include "Controllers.h"
+ #include "FwmarkCommand.h"
+ #include "NetdConstants.h"
+ #include "NetworkController.h"
+@@ -299,12 +300,21 @@
+             if (static_cast<int>(command.uid) == -1) {
+                 command.uid = client->getUid();
+             }
++            if (FirewallController::isLegacyMode()) {
++                if (gCtls == nullptr) return -ENODEV;
++                return gCtls->legacySocketTagger.tagSocket(*socketFd, command.trafficCtrlInfo,
++                                                          command.uid, client->getUid());
++            }
+             return libnetd_updatable_tagSocket(*socketFd, command.trafficCtrlInfo, command.uid,
+                                                client->getUid());
+         }
+ 
+         case FwmarkCommand::UNTAG_SOCKET: {
+             // Any process can untag a socket it has an fd for.
++            if (FirewallController::isLegacyMode()) {
++                if (gCtls == nullptr) return -ENODEV;
++                return gCtls->legacySocketTagger.untagSocket(*socketFd);
++            }
+             return libnetd_updatable_untagSocket(*socketFd);
+         }
+ 
+diff --git a/server/LegacySocketTagger.cpp b/server/LegacySocketTagger.cpp
+new file mode 100644
+--- /dev/null
++++ b/server/LegacySocketTagger.cpp
+@@ -0,0 +1,138 @@
++/* Copyright 2026 The Android Open Source Project
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ */
++#include "LegacySocketTagger.h"
++
++#include <cerrno>
++#include <climits>
++#include <cstdio>
++#include <fcntl.h>
++#include <inttypes.h>
++#include <netinet/in.h>
++#include <sys/socket.h>
++#include <unistd.h>
++
++#include <netdutils/UidConstants.h>
++#include <private/android_filesystem_config.h>
++
++namespace android {
++namespace net {
++
++LegacySocketTagger::LegacySocketTagger() : LegacySocketTagger(Paths{}) {}
++LegacySocketTagger::LegacySocketTagger(Paths paths) : mPaths(paths) {}
++LegacySocketTagger::~LegacySocketTagger() {
++    if (mDeviceFd >= 0) close(mDeviceFd);
++}
++
++int LegacySocketTagger::setPermissions(int permissions, const std::vector<int32_t>& appIds) {
++    if (permissions != UNINSTALLED && (permissions < 0 ||
++            (permissions & ~(INTERNET | UPDATE_DEVICE_STATS)) != 0)) return -EINVAL;
++    // Validate the entire Binder batch before changing any permissions.
++    for (int32_t appId : appIds) {
++        if (appId < 0 || static_cast<uint32_t>(appId) >= PER_USER_RANGE) return -EINVAL;
++    }
++    std::lock_guard guard(mMutex);
++    for (int32_t appId : appIds) {
++        if (permissions == UNINSTALLED) mPermissions.erase(appId);
++        else mPermissions[appId] = static_cast<uint8_t>(permissions);
++    }
++    return 0;
++}
++
++bool LegacySocketTagger::mayChargeOthersLocked(uid_t realUid) const {
++    const uint32_t appId = realUid % PER_USER_RANGE;
++    // Match the selected SDK33 BpfHandler privileged-UID exceptions.
++    if (appId == AID_ROOT || appId == AID_SYSTEM || appId == AID_DNS) return true;
++    const auto found = mPermissions.find(appId);
++    return found != mPermissions.end() && (found->second & UPDATE_DEVICE_STATS);
++}
++
++int LegacySocketTagger::requireActive(const char* path) {
++    int fd;
++    do { fd = open(path, O_RDONLY | O_CLOEXEC); } while (fd < 0 && errno == EINTR);
++    if (fd < 0) return -errno;
++    char value[3];
++    ssize_t count;
++    do { count = read(fd, value, sizeof(value)); } while (count < 0 && errno == EINTR);
++    const int saved = errno;
++    close(fd);
++    if (count < 0) return -saved;
++    // GM8's actual module parameters are bools: N/Y (optionally newline).
++    if ((count == 1 || (count == 2 && value[1] == '\n')) && value[0] == 'N') return 0;
++    return -EOPNOTSUPP;
++}
++
++int LegacySocketTagger::prepareLocked() {
++    // The kernel otherwise silently accepts writes when passive. Never turn
++    // these switches on/off here, nor report that state as operational.
++    int result = requireActive(mPaths.passive);
++    if (result) return result;
++    result = requireActive(mPaths.trackingPassive);
++    if (result) return result;
++    if (mDeviceFd >= 0) return 0;
++    do { mDeviceFd = open(mPaths.device, O_RDONLY | O_CLOEXEC); }
++    while (mDeviceFd < 0 && errno == EINTR);
++    return mDeviceFd < 0 ? -errno : 0;
++}
++
++int LegacySocketTagger::checkSocket(int socketFd) {
++    if (socketFd < 0) return -EBADF;
++    int family, protocol;
++    socklen_t size = sizeof(family);
++    if (getsockopt(socketFd, SOL_SOCKET, SO_DOMAIN, &family, &size)) return -errno;
++    if (family != AF_INET && family != AF_INET6) return -EAFNOSUPPORT;
++    size = sizeof(protocol);
++    if (getsockopt(socketFd, SOL_SOCKET, SO_PROTOCOL, &protocol, &size)) return -errno;
++    if (protocol != IPPROTO_TCP && protocol != IPPROTO_UDP) return -EPROTONOSUPPORT;
++    return 0;
++}
++
++int LegacySocketTagger::writeCommandLocked(const char* command, size_t length) {
++    int result = prepareLocked();
++    if (result) return result;
++    int fd;
++    do { fd = open(mPaths.control, O_WRONLY | O_CLOEXEC); } while (fd < 0 && errno == EINTR);
++    if (fd < 0) return -errno;
++    // A proc write is a single kernel command. Do not split/retry a short write
++    // as a second command, or hide a kernel permission/parser error.
++    ssize_t count;
++    do { count = write(fd, command, length); } while (count < 0 && errno == EINTR);
++    const int saved = errno;
++    close(fd);
++    if (count < 0) return -saved;
++    return static_cast<size_t>(count) == length ? 0 : -EIO;
++}
++
++int LegacySocketTagger::tagSocket(int socketFd, uint32_t tag, uid_t chargeUid, uid_t realUid) {
++    std::lock_guard guard(mMutex);
++    if (chargeUid > INT32_MAX || realUid > INT32_MAX) return -EINVAL;
++    if (chargeUid != realUid && !mayChargeOthersLocked(realUid)) return -EPERM;
++    // SDK33 denies app-facing CLAT tagging to prevent bypassing accounting.
++    if (chargeUid == AID_CLAT) return -EPERM;
++    int result = checkSocket(socketFd);
++    if (result) return result;
++    char command[96];
++    // The actual GM8 parser expects a 64-bit accounting tag in the upper half.
++    const int length = snprintf(command, sizeof(command), "t %d %" PRIu64 " %" PRIu32,
++                               socketFd, static_cast<uint64_t>(tag) << 32,
++                               static_cast<uint32_t>(chargeUid));
++    if (length < 0 || static_cast<size_t>(length) >= sizeof(command)) return -EOVERFLOW;
++    return writeCommandLocked(command, length);
++}
++
++int LegacySocketTagger::untagSocket(int socketFd) {
++    std::lock_guard guard(mMutex);
++    int result = checkSocket(socketFd);
++    if (result) return result;
++    char command[32];
++    const int length = snprintf(command, sizeof(command), "u %d", socketFd);
++    if (length < 0 || static_cast<size_t>(length) >= sizeof(command)) return -EOVERFLOW;
++    return writeCommandLocked(command, length);
++}
++
++}  // namespace net
++}  // namespace android
+diff --git a/server/LegacySocketTagger.h b/server/LegacySocketTagger.h
+new file mode 100644
+--- /dev/null
++++ b/server/LegacySocketTagger.h
+@@ -0,0 +1,62 @@
++/* Copyright 2026 The Android Open Source Project
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ */
++#pragma once
++
++#include <cstdint>
++#include <map>
++#include <mutex>
++#include <sys/types.h>
++#include <vector>
++
++namespace android {
++namespace net {
++
++// One instance owned by Controllers, shared by Binder permission updates and
++// fwmark socket requests. No state is duplicated in libnetd_updatable/APEXes.
++class LegacySocketTagger {
++  public:
++    static constexpr int INTERNET = 4;
++    static constexpr int UPDATE_DEVICE_STATS = 8;
++    static constexpr int UNINSTALLED = -1;
++
++    struct Paths {
++        const char* control = "/proc/net/xt_qtaguid/ctrl";
++        const char* device = "/dev/xt_qtaguid";
++        const char* passive = "/sys/module/xt_qtaguid/parameters/passive";
++        const char* trackingPassive = "/sys/module/xt_qtaguid/parameters/tag_tracking_passive";
++    };
++
++    LegacySocketTagger();
++    // Injectable paths for host fixtures. Production uses only the fixed paths.
++    explicit LegacySocketTagger(Paths paths);
++    ~LegacySocketTagger();
++    LegacySocketTagger(const LegacySocketTagger&) = delete;
++    LegacySocketTagger& operator=(const LegacySocketTagger&) = delete;
++
++    // PermissionMonitor supplies appIds, not per-user UIDs. Returns 0 or -errno.
++    int setPermissions(int permissions, const std::vector<int32_t>& appIds);
++    int tagSocket(int socketFd, uint32_t tag, uid_t chargeUid, uid_t realUid);
++    int untagSocket(int socketFd);
++
++  private:
++    int prepareLocked();
++    int writeCommandLocked(const char* command, size_t length);
++    bool mayChargeOthersLocked(uid_t realUid) const;
++    static int checkSocket(int socketFd);
++    static int requireActive(const char* path);
++
++    const Paths mPaths;
++    std::mutex mMutex;
++    // Keeping /dev/xt_qtaguid open gives the kernel a process owner for its
++    // socket tags; closing it on every command would release that ownership.
++    int mDeviceFd = -1;
++    std::map<uint32_t, uint8_t> mPermissions;
++};
++
++}  // namespace net
++}  // namespace android
+diff --git a/server/NetdNativeService.cpp b/server/NetdNativeService.cpp
+--- a/server/NetdNativeService.cpp
++++ b/server/NetdNativeService.cpp
+@@ -1129,8 +1129,16 @@
+     return binder::Status::ok();
+ }
+ 
+-binder::Status NetdNativeService::trafficSetNetPermForUids(int32_t, const std::vector<int32_t>&) {
+-    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++binder::Status NetdNativeService::trafficSetNetPermForUids(
++        int32_t permissions, const std::vector<int32_t>& appIds) {
++    if (!FirewallController::isLegacyMode()) {
++        return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++    }
++    ENFORCE_NETWORK_STACK_PERMISSIONS();
++    static_assert(LegacySocketTagger::INTERNET == INetd::PERMISSION_INTERNET);
++    static_assert(LegacySocketTagger::UPDATE_DEVICE_STATS == INetd::PERMISSION_UPDATE_DEVICE_STATS);
++    static_assert(LegacySocketTagger::UNINSTALLED == INetd::PERMISSION_UNINSTALLED);
++    return statusFromErrcode(gCtls->legacySocketTagger.setPermissions(permissions, appIds));
+ }
+ 
+ binder::Status NetdNativeService::firewallSetFirewallType(int32_t firewallType) {
