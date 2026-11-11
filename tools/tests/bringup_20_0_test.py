@@ -40,6 +40,8 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
         'system/core/libprocessgroup/processgroup.cpp', 'system/netd/fixture.txt',
         'system/netd/server/FirewallController.cpp', 'system/netd/server/FirewallController.h',
         'system/netd/server/NetdNativeService.cpp',
+        'system/netd/server/BandwidthController.cpp', 'system/netd/server/BandwidthController.h',
+        'packages/modules/Connectivity/service/src/com/android/server/BpfNetMaps.java',
         'packages/modules/Connectivity/service-t/jni/com_android_server_net_NetworkStatsService.cpp',
         'packages/modules/Connectivity/service/Android.bp',
     ]

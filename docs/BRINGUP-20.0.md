@@ -81,6 +81,7 @@ bash device/gm/GM8_sprout/tools/build-20.0.sh configure
 bash device/gm/GM8_sprout/tools/build-20.0.sh compile
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-stats
 bash device/gm/GM8_sprout/tools/build-20.0.sh network-firewall
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-policy
 ```
 
 Audit records a pinned repo manifest, source revisions and readiness JSON;
@@ -98,9 +99,9 @@ SDK33 gate for the ELF helper and its real-ELF regression fixture are
 adapted; full stock-blob/VNDK validation still runs on the synced source
 host. Do not apply the old SDK32 framework scripts on SDK33. None of these stages
 runs them, modifies signing keys or accesses a phone. Audit stays read-only;
-configure/compile/network-stats/network-firewall apply the separately
-reviewed SDK33 processgroup, TrafficStats read-side and native UID-firewall
-backend ports before recording the source audit. The audit records each port's patch hash and staged/applied state
+All non-audit stages apply the separately reviewed SDK33 processgroup,
+TrafficStats read-side, UID-firewall and paired Java/bandwidth policy ports
+before recording the source audit. The audit records each port's patch hash and staged/applied state
 without treating it as hardware acceptance. No SDK32 framework helper runs.
 
 After configure passes on the build host, compile repeats the source/host
@@ -162,12 +163,120 @@ duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
 
+## Paired SDK33 Java routing and bandwidth policy
+
+The native UID backend and native TrafficStats component have passed their
+actual Android component builds on the user's host. The next checkpoint
+pairs Java policy dispatch with a native legacy bandwidth/data-saver
+backend. This pair's actual Android build and all hardware/network
+acceptance remain pending.
+
+On T with ro.kernel.ebpf.supported=false, BpfNetMaps routes standard UID
+set/enable/replace operations and naughty/nice UID changes through the
+restored netd Binder entry points. The default/BPF path and pre-T interface/
+permission routing are retained. Void Binder errors remain
+ServiceSpecificException; RemoteException becomes EREMOTEIO. Bulk
+replace preserves its existing **positive errno** Java return convention,
+including EREMOTEIO for a false Binder result and ENODEV when netd is absent.
+
+Native-library loading is kept on T, including the legacy kernel, because
+other Connectivity JNI APIs (including TrafficStats) need it. Only BPF map
+initialization is skipped in legacy mode. Initialization remains
+synchronized/one-time; a library-load failure propagates and leaves it
+retryable. The public query-only T constructor can have no netd reference;
+a later legacy policy operation then fails ENODEV instead of dereferencing
+null.
+
+UID ingress-interface filtering, socket permission synchronization and BPF
+map swap/dump explicitly throw EOPNOTSUPP in legacy mode until their
+separate implementations exist. VPN lockdown/global UID chains remain
+unsupported by the native standard-UID backend. In particular, no
+successful socket permission update is claimed. The PermissionMonitor /
+socket-tagging path and persistent NetworkStatsService map/counter-set
+path remain boot-critical open work before installation.
+
+### Bandwidth/accounting rule selection
+
+BandwidthController selects its legacy rule set with the same immutable
+property as the Java/native UID backends. The true/default BPF command
+vector is regression-compared with the unmodified selected SDK33 function.
+Legacy mode replaces pinned-BPF matches with the qtaguid hook form used
+by the earlier Android legacy accounting path:
+
+- One UID-accounting hook in each of bw_INPUT and bw_OUTPUT.
+- One interface-accounting hook in each of raw PREROUTING and mangle POSTROUTING.
+- Existing billing marks and IPsec/CLAT exemptions are retained.
+
+Socket-only owner matches here deliberately trigger accounting. In the
+firewall/UID-list rules, explicit UID matches avoid that accounting side
+effect. These are different uses of the same GM8 qtaguid matcher.
+
+The new legacy bandwidth backend stores nice/naughty UID sets, rewrites
+both families with UID-qualified rules, and updates its cache only after
+success. Naughty UID rejection is evaluated before the nice allowlist;
+system UID exemption is in the happy box, preserving that ordering.
+Data-saver updates rewrite bw_data_saver and retain critical IPv6 control
+exceptions. Existing interface quota/alert implementations are not replaced.
+
+Standard UID-list and data-saver failures attempt rollback of both previous
+families and return real failures. Failed rollback invalidates state and
+later policy requests fail ENODEV until initialization. Setup/disable also
+invalidate caches, preventing a successful cached no-op after a table
+flush. The existing bandwidthEnableDataSaver Binder boolean reports whether
+the operation succeeded; on failure it remains false.
+
+This source work restores these rule generators and policy calls; it is
+not proof of accounting accuracy, 464xlat operation, persistent usage
+history or actual kernel/iptables acceptance. Those require their paired
+remaining ports and phone tests.
+
+### Paired component build
+
+```sh
+bash device/gm/GM8_sprout/tools/build-20.0.sh network-policy
+```
+
+This runs the guarded pair and regression checks, then requests only
+m netd service-connectivity -j32. It retains network-policy.log and stops on
+a failed compiler/pipeline. It requests no ROM/OTA packaging, signing,
+kernel rebuild or phone operation. The paired helper requires the reviewed
+UID-firewall prerequisite, validates both projects before changing either,
+preserves unrelated work and rolls back newly applied members if application
+fails.
+
+Six local regressions compile/run the real modified BpfNetMaps Java class
+and selected real native BandwidthController/Binder/accounting bodies with
+Android/Binder/iptables dependencies supplied by fixtures. They cover:
+
+- Legacy/default/BPF/pre-T selection, JNI library versus map initialization,
+  one-time initialization and load-failure retry.
+- Exact supported Binder routing, error propagation, positive errno bulk
+  results, null netd and unsupported operations.
+- Native policy intersections, data saver and UID lists, permissions,
+  invalid UIDs, IPv6 exceptions, duplicate requests and restore/rollback errors.
+- Modern accounting-vector equality, exactly one legacy hook per intended
+  accounting direction/layer, and source/prerequisite/conflict preservation.
+
+The native quota/table-flush dependencies and Android/JNI/Binder/property
+access are fixtures. A host JDK compiler is launched through its
+jdk.compiler module with Java 8 source/target language settings; Android
+API/stub validation is not claimed by that host run. The actual Android
+component build is the next compiler checkpoint. No real Binder,
+iptables, kernel packet path, radio or power behavior is tested locally.
+
+Reviewed sources:
+
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service/src/com/android/server/BpfNetMaps.java
+- https://github.com/LineageOS/android_packages_modules_Connectivity/blob/205270f5728b3c1fda246ec413ee39e83a73df03/service/jni/com_android_server_BpfNetMaps.cpp
+- https://github.com/LineageOS/android_system_netd/blob/43d137e94717639b96f5020607920f734433be92/server/BandwidthController.cpp
+- https://github.com/LineageOS/android_system_netd/blob/43d137e94717639b96f5020607920f734433be92/server/NetdNativeService.cpp
+
 ## Native SDK33 legacy UID-firewall backend
 
-This is a native backend checkpoint, not a completed Android 13 firewall or
-network port. SDK33 BpfNetMaps Java routing still needs its paired change;
-it currently uses the BPF implementation. Bandwidth/data-saver rules,
-socket tagging/permissions, persistent accounting, VPN isolation and BPF
+This native backend was the first standard-UID checkpoint. The later paired
+Java/bandwidth port described below now routes supported legacy calls to
+it. A complete Android 13 network port is still not claimed: socket
+tagging/permissions, persistent accounting, VPN/CLAT, tethering and BPF
 startup acceptance remain open. No loader failure is suppressed and no
 readiness property is fabricated.
 
@@ -241,8 +350,9 @@ bash device/gm/GM8_sprout/tools/build-20.0.sh network-firewall
 This stage applies the guarded SDK33 ports, records the source manifest and
 patch states, runs the host checks and builds only m netd -j32, retaining
 network-firewall.log. It does not request a target-files package, boot
-image, signing, OTA, kernel rebuild or phone operation. The actual Android
-compilation of this new backend is pending on the user's build host.
+image, signing, OTA, kernel rebuild or phone operation. The user has compiled this netd UID-firewall backend successfully on the
+real Android build host (2026-11-11). This confirms the native component
+build; it does not establish real rule application on the phone.
 
 The six firewall regressions compile the modified complete native
 FirewallController and the actual three Binder method bodies against

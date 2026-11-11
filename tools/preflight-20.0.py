@@ -12,7 +12,7 @@ import zipfile
 
 
 BLOCKERS = [
-    'Rebase complete legacy accounting/BPF compatibility onto SDK33 Connectivity/netd; loader suppression alone is insufficient.',
+    'Complete legacy socket tagging/permissions, persistent NetworkStats/counter sets, BpfHandler/loader readiness, VPN/CLAT and tethering; UID/bandwidth routing is staged.',
     'Review/rebase SDK33 RadioConfig and data/PhoneSwitcher behavior for the GM8 legacy data switch.',
     'Review SDK33 Wi-Fi KeyStore/MAC persistence behavior against the current secure-service fix.',
     'Validate the reviewed SDK33 cgroup-v1 process-tracking source port and task profiles on hardware.',
@@ -47,6 +47,8 @@ def audit(top):
         'system/core/libprocessgroup/processgroup.cpp',
         'system/netd/server/FirewallController.cpp', 'system/netd/server/FirewallController.h',
         'system/netd/server/NetdNativeService.cpp',
+        'system/netd/server/BandwidthController.cpp', 'system/netd/server/BandwidthController.h',
+        'packages/modules/Connectivity/service/src/com/android/server/BpfNetMaps.java',
     ]
     for path in paths:
         if not (top / path).is_file():

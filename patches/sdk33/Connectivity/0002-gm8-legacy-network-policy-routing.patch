@@ -1,0 +1,236 @@
+diff --git a/service/src/com/android/server/BpfNetMaps.java b/service/src/com/android/server/BpfNetMaps.java
+--- a/service/src/com/android/server/BpfNetMaps.java
++++ b/service/src/com/android/server/BpfNetMaps.java
+@@ -17,14 +17,18 @@
+ package com.android.server;
+ 
+ import static android.system.OsConstants.EOPNOTSUPP;
++import static android.system.OsConstants.ENODEV;
++import static android.system.OsConstants.EREMOTEIO;
+ 
+ import android.net.INetd;
+ import android.os.RemoteException;
+ import android.os.ServiceSpecificException;
++import android.os.SystemProperties;
+ import android.system.Os;
+ import android.util.Log;
+ 
+ import com.android.modules.utils.build.SdkLevel;
++import com.android.internal.annotations.VisibleForTesting;
+ 
+ import java.io.FileDescriptor;
+ import java.io.IOException;
+@@ -37,33 +41,71 @@
+ public class BpfNetMaps {
+     private static final String TAG = "BpfNetMaps";
+     private final INetd mNetd;
+-    // Use legacy netd for releases before T.
+-    private static final boolean USE_NETD = !SdkLevel.isAtLeastT();
++    private static final boolean PRE_T = !SdkLevel.isAtLeastT();
++    private static final boolean LEGACY_NETWORK = !PRE_T
++            && !SystemProperties.getBoolean("ro.kernel.ebpf.supported", true);
++    private static final boolean USE_NETD = PRE_T || LEGACY_NETWORK;
++
++    @VisibleForTesting
++    public static class Dependencies {
++        public void loadNativeLibrary() { System.loadLibrary("service-connectivity"); }
++        public void initializeNativeMaps() { native_init(); }
++    }
+     private static boolean sInitialized = false;
+ 
+     /**
+-     * Initializes the class if it is not already initialized. This method will open maps but not
+-     * cause any other effects. This method may be called multiple times on any thread.
+-     */
+-    private static synchronized void ensureInitialized() {
++     * Loads the JNI library once on T and initializes maps only for the BPF backend.
++     * Legacy TrafficStats still needs the JNI library. May be called on any thread.
++     */
++    private static synchronized void ensureInitialized(Dependencies deps) {
+         if (sInitialized) return;
+-        if (!USE_NETD) {
+-            System.loadLibrary("service-connectivity");
+-            native_init();
++        if (!PRE_T) {
++            // Other Connectivity JNI APIs still need this library on a legacy kernel.
++            deps.loadNativeLibrary();
++            if (!LEGACY_NETWORK) deps.initializeNativeMaps();
+         }
+         sInitialized = true;
+     }
+ 
+-    /** Constructor used after T that doesn't need to use netd anymore. */
++    /** Query-only T constructor; legacy policy operations need an explicit netd reference. */
+     public BpfNetMaps() {
+         this(null);
+ 
+-        if (USE_NETD) throw new IllegalArgumentException("BpfNetMaps need to use netd before T");
++        if (PRE_T) throw new IllegalArgumentException("BpfNetMaps need to use netd before T");
+     }
+ 
+     public BpfNetMaps(INetd netd) {
+-        ensureInitialized();
++        this(netd, new Dependencies());
++    }
++
++    @VisibleForTesting
++    public BpfNetMaps(INetd netd, Dependencies deps) {
++        ensureInitialized(deps);
+         mNetd = netd;
++    }
++
++    private INetd requireNetd() {
++        if (mNetd == null) throw new ServiceSpecificException(ENODEV, "Legacy netd is unavailable");
++        return mNetd;
++    }
++
++    private interface NetdOperation {
++        void run(INetd netd) throws RemoteException;
++    }
++
++    private void callLegacyNetd(NetdOperation operation) {
++        try {
++            operation.run(requireNetd());
++        } catch (RemoteException e) {
++            throw new ServiceSpecificException(EREMOTEIO, "Legacy netd Binder failure: " + e);
++        }
++    }
++
++    private static void rejectLegacyBpfOperation(String operation) {
++        if (LEGACY_NETWORK) {
++            throw new ServiceSpecificException(EOPNOTSUPP,
++                    operation + " needs a separate legacy implementation");
++        }
+     }
+ 
+     private void maybeThrow(final int err, final String msg) {
+@@ -80,6 +122,10 @@
+      *                                  cause of the failure.
+      */
+     public void addNaughtyApp(final int uid) {
++        if (LEGACY_NETWORK) {
++            callLegacyNetd(netd -> netd.bandwidthAddNaughtyApp(uid));
++            return;
++        }
+         final int err = native_addNaughtyApp(uid);
+         maybeThrow(err, "Unable to add naughty app");
+     }
+@@ -92,6 +138,10 @@
+      *                                  cause of the failure.
+      */
+     public void removeNaughtyApp(final int uid) {
++        if (LEGACY_NETWORK) {
++            callLegacyNetd(netd -> netd.bandwidthRemoveNaughtyApp(uid));
++            return;
++        }
+         final int err = native_removeNaughtyApp(uid);
+         maybeThrow(err, "Unable to remove naughty app");
+     }
+@@ -104,6 +154,10 @@
+      *                                  cause of the failure.
+      */
+     public void addNiceApp(final int uid) {
++        if (LEGACY_NETWORK) {
++            callLegacyNetd(netd -> netd.bandwidthAddNiceApp(uid));
++            return;
++        }
+         final int err = native_addNiceApp(uid);
+         maybeThrow(err, "Unable to add nice app");
+     }
+@@ -116,6 +170,10 @@
+      *                                  cause of the failure.
+      */
+     public void removeNiceApp(final int uid) {
++        if (LEGACY_NETWORK) {
++            callLegacyNetd(netd -> netd.bandwidthRemoveNiceApp(uid));
++            return;
++        }
+         final int err = native_removeNiceApp(uid);
+         maybeThrow(err, "Unable to remove nice app");
+     }
+@@ -129,6 +187,10 @@
+      *                                  cause of the failure.
+      */
+     public void setChildChain(final int childChain, final boolean enable) {
++        if (LEGACY_NETWORK) {
++            callLegacyNetd(netd -> netd.firewallEnableChildChain(childChain, enable));
++            return;
++        }
+         final int err = native_setChildChain(childChain, enable);
+         maybeThrow(err, "Unable to set child chain");
+     }
+@@ -148,6 +210,18 @@
+      */
+     public int replaceUidChain(final String chainName, final boolean isAllowlist,
+             final int[] uids) {
++        if (LEGACY_NETWORK) {
++            try {
++                return requireNetd().firewallReplaceUidChain(chainName, isAllowlist, uids)
++                        ? 0 : EREMOTEIO;
++            } catch (ServiceSpecificException e) {
++                Log.e(TAG, "Legacy replaceUidChain failed: " + e);
++                return e.errorCode;
++            } catch (RemoteException e) {
++                Log.e(TAG, "Legacy replaceUidChain Binder failure: " + e);
++                return EREMOTEIO;
++            }
++        }
+         final int err = native_replaceUidChain(chainName, isAllowlist, uids);
+         if (err != 0) {
+             Log.e(TAG, "replaceUidChain failed: " + Os.strerror(-err));
+@@ -165,6 +239,10 @@
+      *                                  cause of the failure.
+      */
+     public void setUidRule(final int childChain, final int uid, final int firewallRule) {
++        if (LEGACY_NETWORK) {
++            callLegacyNetd(netd -> netd.firewallSetUidRule(childChain, uid, firewallRule));
++            return;
++        }
+         final int err = native_setUidRule(childChain, uid, firewallRule);
+         maybeThrow(err, "Unable to set uid rule");
+     }
+@@ -187,6 +265,7 @@
+      *                                  cause of the failure.
+      */
+     public void addUidInterfaceRules(final String ifName, final int[] uids) throws RemoteException {
++        rejectLegacyBpfOperation("UID interface filtering");
+         if (USE_NETD) {
+             mNetd.firewallAddUidInterfaceRules(ifName, uids);
+             return;
+@@ -207,6 +286,7 @@
+      *                                  cause of the failure.
+      */
+     public void removeUidInterfaceRules(final int[] uids) throws RemoteException {
++        rejectLegacyBpfOperation("UID interface filtering");
+         if (USE_NETD) {
+             mNetd.firewallRemoveUidInterfaceRules(uids);
+             return;
+@@ -222,6 +302,7 @@
+      *                                  cause of the failure.
+      */
+     public void swapActiveStatsMap() {
++        rejectLegacyBpfOperation("BPF map swap");
+         final int err = native_swapActiveStatsMap();
+         maybeThrow(err, "Unable to swap active stats map");
+     }
+@@ -237,6 +318,7 @@
+      * @throws RemoteException when netd has crashed.
+      */
+     public void setNetPermForUids(final int permissions, final int[] uids) throws RemoteException {
++        rejectLegacyBpfOperation("Socket permission synchronization");
+         if (USE_NETD) {
+             mNetd.trafficSetNetPermForUids(permissions, uids);
+             return;
+@@ -254,9 +336,9 @@
+     public void dump(final FileDescriptor fd, boolean verbose)
+             throws IOException, ServiceSpecificException {
+         if (USE_NETD) {
+-            throw new ServiceSpecificException(
+-                    EOPNOTSUPP, "dumpsys connectivity trafficcontroller dump not available on pre-T"
+-                    + " devices, use dumpsys netd trafficcontroller instead.");
++            throw new ServiceSpecificException(EOPNOTSUPP, LEGACY_NETWORK
++                    ? "BPF map dump is unsupported on the legacy kernel"
++                    : "BPF dump is unavailable on pre-T; use dumpsys netd trafficcontroller");
+         }
+         native_dump(fd, verbose);
+     }
