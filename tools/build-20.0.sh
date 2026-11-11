@@ -13,6 +13,10 @@ fi
 record="$(dirname "$top")/gm8-20.0-records/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$record"
 repo manifest -r -o "$record/manifest.xml"
+if [[ "$stage" != audit ]]; then
+    # This is an SDK33 source port, separate from the inherited SDK32 helpers.
+    python3 "$script/apply-processgroup-20.0.py" --top "$top"
+fi
 python3 "$script/preflight-20.0.py" --top "$top" --output "$record/source-audit.json"
 python3 "$script/tests/kernel_host_link_test.py" --kernel "$top/kernel/gm/msm8937"
 python3 "$script/tests/ft8006_gesture_test.py" --kernel "$top/kernel/gm/msm8937"
@@ -20,6 +24,7 @@ python3 "$script/tests/qsee_wait_test.py" --source "$top/kernel/gm/msm8937/drive
 python3 "$script/tests/power_policy_test.py"
 echo "Source checkpoint: $record/source-audit.json"
 if [[ "$stage" != audit ]]; then
+    python3 "$script/tests/processgroup_20_0_test.py" --source "$top/system/core/libprocessgroup/processgroup.cpp"
     # ELF isolation is version-independent; the source snapshot ABI, SONAMEs
     # and stock blob hashes remain checked. No SDK32 framework patch is run.
     python3 "$script/fixup-legacy-protobuf.py" --top "$top" --record "$record/protobuf-fixups.json"
@@ -41,4 +46,5 @@ if [[ "$stage" == compile ]]; then
 else
     echo 'No Android boot image, signed OTA or hardware/battery validation was produced.'
 fi
-echo 'SDK33 network, radio, processgroup and runtime ports remain open; see docs/BRINGUP-20.0.md.'
+echo 'SDK33 network/radio ports and processgroup/userdata runtime acceptance remain open; see docs/BRINGUP-20.0.md.'
+

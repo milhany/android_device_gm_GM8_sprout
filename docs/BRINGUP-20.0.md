@@ -88,13 +88,17 @@ runs the portable QSEE, gesture and PowerHAL host regressions. Audit success
 means the source inventory completed, not that runtime compatibility passed.
 The JSON explicitly keeps boot/OTA readiness false while ports remain open.
 
-Configure additionally prepares the reviewed isolated VNDK v29 protobuf
+Configure applies the separately reviewed SDK33 processgroup port, runs
+its native host regression, prepares the isolated VNDK v29 protobuf
 libraries, invokes envsetup/lunch and runs only `m nothing`. It is a build
 graph checkpoint, not full compilation, signing or image production. The
 SDK33 gate for the ELF helper and its real-ELF regression fixture are
 adapted; full stock-blob/VNDK validation still runs on the synced source
 host. Do not apply the old SDK32 framework scripts on SDK33. None of these stages
-runs them, modifies signing keys or accesses a phone.
+runs them, modifies signing keys or accesses a phone. Audit stays read-only;
+configure/compile apply only the SDK33 processgroup port described below
+before recording the source audit. The audit records that port's patch hash
+and staged/applied state without treating it as hardware acceptance.
 
 After configure passes on the build host, compile repeats the source/host
 checks and protobuf preparation, selects the same userdebug target, then
@@ -110,8 +114,8 @@ contain boot/vendor/system images; it is not an installation/update ZIP.
 A successful compile does not clear runtime blockers or make the artifacts
 ready for flashing. No keys are generated, no release signing/OTA is run
 and no device is accessed. The 19.1 release helper is not an Android 13
-signing tool. SDK33 network, radio, cgroups and userdata policy still need
-their separate ports and acceptance before image installation.
+signing tool. SDK33 network and radio ports, processgroup runtime acceptance and userdata
+policy review remain open before image installation.
 
 ## Existing target-files inspection
 
@@ -155,6 +159,74 @@ duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
 refusal and preservation of existing output. It does not validate a real
 boot image or run Android.
 
+## SDK33 cgroup-v1 process tracking
+
+The first compiled package still used Android 13's cgroup2 process-tracking
+path while the current kernel provides cgroup v1. The SDK33 source has
+additional memory-controller handling and an activate_controllers argument
+absent from the inherited SDK32 patch; that old patch is not reused.
+
+The separate patches/sdk33/system_core patch selects a usable v2 root when
+available, otherwise a usable v1 cpuacct root such as /acct. It checks both
+the controller metadata and the root cgroup.procs file. This matters because
+the reviewed SDK33 setup code can log a failed unified mount yet mark that
+root mounted after its subsequent directory mode/owner operation succeeds.
+
+Process creation, kill and cleanup use the same selector. v2 controller
+activation remains enabled on v2 and is skipped on v1; the patch does not
+write cgroup.subtree_control under /acct. No usable root returns ENODEV
+rather than creating uid/pid paths below an empty root. Existing memory
+control validation and error propagation are retained.
+
+```sh
+python3 device/gm/GM8_sprout/tools/apply-processgroup-20.0.py
+python3 device/gm/GM8_sprout/tools/apply-processgroup-20.0.py --check
+```
+
+The helper refuses non-SDK33 sources or conflicting patch context, applies
+without resetting other edits, and accepts an already applied port.
+Configure/compile invoke it automatically; audit only inspects patch state.
+Preserve this local system/core change across later syncs.
+
+Host regression compiles the actual patched selector and create/kill/cleanup
+entry-point bodies with C++17. Filesystem presence checks use temporary
+files; controller metadata and process/kernel operations are fixtures.
+Coverage includes real-v2 preference, v1 fallback, misleading mounted flags,
+missing roots, v1/v2 activation selection, memory-control errors, kill error
+propagation and cleanup selection. The helper's SDK/context rejection,
+idempotence and unrelated-edit preservation are also tested. These checks
+do not mount a cgroup, signal a process, build against all Android headers
+or establish behavior on the phone.
+
+Reviewed SDK33 sources:
+
+- https://github.com/LineageOS/android_system_core/blob/c0500ffe2cc283d61f1e3db1b2c979bfbd9beb8c/libprocessgroup/processgroup.cpp
+- https://github.com/LineageOS/android_system_core/blob/c0500ffe2cc283d61f1e3db1b2c979bfbd9beb8c/libprocessgroup/setup/cgroup_map_write.cpp
+- https://github.com/LineageOS/android_system_core/blob/c0500ffe2cc283d61f1e3db1b2c979bfbd9beb8c/libprocessgroup/cgroup_map.cpp
+
+## Explicit bring-up userdata policy
+
+The initial package contains /data encryptable=footer in both the vendor
+fstab and recovery fstab. The normal-boot SDK33 parser rejects it. The
+current build-tree config also reports F2FS_FS_ENCRYPTION=n,
+FS_ENCRYPTION=n and EXT4_ENCRYPTION=n; adding a fileencryption flag would
+therefore claim unsupported functionality.
+
+For this userdebug bring-up branch, /data is explicitly **unencrypted
+F2FS**. Remove the rejected userdata encryptable=footer flag and retain the
+filesystem, mount flags, check/formattable/quota policy and all other rows.
+Removable-media encryptable flags are unchanged: the SDK33 parser accepts
+them on voldmanaged volumes. One source supplies the vendor and recovery
+fstabs, so both will receive the corrected entry on the next build.
+
+This is not a production encryption solution. It does not decrypt an old
+installation, convert ext4, migrate userdata or make Android 10/12 data
+compatible with Android 13. Encrypted installations are unsupported here.
+A supported FBE implementation needs separate kernel, Keymaster/userspace
+and migration validation. The source preflight rejects reintroduced legacy
+FDE flags or unsupported FBE claims on /data. No formatting, filesystem
+conversion or changes to a phone are performed by the source helpers.
+
 ## HIDL compatibility libraries
 
 LineageOS 20 already provides android.hidl.base@1.0 and
@@ -188,10 +260,11 @@ none of these entries is hidden with a build-broken allowlist.
 
 Android 13 removed full-disk encryption. The selected vold cryptfs.cpp now
 implements deprecated external/adoptable-volume metadata handling, not the
-old userdata FDE service. The inherited encryptable=footer fstab is left
-unchanged in this build-graph change; its SDK33 parsing, the supported FBE
-policy and any migration procedure remain explicit runtime blockers.
-This source update performs no formatting, key deletion or data migration.
+old userdata FDE service. The first build-graph change retained the inherited
+encryptable=footer flag. The later userdata correction described above
+removes it only from /data and declares unencrypted F2FS bring-up explicitly.
+Supported FBE and migration remain separate open work. No formatting, key
+deletion or data migration is performed.
 
 Reviewed upstream sources:
 
@@ -280,8 +353,9 @@ build-host and device validation.
    explicit single/dual-SIM policy; do not fake preferred-data success.
 3. Revisit Wi-Fi MAC/KeyStore behavior after the QSEE candidate; do not copy
    the Android 12 patch by changing a version check.
-4. Review processgroup, cgroup-v1 task profiles and LMKD behavior against
-   the actual 3.18 interfaces.
+4. The SDK33 process-tracking source port is staged with guarded application
+   and native host tests. Validate its cgroup-v1 runtime behavior, task
+   profiles and LMKD against the actual 3.18 interfaces.
 5. Review SystemUI, recents and optional charging-HAL fixes in the new
    framework sources before applying old lifecycle patches.
 6. Resolve Soong/package/API, SELinux/VINTF and vendor ABI differences;
@@ -312,4 +386,5 @@ References:
 - https://gitlab.com/MindTheGapps/vendor_gapps/-/tree/tau
 - https://source.android.com/docs/setup/start/requirements
 - https://gerrit.googlesource.com/git-repo/+/refs/heads/main/man/repo-init.1
+
 

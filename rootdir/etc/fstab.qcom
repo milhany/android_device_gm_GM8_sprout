@@ -2,13 +2,15 @@
 # The filesystem that contains the filesystem checker binary (typically /system) cannot
 # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
 
-# /data currently requires F2FS. This entry does not convert an existing ext4
-# filesystem. encryptable=footer permits unencrypted data; it does not force
-# encryption. See docs/PREBUILD.md before changing the installation policy.
+# SDK33 bring-up uses unencrypted F2FS /data, matching the current kernel's
+# disabled filesystem encryption support. Android 13 rejects legacy userdata
+# encryptable=footer. This does not decrypt or convert existing filesystems.
+# Encrypted installations are unsupported; FBE needs a separate kernel/userspace
+# implementation and migration review before any release encryption claim.
 
 #<src>                                      <mnt_point>        <type>  <mnt_flags and options>                     <fs_mgr_flags>
 /dev/block/by-name/system         /                  ext4    ro,barrier=1,discard                        wait,slotselect,verify
-/dev/block/by-name/userdata       /data              f2fs    rw,noatime,nosuid,nodev,discard                    wait,check,formattable,encryptable=footer,quota
+/dev/block/by-name/userdata       /data              f2fs    rw,noatime,nosuid,nodev,discard                    wait,check,formattable,quota
 /devices/soc/7864900.sdhci/mmc_host*         /storage/sdcard1   vfat    nosuid,nodev                                wait,voldmanaged=sdcard1:auto,noemulatedsd,encryptable=footer
 /devices/platform/soc/7864900.sdhci/mmc_host*         /storage/sdcard1   vfat    nosuid,nodev                                wait,voldmanaged=sdcard1:auto,noemulatedsd,encryptable=footer
 /dev/block/by-name/config         /frp               emmc    defaults                                    defaults
@@ -18,3 +20,4 @@
 /dev/block/by-name/dsp            /vendor/dsp        ext4    ro,nosuid,nodev,barrier=1                   wait,slotselect
 /dev/block/by-name/modem          /vendor/firmware_mnt vfat    ro,shortname=lower,uid=0,gid=1000,dmask=227,fmask=337,context=u:object_r:firmware_file:s0 wait,slotselect
 /dev/block/by-name/persist        /mnt/vendor/persist   ext4   noatime,nosuid,nodev,barrier=1                   wait
+

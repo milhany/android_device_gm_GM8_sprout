@@ -1,0 +1,81 @@
+diff --git a/libprocessgroup/processgroup.cpp b/libprocessgroup/processgroup.cpp
+--- a/libprocessgroup/processgroup.cpp
++++ b/libprocessgroup/processgroup.cpp
+@@ -67,6 +67,31 @@
+     }
+ 
+     return true;
++}
++
++// GM8: prefer a usable unified hierarchy, otherwise track processes on v1 cpuacct.
++// Check cgroup.procs as well as RC flags: SDK33 setup can mark an unmounted
++// unified root as mounted after its mount error was logged.
++static bool GetProcessGroupControllerPath(std::string* path,
++                                         bool* activate_controllers = nullptr) {
++    auto& map = CgroupMap::GetInstance();
++    auto unified = map.FindController(CGROUPV2_CONTROLLER_NAME);
++    if (unified.IsUsable() && unified.version() == 2 &&
++        access((std::string(unified.path()) + PROCESSGROUP_CGROUP_PROCS_FILE).c_str(), F_OK) == 0) {
++        *path = unified.path();
++        if (activate_controllers) *activate_controllers = true;
++        return true;
++    }
++    auto legacy = map.FindController("cpuacct");
++    if (legacy.IsUsable() && legacy.version() == 1 &&
++        access((std::string(legacy.path()) + PROCESSGROUP_CGROUP_PROCS_FILE).c_str(), F_OK) == 0) {
++        *path = legacy.path();
++        if (activate_controllers) *activate_controllers = false;
++        return true;
++    }
++    LOG(ERROR) << "No mounted process-group cgroup hierarchy";
++    errno = ENODEV;
++    return false;
+ }
+ 
+ static bool CgroupGetMemcgAppsPath(std::string* path) {
+@@ -246,7 +271,7 @@
+     std::vector<std::string> cgroups;
+     std::string path, memcg_apps_path;
+ 
+-    if (CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &path)) {
++    if (GetProcessGroupControllerPath(&path)) {
+         cgroups.push_back(path);
+     }
+     if (CgroupGetMemcgAppsPath(&memcg_apps_path) && memcg_apps_path != path) {
+@@ -418,14 +443,14 @@
+ static int KillProcessGroup(uid_t uid, int initialPid, int signal, int retries,
+                             int* max_processes) {
+     std::string hierarchy_root_path;
+-    CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &hierarchy_root_path);
+-    const char* cgroup = hierarchy_root_path.c_str();
+-
+     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+ 
+     if (max_processes != nullptr) {
+         *max_processes = 0;
+     }
++
++    if (!GetProcessGroupControllerPath(&hierarchy_root_path)) return -ENODEV;
++    const char* cgroup = hierarchy_root_path.c_str();
+ 
+     int retry = retries;
+     int processes;
+@@ -541,6 +566,8 @@
+ 
+ int createProcessGroup(uid_t uid, int initialPid, bool memControl) {
+     std::string cgroup;
++    bool activate_controllers = false;
++    if (!GetProcessGroupControllerPath(&cgroup, &activate_controllers)) return -ENODEV;
+ 
+     if (memControl && !UsePerAppMemcg()) {
+         PLOG(ERROR) << "service memory controls are used without per-process memory cgroup support";
+@@ -558,8 +585,7 @@
+         }
+     }
+ 
+-    CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &cgroup);
+-    return createProcessGroupInternal(uid, initialPid, cgroup, true);
++    return createProcessGroupInternal(uid, initialPid, cgroup, activate_controllers);
+ }
+ 
+ static bool SetProcessGroupValue(int tid, const std::string& attr_name, int64_t value) {

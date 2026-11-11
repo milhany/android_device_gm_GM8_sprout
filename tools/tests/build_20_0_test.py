@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BUILD = (ROOT / 'tools/build-20.0.sh').read_text()
 
 for case in ('audit', 'configure', 'compile', 'compile-failure',
-             'preflight-failure', 'wrong-sdk', 'invalid-stage'):
+             'preflight-failure', 'port-failure', 'wrong-sdk', 'invalid-stage'):
     with tempfile.TemporaryDirectory(prefix='gm8-build20-') as tmp:
         parent = Path(tmp)
         top = parent / 'lineage-20.0'
@@ -21,6 +21,7 @@ for case in ('audit', 'configure', 'compile', 'compile-failure',
         version.write_text('PLATFORM_SDK_VERSION := ' + ('32' if case == 'wrong-sdk' else '33') + '\n')
         trace = parent / 'trace'
         env = {**os.environ, 'GM8_TEST_TRACE': str(trace),
+               'GM8_TEST_PORT_FAIL': '1' if case == 'port-failure' else '0',
                'GM8_TEST_PREFLIGHT_FAIL': '1' if case == 'preflight-failure' else '0',
                'GM8_TEST_M_EXIT': '17' if case == 'compile-failure' else '0'}
         bin_dir = parent / 'bin'; bin_dir.mkdir()
@@ -34,10 +35,13 @@ for case in ('audit', 'configure', 'compile', 'compile-failure',
 from pathlib import Path
 name = Path(__file__).name
 with Path(os.environ['GM8_TEST_TRACE']).open('a') as f: f.write(name + '\\n')
+if name == 'apply-processgroup-20.0.py' and os.environ['GM8_TEST_PORT_FAIL'] == '1':
+    raise SystemExit(23)
 if name == 'preflight-20.0.py' and os.environ['GM8_TEST_PREFLIGHT_FAIL'] == '1':
     raise SystemExit(9)
 '''
-        for name in ('preflight-20.0.py', 'fixup-legacy-protobuf.py',
+        for name in ('preflight-20.0.py', 'fixup-legacy-protobuf.py', 'apply-processgroup-20.0.py',
+                     'tests/processgroup_20_0_test.py',
                      'tests/kernel_host_link_test.py',
                      'tests/ft8006_gesture_test.py', 'tests/qsee_wait_test.py',
                      'tests/power_policy_test.py'):
@@ -56,7 +60,7 @@ m() {
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         calls = trace.read_text().splitlines() if trace.exists() else []
         make_calls = [x for x in calls if x.startswith('m ')]
-        expected = 17 if case == 'compile-failure' else 9 if case == 'preflight-failure' else (
+        expected = 17 if case == 'compile-failure' else 9 if case == 'preflight-failure' else 23 if case == 'port-failure' else (
             1 if case == 'wrong-sdk' else 2 if case == 'invalid-stage' else 0)
         assert result.returncode == expected, (case, result.returncode, result.stdout)
         if case == 'configure':
@@ -65,6 +69,12 @@ m() {
             assert make_calls == ['m target-files-package -j32']
         else:
             assert not make_calls
+        if case == 'audit':
+            assert 'apply-processgroup-20.0.py' not in calls
+            assert 'processgroup_20_0_test.py' not in calls
+        if case == 'port-failure':
+            assert calls[-1] == 'apply-processgroup-20.0.py'
+            assert 'preflight-20.0.py' not in calls
         if case == 'preflight-failure':
             assert not any('fixup' in x or x.startswith('lunch ') or 'test.py' in x for x in calls)
         if case in ('wrong-sdk', 'invalid-stage'):
@@ -73,6 +83,8 @@ m() {
         if case in ('configure', 'compile', 'compile-failure'):
             assert 'lunch lineage_GM8_sprout-userdebug' in calls
             assert 'fixup-legacy-protobuf.py' in calls
+            assert calls.index('apply-processgroup-20.0.py') < calls.index('preflight-20.0.py')
+            assert 'processgroup_20_0_test.py' in calls
         if case in ('compile', 'compile-failure'):
             logs = list((parent / 'gm8-20.0-records').glob('*/compile.log'))
             assert len(logs) == 1 and 'fixture native build output' in logs[0].read_text()
@@ -82,3 +94,4 @@ m() {
             assert 'not an installation OTA' in result.stdout
             assert 'runtime compatibility ports remain open' in result.stdout
         print('PASS:', case, '— real entry-point flow and exit status')
+

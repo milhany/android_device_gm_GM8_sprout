@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import json
+import hashlib
 from pathlib import Path
 import re
 import subprocess
@@ -14,9 +15,9 @@ BLOCKERS = [
     'Rebase complete legacy accounting/BPF compatibility onto SDK33 Connectivity/netd; loader suppression alone is insufficient.',
     'Review/rebase SDK33 RadioConfig and data/PhoneSwitcher behavior for the GM8 legacy data switch.',
     'Review SDK33 Wi-Fi KeyStore/MAC persistence behavior against the current secure-service fix.',
-    'Rebase/review processgroup and task-profile behavior for the legacy cgroup-v1 kernel.',
+    'Validate the reviewed SDK33 cgroup-v1 process-tracking source port and task profiles on hardware.',
     'Review optional charging-HAL, SystemUI and recents behavior instead of applying SDK32 framework patches blindly.',
-    'Review SDK33 userdata fstab/FBE and migration policy; inherited encryptable=footer is not an Android 13 FDE implementation.',
+    'Bring-up userdata is explicitly unencrypted F2FS; encrypted installs, FBE and migration are unsupported pending a separate implementation.',
     'Complete SDK33 Soong, module, SELinux/VINTF, vendor ABI and boot acceptance checks.',
     'Complete Android 13 GApps, signing and hardware/battery acceptance after a full build.',
 ]
@@ -34,6 +35,7 @@ def audit(top):
         'hardware/qcom-caf/bootctrl/Android.bp', 'hardware/qcom-caf/msm8996/audio/Android.mk',
         'tools/extract-utils/extract_utils.sh', 'vendor/gapps/arm64/arm64-vendor.mk',
         'device/gm/GM8_sprout/lineage_GM8_sprout.mk',
+        'device/gm/GM8_sprout/rootdir/etc/fstab.qcom',
         'vendor/gm/GM8_sprout/GM8_sprout-vendor.mk',
         'kernel/gm/msm8937/Makefile',
         'packages/modules/Connectivity/netd/BpfHandler.cpp',
@@ -90,9 +92,34 @@ def audit(top):
             patches.append({'project': project, 'patch': str(patch.relative_to(device)),
                             'context_applies': result.returncode == 0,
                             'sdk33_reviewed': False})
+    data_policy = {'mode': 'unencrypted_f2fs_bringup',
+                   'encrypted_userdata_supported': False, 'migration_implemented': False}
+    fstab = device / 'rootdir/etc/fstab.qcom'
+    data_entries = []
+    if fstab.is_file():
+        for line in fstab.read_text().splitlines():
+            fields = line.split('#', 1)[0].split()
+            if len(fields) >= 5 and fields[1] == '/data':
+                data_entries.append(fields)
+    if len(data_entries) != 1 or data_entries[0][2] != 'f2fs':
+        errors.append('SDK33 bring-up requires one explicit F2FS /data entry')
+    elif any(flag.split('=', 1)[0] in ('encryptable', 'forceencrypt', 'forcefdeorfbe',
+                                      'fileencryption', 'metadata_encryption')
+             for flag in data_entries[0][4].split(',')):
+        errors.append('SDK33 bring-up /data must not claim unsupported FDE/FBE encryption')
+    ports = []
+    for patch in sorted((device / 'patches/sdk33/system_core').glob('*.patch')):
+        command = ['git', '-C', str(top / 'system/core'), 'apply']
+        forward = subprocess.run(command + ['--check', str(patch)], capture_output=True)
+        reverse = subprocess.run(command + ['--reverse', '--check', str(patch)], capture_output=True)
+        ports.append({'project': 'system/core', 'patch': str(patch.relative_to(device)),
+                      'patch_sha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
+                      'applied': reverse.returncode == 0, 'context_applies': forward.returncode == 0,
+                      'hardware_accepted': False})
     return {'sdk': 33, 'created_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'source_inputs_complete': not errors, 'errors': errors, 'revisions': revisions,
-            'sdk32_patch_context_checks': patches, 'runtime_blockers': BLOCKERS,
+            'sdk32_patch_context_checks': patches, 'sdk33_source_ports': ports,
+            'userdata_policy': data_policy, 'runtime_blockers': BLOCKERS,
             'ready_for_boot_image': False, 'ready_for_ota': False, 'hardware_tested': False,
             'battery_improvement_measured': False}
 
@@ -114,3 +141,4 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

@@ -32,6 +32,7 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
         'hardware/qcom-caf/bootctrl/Android.bp', 'hardware/qcom-caf/msm8996/audio/Android.mk',
         'tools/extract-utils/extract_utils.sh', 'vendor/gapps/arm64/arm64-vendor.mk',
         'device/gm/GM8_sprout/lineage_GM8_sprout.mk', 'vendor/gm/GM8_sprout/GM8_sprout-vendor.mk',
+        'device/gm/GM8_sprout/rootdir/etc/fstab.qcom',
         'kernel/gm/msm8937/Makefile', 'packages/modules/Connectivity/netd/BpfHandler.cpp',
         'packages/modules/Connectivity/service/native/TrafficController.cpp',
         'frameworks/opt/telephony/src/java/com/android/internal/telephony/RadioConfig.java',
@@ -42,6 +43,9 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
         p = top / name; p.parent.mkdir(parents=True, exist_ok=True); p.write_text('fixture\n')
     version = top / 'build/core/version_defaults.mk'
     version.write_text('PLATFORM_SDK_VERSION := 33\n')
+    fstab = top / 'device/gm/GM8_sprout/rootdir/etc/fstab.qcom'
+    good_fstab = (ROOT / 'rootdir/etc/fstab.qcom').read_text()
+    fstab.write_text(good_fstab)
     for n in (28, 29, 30, 31): (top / f'prebuilts/vndk/v{n}').mkdir(parents=True)
     webview = top / 'external/chromium-webview/prebuilt/arm64/webview.apk'
     webview.parent.mkdir(parents=True)
@@ -59,13 +63,36 @@ with tempfile.TemporaryDirectory(prefix='gm8-audit20-') as tmp:
     patch = top / 'device/gm/GM8_sprout/patches/frameworks_opt_telephony/probe.patch'
     patch.parent.mkdir(parents=True)
     patch.write_text('--- a/probe.txt\n+++ b/probe.txt\n@@ -1 +1 @@\n-before\n+after\n')
+    sdk33_patch = top / 'device/gm/GM8_sprout/patches/sdk33/system_core/probe.patch'
+    sdk33_patch.parent.mkdir(parents=True)
+    sdk33_patch.write_text('--- a/libprocessgroup/processgroup.cpp\n+++ b/libprocessgroup/processgroup.cpp\n@@ -1 +1 @@\n-fixture\n+sdk33-fixture\n')
     r = module.audit(top)
+    assert r['sdk33_source_ports'][0]['context_applies']
+    assert not r['sdk33_source_ports'][0]['applied']
+    assert not r['sdk33_source_ports'][0]['hardware_accepted']
+    assert r['userdata_policy']['mode'] == 'unencrypted_f2fs_bringup'
     assert r['source_inputs_complete'] and r['runtime_blockers']
     assert not r['ready_for_boot_image'] and not r['ready_for_ota']
     assert r['sdk32_patch_context_checks'][0]['context_applies']
     assert not r['sdk32_patch_context_checks'][0]['sdk33_reviewed']
     assert probe.read_text() == 'before\n'
     print('PASS: complete inventory retains runtime blockers and never applies an applicable patch')
+    core = top / 'system/core'
+    assert (core / 'libprocessgroup/processgroup.cpp').read_text() == 'fixture\n'
+    git(core, 'apply', str(sdk33_patch))
+    applied_audit = module.audit(top)
+    assert applied_audit['sdk33_source_ports'][0]['applied']
+    assert not applied_audit['ready_for_boot_image']
+    git(core, 'apply', '--reverse', str(sdk33_patch))
+    for flags in ('wait,encryptable=footer', 'wait,fileencryption=aes-256-xts', 'wait,metadata_encryption=aes-256-xts'):
+        fstab.write_text('/dev/block/by-name/userdata /data f2fs rw ' + flags + '\n')
+        rejected = module.audit(top)
+        assert any('unsupported FDE/FBE' in e for e in rejected['errors'])
+    fstab.write_text('/dev/block/by-name/userdata /data ext4 rw wait\n')
+    assert any('one explicit F2FS' in e for e in module.audit(top)['errors'])
+    fstab.write_text(good_fstab)
+    assert module.audit(top)['source_inputs_complete']
+    print('PASS: SDK33 staged/applied source state is read-only; unsupported userdata policy is rejected')
     version.write_text('PLATFORM_SDK_VERSION := 32\n')
     assert not module.audit(top)['source_inputs_complete']
     version.write_text('PLATFORM_SDK_VERSION := 33\n')
@@ -245,3 +272,4 @@ else:
         assert audit_marker.exists() == (not fail)
         assert (apk_project / 'webview.apk').read_bytes() == (pointer if fail else payload)
         print('PASS:', name, '— real bootstrap materialization/audit gate')
+
