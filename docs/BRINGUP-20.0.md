@@ -113,6 +113,48 @@ and no device is accessed. The 19.1 release helper is not an Android 13
 signing tool. SDK33 network, radio, cgroups and userdata policy still need
 their separate ports and acceptance before image installation.
 
+## Existing target-files inspection
+
+The build host has completed the full SDK33 target-files compilation and
+image packaging. This clears the compilation checkpoint only; the runtime
+ports below remain open. Inspect the existing archive without another build:
+
+```sh
+python3 device/gm/GM8_sprout/tools/inspect-target-files-20.0.py \
+  --top "$PWD" --output /path/to/new-gm8-20.0-preboot.json
+```
+
+The inspector selects a ZIP only when the product target-files directory
+contains exactly one candidate; otherwise specify --target-files explicitly.
+The output must be a new file. It reads selected packaged build properties,
+/data fstab rows, cgroup/task-profile JSON, APEX/BPF inventories and boot
+component sizes. It also records the current build-tree kernel config and
+inspection-time source HEADs/tracked-dirty state. Those local files and
+revisions are not proof that the ZIP was built from those exact inputs.
+
+The ZIP is not extracted or changed. Image/APEX/APK payloads are not
+validated by this inspection. No source patches, rebuild, signing, key
+generation, phone access, encryption change or data formatting occurs.
+Readiness stays false even when the inspection succeeds. The JSON is
+intended for reviewing the actual packaged configuration before implementing
+and testing the remaining runtime ports.
+
+A concrete userdata issue is now confirmed in the selected SDK33 parser:
+fs_mgr/fs_mgr_fstab.cpp rejects encryptable= on non-voldmanaged entries
+outside recovery, and rejects forceencrypt=/forcefdeorfbe=. Therefore an
+inherited /data encryptable=footer entry cannot simply be assumed to work.
+This inspection reports its presence; it does not silently remove encryption
+flags or establish a supported FBE policy.
+
+Reviewed parser:
+https://github.com/LineageOS/android_system_core/blob/c0500ffe2cc283d61f1e3db1b2c979bfbd9beb8c/fs_mgr/fs_mgr_fstab.cpp
+
+The inspector regression uses synthetic archives to exercise packaged
+configuration reporting, legacy FDE detection, ambiguous selection,
+duplicate ZIP entries, invalid ZIP/LFS content, bounded text reads, SDK
+refusal and preservation of existing output. It does not validate a real
+boot image or run Android.
+
 ## HIDL compatibility libraries
 
 LineageOS 20 already provides android.hidl.base@1.0 and
@@ -256,8 +298,8 @@ Host fixtures exercise the actual read-only audit and bootstrap guards for
 SDK selection, manifest remotes, older/nonempty destination preservation,
 disk-space refusal, LFS pointer rejection and nonmutation of patches.
 Shell/Python syntax and local-manifest XML checks passed. The user has
-completed SDK33 source sync and m nothing on the build host. That is not
-hardware validation. Full Android compilation and all hardware acceptance
+completed SDK33 source sync, m nothing and full target-files compilation on
+the build host. Hardware acceptance and the runtime compatibility ports
 remain pending. The compile helper is checked with local workflow fixtures
 for stage selection, failed preflight/compile propagation and SDK refusal;
 these fixtures do not compile Android or validate vendor runtime ABI.
@@ -270,3 +312,4 @@ References:
 - https://gitlab.com/MindTheGapps/vendor_gapps/-/tree/tau
 - https://source.android.com/docs/setup/start/requirements
 - https://gerrit.googlesource.com/git-repo/+/refs/heads/main/man/repo-init.1
+
