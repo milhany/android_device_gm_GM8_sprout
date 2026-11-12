@@ -34,6 +34,7 @@ public class NetworkStats implements Cloneable {
         for(Entry entry:rows)out.insertEntry(entry);return out;}
     public void filter(int uid,String[] ifaces,int tag){rows.removeIf(entry->(uid!=-1&&entry.uid!=uid)
         ||(ifaces!=null&&!Arrays.asList(ifaces).contains(entry.iface))||(tag!=-1&&entry.tag!=tag));}
+    public void removeUids(int[] uids){ rows.removeIf(row -> java.util.Arrays.stream(uids).anyMatch(uid -> uid == row.uid)); }
     public void filterDebugEntries(){}
     public void migrateTun(int uid,String iface,String[] underlying){throw new AssertionError("VPN not modeled");}
     public void apply464xlatAdjustments(Map<String,String> ifaces){if(!ifaces.isEmpty())throw new AssertionError("CLAT not modeled");}

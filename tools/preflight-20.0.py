@@ -13,14 +13,11 @@ import zipfile
 
 
 BLOCKERS = [
-    'Validate staged socket permissions/tagging and cumulative snapshot reads; complete NetworkStatsService counter-set/purge/map integration, BpfHandler/loader readiness, VPN/CLAT and tethering.',
-    'Review/rebase SDK33 RadioConfig and data/PhoneSwitcher behavior for the GM8 legacy data switch.',
-    'Review SDK33 Wi-Fi KeyStore/MAC persistence behavior against the current secure-service fix.',
-    'Validate the reviewed SDK33 cgroup-v1 process-tracking source port and task profiles on hardware.',
-    'Review optional charging-HAL, SystemUI and recents behavior instead of applying SDK32 framework patches blindly.',
+    'Compile the full paired SDK33 runtime stack, including SELinux/VINTF and APEX availability; host fixtures do not validate Android APIs.',
+    'Validate real DNS, per-UID accounting, VPN isolation/lockdown, software CLAT and tethering on the GM8 kernel.',
+    'Validate radio/data switching, persisted Wi-Fi MACs, legacy cgroup process tracking and in-kernel LMK on hardware.',
     'Bring-up userdata is explicitly unencrypted F2FS; encrypted installs, FBE and migration are unsupported pending a separate implementation.',
-    'Complete SDK33 Soong, module, SELinux/VINTF, vendor ABI and boot acceptance checks.',
-    'Complete Android 13 GApps, signing and hardware/battery acceptance after a full build.',
+    'Complete first-boot, audio/camera/GNSS/fingerprint, suspend/charging and battery acceptance before release signing and installation.',
 ]
 
 
@@ -139,9 +136,16 @@ def audit(top):
                           'verified_with_successor': verified_with_successor,
                           'context_applies': forward.returncode == 0,
                           'hardware_accepted': False})
+    stack_helper = device / 'tools/apply-runtime-stack-20.0.py'
+    stack_result = subprocess.run([sys.executable, str(stack_helper), '--top', str(top), '--check'],
+                                  capture_output=True, text=True) if stack_helper.is_file() else None
+    runtime_stack = {'fully_applied': stack_result is not None and stack_result.returncode == 0,
+                     'hardware_accepted': False,
+                     'detail': (stack_result.stdout + stack_result.stderr).strip() if stack_result else 'Not available'}
     return {'sdk': 33, 'created_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'source_inputs_complete': not errors, 'errors': errors, 'revisions': revisions,
             'sdk32_patch_context_checks': patches, 'sdk33_source_ports': ports,
+            'complete_runtime_stack': runtime_stack,
             'userdata_policy': data_policy, 'runtime_blockers': BLOCKERS,
             'ready_for_boot_image': False, 'ready_for_ota': False, 'hardware_tested': False,
             'battery_improvement_measured': False}

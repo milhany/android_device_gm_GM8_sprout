@@ -1,3 +1,12 @@
-# Only the paired platform loader/netd fallback reads this opt-in.
+# Each consumer selects an implemented legacy path; no BPF readiness spoof.
 get_prop(bpfloader, gm8_legacy_network_prop)
 get_prop(netd, gm8_legacy_network_prop)
+get_prop(system_server, gm8_legacy_network_prop)
+get_prop(gpuservice, gm8_legacy_network_prop)
+get_prop(radio, gm8_legacy_ril_prop)
+get_prop(system_server, gm8_legacy_wifi_prop)
+
+allow netd proc_qtaguid_stat:file r_file_perms;
+allow system_server proc_qtaguid_stat:file r_file_perms;
+type sysfs_gm8_qtaguid, fs_type, sysfs_type;
+allow netd sysfs_gm8_qtaguid:file r_file_perms;

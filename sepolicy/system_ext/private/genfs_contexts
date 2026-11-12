@@ -1,0 +1,3 @@
+# Read-only backend validation; netd never changes these kernel switches.
+genfscon sysfs /module/xt_qtaguid/parameters/passive u:object_r:sysfs_gm8_qtaguid:s0
+genfscon sysfs /module/xt_qtaguid/parameters/tag_tracking_passive u:object_r:sysfs_gm8_qtaguid:s0
