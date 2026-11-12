@@ -30,3 +30,11 @@
 
 # Stock sunlight post-processing shares the established display post-process domain.
 /(vendor|system/vendor)/bin/ppd_sun u:object_r:mm-pp-daemon_exec:s0
+
+# Read-only system-as-root compatibility aliases created by BoardConfig.
+# Label the symlink inode; the mounted targets retain their existing labels.
+/bt_firmware -l u:object_r:bt_firmware_file:s0
+/firmware -l u:object_r:firmware_file:s0
+/dsp -l u:object_r:adsprpcd_file:s0
+/tombstones -l u:object_r:vendor_tombstone_data_file:s0
+/persist -d u:object_r:mnt_vendor_file:s0

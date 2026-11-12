@@ -70,6 +70,16 @@ critical init service preservation, transactional patch application, signing,
 trust stores and packaged Wi-Fi/IMS/kernel-policy checks. The Android build must
 still pass Soong, SELinux/neverallow, ABI and target-files/image checks.
 
+The first batch compiled on the owner's build host but target-files image
+generation stopped because the new root `/bt_firmware` symlink lacked a
+file-context label. The generic disk/inode suggestion was not the cause: the
+reported tree was about 2257 MiB within a 3072 MiB image budget. All four root
+symlinks now have explicit inode-specific labels using the established Qualcomm
+target types, and the precreated `/persist` directory uses `mnt_vendor_file`.
+A real libselinux regression enumerates the BoardConfig aliases and resolves
+every symlink/directory label, also rejecting unintended regular-file matches.
+It does not substitute for running e2fsdroid and the Android policy checks.
+
 Run `tools/build-runtime-20.0.sh`, then `tools/make-firstboot-20.0.sh` against the
 new target-files archive. The latter rejects stale/incomplete packaged policy
 before signing. Changes affect system, system_ext, vendor and root-image

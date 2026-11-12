@@ -5,9 +5,11 @@ Syscalls and Android APIs are host fixtures; Android compilation, SELinux and
 device behavior remain separate acceptance checks.
 """
 import argparse
+import ctypes
 import json
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -24,6 +26,47 @@ def method(text,signature):
 
 
 class BootFindingsTest(unittest.TestCase):
+    def test_real_selinux_lookup_covers_every_built_root_alias(self):
+        import re
+        # This performs real libselinux file-context lookups, including inode
+        # kinds. It does not claim to validate a compiled Android policy/image.
+        lib=ctypes.CDLL('libselinux.so.1',use_errno=True)
+        class Option(ctypes.Structure):
+            _fields_=[('type',ctypes.c_int),('value',ctypes.c_char_p)]
+        lib.selabel_open.argtypes=[ctypes.c_uint,ctypes.POINTER(Option),ctypes.c_uint]
+        lib.selabel_open.restype=ctypes.c_void_p
+        lib.selabel_lookup_raw.argtypes=[ctypes.c_void_p,ctypes.POINTER(ctypes.c_void_p),ctypes.c_char_p,ctypes.c_int]
+        lib.selabel_lookup_raw.restype=ctypes.c_int
+        lib.freecon.argtypes=[ctypes.c_void_p]
+        lib.selabel_close.argtypes=[ctypes.c_void_p]
+        path=ROOT/'sepolicy/vendor/file_contexts'
+        options=(Option*1)(Option(3,str(path).encode())) # SELABEL_OPT_PATH
+        handle=lib.selabel_open(0,options,1) # SELABEL_CTX_FILE
+        self.assertTrue(handle,'libselinux rejected device file_contexts')
+        expected={'/bt_firmware':'bt_firmware_file','/firmware':'firmware_file',
+                  '/dsp':'adsprpcd_file','/tombstones':'vendor_tombstone_data_file',
+                  '/persist':'mnt_vendor_file'}
+        board=re.sub(r'\\\n\s*',' ',(ROOT/'BoardConfig.mk').read_text())
+        aliases=[]
+        for value in re.findall(r'^BOARD_ROOT_EXTRA_SYMLINKS\s*[+:?]?=\s*(.*)$',board,re.M):
+            aliases.extend('/'+entry.split(':',1)[1].lstrip('/') for entry in value.split())
+        self.assertEqual(set(aliases),set(expected)-{'/persist'})
+        self.assertRegex(board,r'BOARD_ROOT_EXTRA_FOLDERS\s*\+=\s*persist')
+        try:
+            for name in [*aliases,'/persist']:
+                with self.subTest(path=name):
+                    mode=stat.S_IFDIR if name=='/persist' else stat.S_IFLNK
+                    result=ctypes.c_void_p()
+                    status=lib.selabel_lookup_raw(handle,ctypes.byref(result),name.encode(),mode)
+                    self.assertEqual(status,0,'No SELinux label for built root entry '+name)
+                    try:self.assertEqual(ctypes.string_at(result).decode(),'u:object_r:'+expected[name]+':s0')
+                    finally:lib.freecon(result)
+                    result=ctypes.c_void_p()
+                    status=lib.selabel_lookup_raw(handle,ctypes.byref(result),name.encode(),stat.S_IFREG)
+                    if status==0:lib.freecon(result)
+                    self.assertEqual(status,-1,'Root compatibility rule unexpectedly labels regular files')
+        finally:lib.selabel_close(handle)
+
     def cpp(self,source):
         with tempfile.TemporaryDirectory(prefix='gm8-boot-fixes-') as tmp:
             p=Path(tmp);(p/'test.cpp').write_text(source)
