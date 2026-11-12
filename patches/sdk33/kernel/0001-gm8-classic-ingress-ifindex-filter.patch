@@ -1,0 +1,11 @@
+diff --git a/arch/arm64/configs/msm8937-perf_defconfig b/arch/arm64/configs/msm8937-perf_defconfig
+--- a/arch/arm64/configs/msm8937-perf_defconfig
++++ b/arch/arm64/configs/msm8937-perf_defconfig
+@@ -164,6 +164,7 @@
+ CONFIG_NETFILTER_XT_MATCH_POLICY=y
+ CONFIG_NETFILTER_XT_MATCH_PKTTYPE=y
+ CONFIG_NETFILTER_XT_MATCH_QTAGUID=y
++CONFIG_NETFILTER_XT_MATCH_BPF=y
+ CONFIG_NETFILTER_XT_MATCH_QUOTA=y
+ CONFIG_NETFILTER_XT_MATCH_QUOTA2=y
+ # CONFIG_NETFILTER_XT_MATCH_SCTP is not set

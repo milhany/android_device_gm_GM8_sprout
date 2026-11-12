@@ -1,0 +1,399 @@
+diff --git a/Tethering/apishim/common/com/android/networkstack/tethering/apishim/common/BpfCoordinatorShim.java b/Tethering/apishim/common/com/android/networkstack/tethering/apishim/common/BpfCoordinatorShim.java
+--- a/Tethering/apishim/common/com/android/networkstack/tethering/apishim/common/BpfCoordinatorShim.java
++++ b/Tethering/apishim/common/com/android/networkstack/tethering/apishim/common/BpfCoordinatorShim.java
+@@ -38,7 +38,8 @@
+      */
+     @NonNull
+     public static BpfCoordinatorShim getBpfCoordinatorShim(@NonNull final Dependencies deps) {
+-        if (deps.isAtLeastS()) {
++        if (deps.isAtLeastS() && (deps.getTetherConfig() == null
++                || deps.getTetherConfig().isBpfOffloadEnabled())) {
+             return new com.android.networkstack.tethering.apishim.api31.BpfCoordinatorShimImpl(
+                     deps);
+         } else {
+diff --git a/service/Android.bp b/service/Android.bp
+--- a/service/Android.bp
++++ b/service/Android.bp
+@@ -96,6 +96,7 @@
+ 
+ cc_library_shared {
+     name: "libservice-connectivity",
++    // Fwmark wire declarations only; no platform-only libnetd_client link.
+     min_sdk_version: "30",
+     cflags: [
+         "-Wall",
+@@ -111,6 +112,7 @@
+         "jni/onload.cpp",
+     ],
+     header_libs: [
++        "libnetd_client_headers",
+         "bpf_connectivity_headers",
+     ],
+     static_libs: [
+diff --git a/service/jni/com_android_server_connectivity_ClatCoordinator.cpp b/service/jni/com_android_server_connectivity_ClatCoordinator.cpp
+--- a/service/jni/com_android_server_connectivity_ClatCoordinator.cpp
++++ b/service/jni/com_android_server_connectivity_ClatCoordinator.cpp
+@@ -27,6 +27,12 @@
+ #include <spawn.h>
+ #include <sys/wait.h>
+ #include <string>
++#include <limits>
++#include <map>
++#include <mutex>
++#include <android-base/properties.h>
++#include <android-base/unique_fd.h>
++#include "../../service-t/jni/LegacyAccountingClient.h"
+ 
+ #include <bpf/BpfMap.h>
+ #include <bpf/BpfUtils.h>
+@@ -48,6 +54,9 @@
+ #define DEVICEPREFIX "v4-"
+ 
+ namespace android {
++static std::mutex sLegacyClatMutex;
++static std::map<jlong, base::unique_fd> sLegacyClatSockets;
++static jlong sLegacyClatToken = 0;
+ static const char* kClatdPath = "/apex/com.android.tethering/bin/for-system/clatd";
+ 
+ static void throwIOException(JNIEnv* env, const char* msg, int error) {
+@@ -433,6 +442,27 @@
+         return -1;
+     }
+ 
++    if (!base::GetBoolProperty("ro.kernel.ebpf.supported", true)) {
++        std::lock_guard guard(sLegacyClatMutex);
++        if (sLegacyClatToken == std::numeric_limits<jlong>::max()) {
++            throwIOException(env, "legacy CLAT token exhausted", EOVERFLOW);
++            return -1;
++        }
++        base::unique_fd held(fcntl(sockFd, F_DUPFD_CLOEXEC, 0));
++        if (held.get() < 0) {
++            throwIOException(env, "dup CLAT socket", errno);
++            return -1;
++        }
++        int error = gm8legacy::request(FwmarkCommand::GM8_LEGACY_TAG_CLAT, 0, 0, held.get());
++        if (error) {
++            throwIOException(env, "legacy CLAT tag", -error);
++            return -1;
++        }
++        const jlong token = ++sLegacyClatToken;
++        sLegacyClatSockets.emplace(token, std::move(held));
++        return token;
++    }
++
+     uint64_t sock_cookie = bpf::getSocketCookie(sockFd);
+     if (sock_cookie == bpf::NONEXISTENT_COOKIE) {
+         throwIOException(env, "get socket cookie failed", errno);
+@@ -463,6 +493,20 @@
+ 
+ static void com_android_server_connectivity_ClatCoordinator_untagSocket(JNIEnv* env, jobject clazz,
+                                                                         jlong cookie) {
++    if (!base::GetBoolProperty("ro.kernel.ebpf.supported", true)) {
++        std::lock_guard guard(sLegacyClatMutex);
++        auto found = sLegacyClatSockets.find(cookie);
++        if (found == sLegacyClatSockets.end()) {
++            throwIOException(env, "unknown legacy CLAT token", EINVAL);
++            return;
++        }
++        base::unique_fd held(std::move(found->second));
++        sLegacyClatSockets.erase(found);
++        int error = gm8legacy::request(FwmarkCommand::GM8_LEGACY_UNTAG_CLAT, 0, 0, held.get());
++        if (error) throwIOException(env, "legacy CLAT untag", -error);
++        return;
++    }
++
+     uint64_t sock_cookie = static_cast<uint64_t>(cookie);
+     if (sock_cookie == bpf::NONEXISTENT_COOKIE) {
+         jniThrowExceptionFmt(env, "java/io/IOException", "Invalid socket cookie");
+diff --git a/service/src/com/android/server/BpfNetMaps.java b/service/src/com/android/server/BpfNetMaps.java
+--- a/service/src/com/android/server/BpfNetMaps.java
++++ b/service/src/com/android/server/BpfNetMaps.java
+@@ -265,7 +265,10 @@
+      *                                  cause of the failure.
+      */
+     public void addUidInterfaceRules(final String ifName, final int[] uids) throws RemoteException {
+-        rejectLegacyBpfOperation("UID interface filtering");
++        if (LEGACY_NETWORK) {
++            requireNetd().firewallAddUidInterfaceRules(ifName == null ? "" : ifName, uids);
++            return;
++        }
+         if (USE_NETD) {
+             mNetd.firewallAddUidInterfaceRules(ifName, uids);
+             return;
+@@ -286,7 +289,10 @@
+      *                                  cause of the failure.
+      */
+     public void removeUidInterfaceRules(final int[] uids) throws RemoteException {
+-        rejectLegacyBpfOperation("UID interface filtering");
++        if (LEGACY_NETWORK) {
++            requireNetd().firewallRemoveUidInterfaceRules(uids);
++            return;
++        }
+         if (USE_NETD) {
+             mNetd.firewallRemoveUidInterfaceRules(uids);
+             return;
+diff --git a/service/src/com/android/server/connectivity/ClatCoordinator.java b/service/src/com/android/server/connectivity/ClatCoordinator.java
+--- a/service/src/com/android/server/connectivity/ClatCoordinator.java
++++ b/service/src/com/android/server/connectivity/ClatCoordinator.java
+@@ -32,6 +32,7 @@
+ import android.net.IpPrefix;
+ import android.os.ParcelFileDescriptor;
+ import android.os.RemoteException;
++import android.os.SystemProperties;
+ import android.os.ServiceSpecificException;
+ import android.system.ErrnoException;
+ import android.util.Log;
+@@ -130,6 +131,10 @@
+      */
+     @VisibleForTesting
+     public abstract static class Dependencies {
++        public boolean useBpfOffload() {
++            return SystemProperties.getBoolean("ro.kernel.ebpf.supported", true);
++        }
++
+         /**
+           * Get netd.
+           */
+@@ -374,8 +379,8 @@
+     public ClatCoordinator(@NonNull Dependencies deps) {
+         mDeps = deps;
+         mNetd = mDeps.getNetd();
+-        mIngressMap = mDeps.getBpfIngress6Map();
+-        mEgressMap = mDeps.getBpfEgress4Map();
++        mIngressMap = mDeps.useBpfOffload() ? mDeps.getBpfIngress6Map() : null;
++        mEgressMap = mDeps.useBpfOffload() ? mDeps.getBpfEgress4Map() : null;
+     }
+ 
+     private void maybeStartBpf(final ClatdTracker tracker) {
+diff --git a/service-t/jni/LegacyAccountingClient.h b/service-t/jni/LegacyAccountingClient.h
+new file mode 100644
+--- /dev/null
++++ b/service-t/jni/LegacyAccountingClient.h
+@@ -0,0 +1,57 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include "FwmarkCommand.h"
++#include <cerrno>
++#include <cstring>
++#include <sys/socket.h>
++#include <sys/time.h>
++#include <sys/un.h>
++#include <unistd.h>
++
++namespace android::gm8legacy {
++inline int request(FwmarkCommand::CmdId id, uid_t uid, uint32_t value, int passedFd = -1) {
++    static_assert(sizeof(FwmarkCommand) == 16);
++    static_assert(FwmarkCommand::_UNUSED_SET_COUNTERSET == 9);
++    static_assert(FwmarkCommand::_UNUSED_DELETE_TAGDATA == 10);
++    static_assert(FwmarkCommand::GM8_LEGACY_TAG_CLAT == 14);
++    FwmarkCommand command{};
++    command.cmdId = id;
++    command.uid = uid;
++    command.trafficCtrlInfo = value;
++    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
++    if (fd < 0) return -errno;
++    auto finish = [fd](int error) { close(fd); return error; };
++    timeval timeout{5, 0};
++    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) ||
++        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout))) return finish(-errno);
++    sockaddr_un address{};
++    address.sun_family = AF_UNIX;
++    strcpy(address.sun_path, "/dev/socket/fwmarkd");
++    if (connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address))) return finish(-errno);
++    iovec vector{&command, sizeof(command)};
++    msghdr message{};
++    message.msg_iov = &vector;
++    message.msg_iovlen = 1;
++    alignas(cmsghdr) char control[CMSG_SPACE(sizeof(int))]{};
++    if (passedFd >= 0) {
++        message.msg_control = control;
++        message.msg_controllen = sizeof(control);
++        cmsghdr* cmsg = CMSG_FIRSTHDR(&message);
++        cmsg->cmsg_level = SOL_SOCKET;
++        cmsg->cmsg_type = SCM_RIGHTS;
++        cmsg->cmsg_len = CMSG_LEN(sizeof(int));
++        memcpy(CMSG_DATA(cmsg), &passedFd, sizeof(passedFd));
++    }
++    ssize_t count;
++    do { count = sendmsg(fd, &message, MSG_NOSIGNAL); } while (count < 0 && errno == EINTR);
++    if (count < 0) return finish(-errno);
++    if (count != sizeof(command)) return finish(-EIO);
++    int result;
++    do { count = recv(fd, &result, sizeof(result), MSG_WAITALL); }
++    while (count < 0 && errno == EINTR);
++    if (count < 0) return finish(-errno);
++    if (count == 0) return finish(-ECONNRESET);
++    if (count != sizeof(result) || result > 0) return finish(-EPROTO);
++    return finish(result);
++}
++}  // namespace android::gm8legacy
+diff --git a/service-t/jni/com_android_server_net_NetworkStatsService.cpp b/service-t/jni/com_android_server_net_NetworkStatsService.cpp
+--- a/service-t/jni/com_android_server_net_NetworkStatsService.cpp
++++ b/service-t/jni/com_android_server_net_NetworkStatsService.cpp
+@@ -30,6 +30,7 @@
+ #include <utils/misc.h>
+ 
+ #include "LegacyTrafficStats.h"
++#include "LegacyAccountingClient.h"
+ #include "bpf/BpfUtils.h"
+ #include "netdbpf/BpfNetworkStats.h"
+ 
+@@ -120,7 +121,21 @@
+     }
+ }
+ 
++static jint legacySetCounterSet(JNIEnv*, jclass, jint uid, jint set) {
++    if (android::base::GetBoolProperty("ro.kernel.ebpf.supported", true)) return -EOPNOTSUPP;
++    if (uid < 0 || (set != 0 && set != 1)) return -EINVAL;
++    return gm8legacy::request(FwmarkCommand::_UNUSED_SET_COUNTERSET, uid, set);
++}
++
++static jint legacyDeleteTagData(JNIEnv*, jclass, jint uid) {
++    if (android::base::GetBoolProperty("ro.kernel.ebpf.supported", true)) return -EOPNOTSUPP;
++    if (uid < 0) return -EINVAL;
++    return gm8legacy::request(FwmarkCommand::_UNUSED_DELETE_TAGDATA, uid, 0);
++}
++
+ static const JNINativeMethod gMethods[] = {
++    {"nativeLegacySetCounterSet", "(II)I", (void*)legacySetCounterSet},
++    {"nativeLegacyDeleteTagData", "(I)I", (void*)legacyDeleteTagData},
+         {"nativeGetTotalStat", "(I)J", (void*)getTotalStat},
+         {"nativeGetIfaceStat", "(Ljava/lang/String;I)J", (void*)getIfaceStat},
+         {"nativeGetUidStat", "(II)J", (void*)getUidStat},
+diff --git a/service-t/src/com/android/server/net/NetworkStatsFactory.java b/service-t/src/com/android/server/net/NetworkStatsFactory.java
+--- a/service-t/src/com/android/server/net/NetworkStatsFactory.java
++++ b/service-t/src/com/android/server/net/NetworkStatsFactory.java
+@@ -56,6 +56,15 @@
+  * @hide
+  */
+ public class NetworkStatsFactory {
++    /** Forget a purged UID in cumulative snapshots before that UID can be reused. */
++    public void removeLegacyUids(int[] uids) {
++        if (mUseBpfStats) throw new IllegalStateException("Not the legacy stats backend");
++        synchronized (mPersistentDataLock) {
++            mPersistSnapshot.removeUids(uids);
++            mTunAnd464xlatAdjustedStats.removeUids(uids);
++        }
++    }
++
+     static {
+         System.loadLibrary("service-connectivity");
+     }
+diff --git a/service-t/src/com/android/server/net/NetworkStatsService.java b/service-t/src/com/android/server/net/NetworkStatsService.java
+--- a/service-t/src/com/android/server/net/NetworkStatsService.java
++++ b/service-t/src/com/android/server/net/NetworkStatsService.java
+@@ -122,6 +122,7 @@
+ import android.os.RemoteException;
+ import android.os.ServiceSpecificException;
+ import android.os.SystemClock;
++import android.os.SystemProperties;
+ import android.os.Trace;
+ import android.os.UserHandle;
+ import android.provider.DeviceConfig;
+@@ -442,8 +443,9 @@
+     @NonNull
+     private final LocationPermissionChecker mLocationPermissionChecker;
+ 
+-    @NonNull
++    @Nullable
+     private final BpfInterfaceMapUpdater mInterfaceMapUpdater;
++    private final boolean mUseBpfStats;
+ 
+     private static @NonNull Clock getDefaultClock() {
+         return new BestClock(ZoneOffset.UTC, SystemClock.currentNetworkTimeClock(),
+@@ -571,13 +573,23 @@
+         mContentObserver = mDeps.makeContentObserver(mHandler, mSettings,
+                 mNetworkStatsSubscriptionsMonitor);
+         mLocationPermissionChecker = mDeps.makeLocationPermissionChecker(mContext);
+-        mInterfaceMapUpdater = mDeps.makeBpfInterfaceMapUpdater(mContext, mHandler);
+-        mInterfaceMapUpdater.start();
+-        mUidCounterSetMap = mDeps.getUidCounterSetMap();
+-        mCookieTagMap = mDeps.getCookieTagMap();
+-        mStatsMapA = mDeps.getStatsMapA();
+-        mStatsMapB = mDeps.getStatsMapB();
+-        mAppUidStatsMap = mDeps.getAppUidStatsMap();
++        mUseBpfStats = mDeps.useBpfStats();
++        if (mUseBpfStats) {
++            mInterfaceMapUpdater = mDeps.makeBpfInterfaceMapUpdater(mContext, mHandler);
++            mInterfaceMapUpdater.start();
++            mUidCounterSetMap = mDeps.getUidCounterSetMap();
++            mCookieTagMap = mDeps.getCookieTagMap();
++            mStatsMapA = mDeps.getStatsMapA();
++            mStatsMapB = mDeps.getStatsMapB();
++            mAppUidStatsMap = mDeps.getAppUidStatsMap();
++        } else {
++            mInterfaceMapUpdater = null;
++            mUidCounterSetMap = null;
++            mCookieTagMap = null;
++            mStatsMapA = null;
++            mStatsMapB = null;
++            mAppUidStatsMap = null;
++        }
+     }
+ 
+     /**
+@@ -586,6 +598,20 @@
+     // TODO: Move more stuff into dependencies object.
+     @VisibleForTesting
+     public static class Dependencies {
++        public boolean useBpfStats() {
++            return SystemProperties.getBoolean("ro.kernel.ebpf.supported", true);
++        }
++
++        public void setLegacyCounterSet(int uid, int set) throws ErrnoException {
++            final int result = nativeLegacySetCounterSet(uid, set);
++            if (result != 0) throw new ErrnoException("qtaguid counter set", -result);
++        }
++
++        public void deleteLegacyTagData(int uid) throws ErrnoException {
++            final int result = nativeLegacyDeleteTagData(uid);
++            if (result != 0) throw new ErrnoException("qtaguid delete tag data", -result);
++        }
++
+         /**
+          * Get legacy platform stats directory.
+          */
+@@ -1737,8 +1763,16 @@
+             final int set = uidForeground ? SET_FOREGROUND : SET_DEFAULT;
+             final int oldSet = mActiveUidCounterSet.get(uid, SET_DEFAULT);
+             if (oldSet != set) {
++                if (!mUseBpfStats) {
++                    try {
++                        mDeps.setLegacyCounterSet(uid, set);
++                    } catch (ErrnoException e) {
++                        Log.e(TAG, "Failed to set legacy counter set", e);
++                        return; // Keep the old cache so a later notification can retry.
++                    }
++                }
+                 mActiveUidCounterSet.put(uid, set);
+-                setKernelCounterSet(uid, set);
++                if (mUseBpfStats) setKernelCounterSet(uid, set);
+             }
+         }
+     }
+@@ -2421,6 +2455,16 @@
+      * @param uid
+      */
+     private void deleteKernelTagData(int uid) {
++        if (!mUseBpfStats) {
++            try {
++                mDeps.deleteLegacyTagData(uid);
++                mActiveUidCounterSet.delete(uid);
++                mStatsFactory.removeLegacyUids(new int[]{uid});
++            } catch (ErrnoException e) {
++                Log.e(TAG, "Failed to delete legacy UID accounting", e);
++            }
++            return;
++        }
+         try {
+             mCookieTagMap.forEach((key, value) -> {
+                 // If SkDestroyListener deletes the socket tag while this code is running,
+@@ -3105,6 +3149,8 @@
+         }
+     }
+ 
++    private static native int nativeLegacySetCounterSet(int uid, int set);
++    private static native int nativeLegacyDeleteTagData(int uid);
+     private static native long nativeGetTotalStat(int type);
+     private static native long nativeGetIfaceStat(String iface, int type);
+     private static native long nativeGetUidStat(int uid, int type);

@@ -1,0 +1,14 @@
+diff --git a/bpfloader/BpfLoader.cpp b/bpfloader/BpfLoader.cpp
+--- a/bpfloader/BpfLoader.cpp
++++ b/bpfloader/BpfLoader.cpp
+@@ -177,6 +177,10 @@
+ int main(int argc, char** argv) {
+     (void)argc;
+     android::base::InitLogging(argv, &android::base::KernelLogger);
++    if (!android::base::GetBoolProperty("ro.kernel.ebpf.supported", true)) {
++        ALOGI("Legacy backend selected; netd validates qtaguid. No eBPF readiness claimed.");
++        return 0;
++    }
+ 
+     // Create all the pin subdirectories
+     // (this must be done first to allow selinux_context and pin_subdir functionality,

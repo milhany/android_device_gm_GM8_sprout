@@ -1,0 +1,412 @@
+diff --git a/include/FwmarkCommand.h b/include/FwmarkCommand.h
+--- a/include/FwmarkCommand.h
++++ b/include/FwmarkCommand.h
+@@ -69,6 +69,9 @@
+         ON_SENDMMSG,
+         ON_SENDMSG,
+         ON_SENDTO,
++        // Private legacy accounting operations; existing wire IDs stay fixed.
++        GM8_LEGACY_TAG_CLAT,
++        GM8_LEGACY_UNTAG_CLAT,
+     } cmdId;
+     unsigned netId;  // used only in the SELECT_NETWORK command; ignored otherwise.
+     uid_t uid;       // used in the SELECT_FOR_USER, QUERY_USER_ACCESS, TAG_SOCKET,
+diff --git a/server/Controllers.cpp b/server/Controllers.cpp
+--- a/server/Controllers.cpp
++++ b/server/Controllers.cpp
+@@ -221,7 +221,9 @@
+      */
+ 
+     // Create chains for child modules.
+-    createChildChains(V4V6, "filter", "INPUT", FILTER_INPUT, true);
++    auto input = FILTER_INPUT;
++    if (FirewallController::isLegacyMode()) input.insert(input.begin(), LegacyIngressRules::CHAIN);
++    createChildChains(V4V6, "filter", "INPUT", input, true);
+     createChildChains(V4V6, "filter", "FORWARD", FILTER_FORWARD, true);
+     createChildChains(V4V6, "raw", "PREROUTING", RAW_PREROUTING, true);
+     createChildChains(V4V6, "mangle", "FORWARD", MANGLE_FORWARD, true);
+@@ -245,7 +247,13 @@
+     gLog.info("Setting up OEM hooks: %" PRId64 "us", s.getTimeAndResetUs());
+ 
+     /* When enabled, DROPs all packets except those matching rules. */
+-    firewallCtrl.setupIptablesHooks();
++    const int firewallResult = firewallCtrl.setupIptablesHooks();
++    if (FirewallController::isLegacyMode()) {
++        if (firewallResult || legacyIngress.initialize()) {
++            ALOGE("Legacy IPv4/IPv6 UID or VPN ingress firewall initialization failed");
++            exit(1);
++        }
++    }
+     gLog.info("Setting up FirewallController hooks: %" PRId64 "us", s.getTimeAndResetUs());
+ 
+     /* Does DROPs in FORWARD by default */
+diff --git a/server/Controllers.h b/server/Controllers.h
+--- a/server/Controllers.h
++++ b/server/Controllers.h
+@@ -31,6 +31,7 @@
+ #include "TetherController.h"
+ #include "WakeupController.h"
+ #include "XfrmController.h"
++#include "LegacyIngressRules.h"
+ #include "netdutils/Log.h"
+ 
+ namespace android {
+@@ -53,6 +54,11 @@
+     WakeupController wakeupCtrl;
+     XfrmController xfrmCtrl;
+     TcpSocketMonitor tcpSocketMonitor;
++    LegacyIngressRules legacyIngress{
++        [](bool ipv6, const std::string& command) {
++            return ::execIptablesRestore(ipv6 ? V6 : V4, command);
++        },
++        [](const std::string& name) { return if_nametoindex(name.c_str()); }};
+ 
+     void init();
+ 
+diff --git a/server/FwmarkServer.cpp b/server/FwmarkServer.cpp
+--- a/server/FwmarkServer.cpp
++++ b/server/FwmarkServer.cpp
+@@ -133,6 +133,19 @@
+         return mNetworkController->checkUserNetworkAccess(command.uid, command.netId);
+     }
+ 
++    if (command.cmdId == FwmarkCommand::_UNUSED_SET_COUNTERSET ||
++        command.cmdId == FwmarkCommand::_UNUSED_DELETE_TAGDATA) {
++        if (!FirewallController::isLegacyMode()) return -EOPNOTSUPP;
++        if (client->getUid() != AID_ROOT && !isSystemServer(client)) return -EPERM;
++        if (!received_fds.empty() || command.netId != 0) return -EINVAL;
++        if (!gCtls) return -ENODEV;
++        if (command.cmdId == FwmarkCommand::_UNUSED_SET_COUNTERSET) {
++            return gCtls->legacySocketTagger.setCounterSet(command.uid, command.trafficCtrlInfo);
++        }
++        if (command.trafficCtrlInfo != 0) return -EINVAL;
++        return gCtls->legacySocketTagger.deleteTagData(command.uid);
++    }
++
+     if (received_fds.size() != 1) {
+         LOG(ERROR) << "FwmarkServer received " << received_fds.size() << " fds from client?";
+         return -EBADF;
+@@ -159,6 +172,17 @@
+     }
+ 
+     switch (command.cmdId) {
++        case FwmarkCommand::GM8_LEGACY_TAG_CLAT:
++        case FwmarkCommand::GM8_LEGACY_UNTAG_CLAT: {
++            if (!FirewallController::isLegacyMode()) return -EOPNOTSUPP;
++            if (client->getUid() != AID_ROOT && !isSystemServer(client)) return -EPERM;
++            if (command.netId || command.uid || command.trafficCtrlInfo) return -EINVAL;
++            if (!gCtls) return -ENODEV;
++            return command.cmdId == FwmarkCommand::GM8_LEGACY_TAG_CLAT
++                    ? gCtls->legacySocketTagger.tagClatSocket(*socketFd)
++                    : gCtls->legacySocketTagger.untagClatSocket(*socketFd);
++        }
++
+         case FwmarkCommand::ON_ACCEPT: {
+             // Called after a socket accept(). The kernel would've marked the NetId and necessary
+             // permissions bits, so we just add the rest of the user's permissions here.
+diff --git a/server/LegacyIngressRules.h b/server/LegacyIngressRules.h
+new file mode 100644
+--- /dev/null
++++ b/server/LegacyIngressRules.h
+@@ -0,0 +1,102 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <cerrno>
++#include <cstdint>
++#include <functional>
++#include <map>
++#include <net/if.h>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace android::net {
++// The owning FirewallController mutex serializes this with other UID rules.
++// Classic xt_bpf matches the real ingress ifindex; it uses no eBPF syscall/map.
++class LegacyIngressRules {
++  public:
++    inline static constexpr const char* CHAIN = "fw_gm8_iif";
++    using Writer = std::function<int(bool, const std::string&)>;
++    using Resolver = std::function<unsigned(const std::string&)>;
++    LegacyIngressRules(Writer writer, Resolver resolver)
++        : mWriter(std::move(writer)), mResolver(std::move(resolver)) {}
++    int initialize() {
++        mReady = false;
++        if (mWriter(false, rules({})) || mWriter(true, rules({}))) return -EREMOTEIO;
++        mState.clear();
++        mReady = true;
++        return 0;
++    }
++    int setLockdown(int32_t uid, int32_t rule) {
++        if (uid < 0 || (rule != 1 && rule != 2)) return -EINVAL;
++        auto next = mState;
++        next[uid].lockdown = (rule == 2);
++        return commit(std::move(next));
++    }
++    int addInterfaces(const std::string& iface, const std::vector<int32_t>& uids) {
++        if (iface.size() >= IFNAMSIZ) return -EINVAL;
++        const unsigned index = iface.empty() ? 0 : mResolver(iface);
++        if (!iface.empty() && index == 0) return -ENODEV;
++        auto next = mState;
++        for (int32_t uid : uids) {
++            if (uid < 0) return -EINVAL;
++            next[uid].hasInterface = true;
++            next[uid].index = index;
++        }
++        return commit(std::move(next));
++    }
++    int removeInterfaces(const std::vector<int32_t>& uids) {
++        auto next = mState;
++        for (int32_t uid : uids) {
++            if (uid < 0) return -EINVAL;
++            next[uid].hasInterface = false;
++            next[uid].index = 0;
++        }
++        return commit(std::move(next));
++    }
++    // SKF_AD_OFF + SKF_AD_IFINDEX is -4096 + 8, represented as uint32_t.
++    // Match all interfaces except the allowed index (index 0 is never a device).
++    static std::string wrongInterface(unsigned index) {
++        return "4,32 0 0 4294963208,21 0 1 " + std::to_string(index)
++                + ",6 0 0 0,6 0 0 4294967295";
++    }
++  private:
++    struct Entry { bool hasInterface = false; unsigned index = 0; bool lockdown = false; };
++    using State = std::map<int32_t, Entry>;
++    Writer mWriter;
++    Resolver mResolver;
++    bool mReady = false;
++    State mState;
++    static std::string rules(const State& state) {
++        const std::string prefix = std::string("-A ") + CHAIN;
++        std::string out = std::string("*filter\n:") + CHAIN + " -\n-F " + CHAIN + "\n";
++        out += prefix + " -i lo -j RETURN\n";
++        out += prefix + " -m owner --uid-owner 0-9999 -j RETURN\n";
++        out += prefix + " -p esp -j RETURN\n";
++        out += prefix + " -p tcp --tcp-flags RST RST -j RETURN\n";
++        // An always-false classic program probes support even with no UID rules.
++        out += prefix + " -m bpf --bytecode \"4,32 0 0 4294963208,21 0 1 0,6 0 0 0,6 0 0 0\" -j RETURN\n";
++        for (const auto& [uid, entry] : state) {
++            if (entry.hasInterface && entry.index != 0) {
++                out += prefix + " -m owner --uid-owner " + std::to_string(uid)
++                        + " -m bpf --bytecode \"" + wrongInterface(entry.index) + "\" -j DROP\n";
++            } else if (!entry.hasInterface && entry.lockdown) {
++                out += prefix + " -m owner --uid-owner " + std::to_string(uid) + " -j DROP\n";
++            }
++            // An explicit wildcard IIF rule overrides lockdown, matching SDK33.
++        }
++        return out + prefix + " -j RETURN\nCOMMIT\n";
++    }
++    int commit(State next) {
++        if (!mReady) return -ENODEV;
++        const std::string previous = rules(mState), candidate = rules(next);
++        if (mWriter(false, candidate) || mWriter(true, candidate)) {
++            // Try both rollbacks even if one fails. Do not publish a false cache.
++            int v4 = mWriter(false, previous), v6 = mWriter(true, previous);
++            if (v4 || v6) mReady = false;
++            return -EREMOTEIO;
++        }
++        mState = std::move(next);
++        return 0;
++    }
++};
++}  // namespace android::net
+diff --git a/server/LegacySocketTagger.cpp b/server/LegacySocketTagger.cpp
+--- a/server/LegacySocketTagger.cpp
++++ b/server/LegacySocketTagger.cpp
+@@ -134,5 +134,68 @@
+     return writeCommandLocked(command, length);
+ }
+ 
++int LegacySocketTagger::checkReady() {
++    std::lock_guard guard(mMutex);
++    int result = prepareLocked();
++    if (result) return result;
++    for (const char* path : {mPaths.control, mPaths.stats, mPaths.ifaceFmt, mPaths.ifaceAll}) {
++        int fd;
++        do { fd = open(path, (path == mPaths.control ? O_WRONLY : O_RDONLY) | O_CLOEXEC); }
++        while (fd < 0 && errno == EINTR);
++        if (fd < 0) return -errno;
++        close(fd);
++    }
++    return 0;
++}
++
++int LegacySocketTagger::setCounterSet(uid_t uid, int set) {
++    if (uid > INT32_MAX || (set != 0 && set != 1)) return -EINVAL;
++    std::lock_guard guard(mMutex);
++    char command[64];
++    int length = snprintf(command, sizeof(command), "s %d %" PRIu32, set,
++                          static_cast<uint32_t>(uid));
++    if (length < 0 || static_cast<size_t>(length) >= sizeof(command)) return -EOVERFLOW;
++    return writeCommandLocked(command, length);
++}
++
++int LegacySocketTagger::deleteTagData(uid_t uid) {
++    if (uid > INT32_MAX) return -EINVAL;
++    std::lock_guard guard(mMutex);
++    char command[64];
++    int length = snprintf(command, sizeof(command), "d 0 %" PRIu32, static_cast<uint32_t>(uid));
++    if (length < 0 || static_cast<size_t>(length) >= sizeof(command)) return -EOVERFLOW;
++    return writeCommandLocked(command, length);
++}
++
++int LegacySocketTagger::checkClatSocket(int fd) {
++    int domain, protocol;
++    socklen_t size = sizeof(domain);
++    if (getsockopt(fd, SOL_SOCKET, SO_DOMAIN, &domain, &size)) return -errno;
++    if (domain != AF_INET6) return -EAFNOSUPPORT;
++    size = sizeof(protocol);
++    if (getsockopt(fd, SOL_SOCKET, SO_PROTOCOL, &protocol, &size)) return -errno;
++    return protocol == IPPROTO_RAW ? 0 : -EPROTONOSUPPORT;
++}
++
++int LegacySocketTagger::tagClatSocket(int fd) {
++    int result = checkClatSocket(fd);
++    if (result) return result;
++    std::lock_guard guard(mMutex);
++    char command[64];
++    int length = snprintf(command, sizeof(command), "t %d 0 %d", fd, AID_CLAT);
++    if (length < 0 || static_cast<size_t>(length) >= sizeof(command)) return -EOVERFLOW;
++    return writeCommandLocked(command, length);
++}
++
++int LegacySocketTagger::untagClatSocket(int fd) {
++    int result = checkClatSocket(fd);
++    if (result) return result;
++    std::lock_guard guard(mMutex);
++    char command[32];
++    int length = snprintf(command, sizeof(command), "u %d", fd);
++    if (length < 0 || static_cast<size_t>(length) >= sizeof(command)) return -EOVERFLOW;
++    return writeCommandLocked(command, length);
++}
++
+ }  // namespace net
+ }  // namespace android
+diff --git a/server/LegacySocketTagger.h b/server/LegacySocketTagger.h
+--- a/server/LegacySocketTagger.h
++++ b/server/LegacySocketTagger.h
+@@ -29,6 +29,9 @@
+         const char* device = "/dev/xt_qtaguid";
+         const char* passive = "/sys/module/xt_qtaguid/parameters/passive";
+         const char* trackingPassive = "/sys/module/xt_qtaguid/parameters/tag_tracking_passive";
++        const char* stats = "/proc/net/xt_qtaguid/stats";
++        const char* ifaceFmt = "/proc/net/xt_qtaguid/iface_stat_fmt";
++        const char* ifaceAll = "/proc/net/xt_qtaguid/iface_stat_all";
+     };
+ 
+     LegacySocketTagger();
+@@ -42,12 +45,19 @@
+     int setPermissions(int permissions, const std::vector<int32_t>& appIds);
+     int tagSocket(int socketFd, uint32_t tag, uid_t chargeUid, uid_t realUid);
+     int untagSocket(int socketFd);
++    int checkReady();
++    int setCounterSet(uid_t uid, int set);
++    int deleteTagData(uid_t uid);
++    // FwmarkServer authenticates the real system_server/root peer first.
++    int tagClatSocket(int socketFd);
++    int untagClatSocket(int socketFd);
+ 
+   private:
+     int prepareLocked();
+     int writeCommandLocked(const char* command, size_t length);
+     bool mayChargeOthersLocked(uid_t realUid) const;
+     static int checkSocket(int socketFd);
++    static int checkClatSocket(int socketFd);
+     static int requireActive(const char* path);
+ 
+     const Paths mPaths;
+diff --git a/server/NetdNativeService.cpp b/server/NetdNativeService.cpp
+--- a/server/NetdNativeService.cpp
++++ b/server/NetdNativeService.cpp
+@@ -1161,6 +1161,7 @@
+ binder::Status NetdNativeService::firewallSetUidRule(int32_t chain, int32_t uid, int32_t rule) {
+     if (!FirewallController::isLegacyMode()) return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
+     NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
++    if (chain == 6) return statusFromErrcode(gCtls->legacyIngress.setLockdown(uid, rule));
+     return statusFromErrcode(gCtls->firewallCtrl.setUidRule(chain, uid, rule));
+ }
+ 
+@@ -1170,13 +1171,17 @@
+     return statusFromErrcode(gCtls->firewallCtrl.enableChildChains(chain, enable));
+ }
+ 
+-binder::Status NetdNativeService::firewallAddUidInterfaceRules(const std::string&,
+-                                                               const std::vector<int32_t>&) {
+-    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
+-}
+-
+-binder::Status NetdNativeService::firewallRemoveUidInterfaceRules(const std::vector<int32_t>&) {
+-    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++binder::Status NetdNativeService::firewallAddUidInterfaceRules(const std::string& iface,
++                                                               const std::vector<int32_t>& uids) {
++    if (!FirewallController::isLegacyMode()) return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
++    return statusFromErrcode(gCtls->legacyIngress.addInterfaces(iface, uids));
++}
++
++binder::Status NetdNativeService::firewallRemoveUidInterfaceRules(const std::vector<int32_t>& uids) {
++    if (!FirewallController::isLegacyMode()) return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
++    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
++    return statusFromErrcode(gCtls->legacyIngress.removeInterfaces(uids));
+ }
+ 
+ binder::Status NetdNativeService::tetherAddForward(const std::string& intIface,
+diff --git a/server/main.cpp b/server/main.cpp
+--- a/server/main.cpp
++++ b/server/main.cpp
+@@ -88,6 +88,9 @@
+ int tagSocketCallback(int sockFd, uint32_t tag, uid_t uid, pid_t) {
+     // Workaround for secureVPN with VpnIsolation enabled, refer to b/159994981 for details.
+     if (tag == TAG_SYSTEM_DNS) uid = AID_DNS;
++    if (android::net::FirewallController::isLegacyMode()) {
++        return gCtls ? gCtls->legacySocketTagger.tagSocket(sockFd, tag, uid, AID_DNS) : -ENODEV;
++    }
+     return libnetd_updatable_tagSocket(sockFd, tag, uid, AID_DNS);
+ }
+ 
+@@ -126,17 +129,19 @@
+         gLog.info("setCloseOnExec(%s)", sock);
+     }
+ 
+-    std::string cg2_path;
+-    if (!CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &cg2_path)) {
+-        ALOGE("Failed to find cgroup v2 root %s", strerror(errno));
+-        exit(1);
+-    }
+-
+-    if (libnetd_updatable_init(cg2_path.c_str())) {
+-        ALOGE("libnetd_updatable_init failed");
+-        exit(1);
+-    }
+-    gLog.info("libnetd_updatable_init success");
++    if (!android::net::FirewallController::isLegacyMode()) {
++        std::string cg2_path;
++        if (!CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &cg2_path)) {
++            ALOGE("Failed to find cgroup v2 root %s", strerror(errno));
++            exit(1);
++        }
++    
++        if (libnetd_updatable_init(cg2_path.c_str())) {
++            ALOGE("libnetd_updatable_init failed");
++            exit(1);
++        }
++        gLog.info("libnetd_updatable_init success");
++    }
+ 
+     NetlinkManager *nm = NetlinkManager::Instance();
+     if (nm == nullptr) {
+@@ -146,6 +151,13 @@
+     gLog.info("NetlinkManager instanced");
+ 
+     gCtls = new android::net::Controllers();
++    if (android::net::FirewallController::isLegacyMode()) {
++        const int result = gCtls->legacySocketTagger.checkReady();
++        if (result) {
++            ALOGE("Legacy qtaguid unavailable: %s", strerror(-result));
++            exit(1);
++        }
++    }
+     gCtls->init();
+ 
+     if (nm->start()) {
