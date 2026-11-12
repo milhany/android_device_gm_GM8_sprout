@@ -55,6 +55,12 @@
       ]
     },
     {
+      "path": "system/memory/libmeminfo",
+      "patches": [
+        "patches/sdk33/libmeminfo/0001-gm8-guard-unsupported-gpu-memory-readers.patch"
+      ]
+    },
+    {
       "path": "kernel/gm/msm8937",
       "patches": [
         "patches/sdk33/kernel/0001-gm8-classic-ingress-ifindex-filter.patch"

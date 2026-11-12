@@ -1,0 +1,33 @@
+Subject: gm8: reject unsupported GPU-memory queries before BpfMap construction
+
+diff --git a/sysmeminfo.cpp b/sysmeminfo.cpp
+--- a/sysmeminfo.cpp
++++ b/sysmeminfo.cpp
+@@ -40,6 +40,7 @@
+ #include <android-base/file.h>
+ #include <android-base/logging.h>
+ #include <android-base/parseint.h>
++#include <android-base/properties.h>
+ #include <android-base/stringprintf.h>
+ #include <android-base/strings.h>
+ #include <android-base/unique_fd.h>
+@@ -322,6 +323,9 @@
+ 
+ bool ReadPerProcessGpuMem([[maybe_unused]] std::unordered_map<uint32_t, uint64_t>* out) {
+ #if defined(__ANDROID__) && !defined(__ANDROID_APEX__) && !defined(__ANDROID_VNDK__)
++    // Match GpuMem collector capability before constructing BpfMap: its
++    // constructor can abort on kernels without Android eBPF support.
++    if (!android::base::GetBoolProperty("ro.kernel.ebpf.supported", true)) return false;
+     static constexpr const char kBpfGpuMemTotalMap[] = "/sys/fs/bpf/map_gpu_mem_gpu_mem_total_map";
+ 
+     // Use the read-only wrapper BpfMapRO to properly retrieve the read-only map.
+@@ -371,6 +375,9 @@
+ bool ReadProcessGpuUsageKb([[maybe_unused]] uint32_t pid, [[maybe_unused]] uint32_t gpu_id,
+                            uint64_t* size) {
+ #if defined(__ANDROID__) && !defined(__ANDROID_APEX__) && !defined(__ANDROID_VNDK__)
++    // Match GpuMem collector capability before constructing BpfMap: its
++    // constructor can abort on kernels without Android eBPF support.
++    if (!android::base::GetBoolProperty("ro.kernel.ebpf.supported", true)) return false;
+     static constexpr const char kBpfGpuMemTotalMap[] = "/sys/fs/bpf/map_gpu_mem_gpu_mem_total_map";
+ 
+     uint64_t gpu_mem;

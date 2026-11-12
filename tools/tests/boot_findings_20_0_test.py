@@ -13,6 +13,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from host_java import find_java
 
 ROOT=Path(__file__).resolve().parents[2]
 TOP=None
@@ -67,13 +68,139 @@ class BootFindingsTest(unittest.TestCase):
                     self.assertEqual(status,-1,'Root compatibility rule unexpectedly labels regular files')
         finally:lib.selabel_close(handle)
 
-    def cpp(self,source):
+    def cpp(self,source,flags=()):
         with tempfile.TemporaryDirectory(prefix='gm8-boot-fixes-') as tmp:
             p=Path(tmp);(p/'test.cpp').write_text(source)
-            result=subprocess.run(['c++','-std=c++17','-Wall','-Wextra','-Werror',str(p/'test.cpp'),'-o',str(p/'test')],capture_output=True,text=True)
+            result=subprocess.run(['c++','-std=c++17','-Wall','-Wextra','-Werror',*flags,str(p/'test.cpp'),'-o',str(p/'test')],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             result=subprocess.run([str(p/'test')],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_actual_libmeminfo_gpu_readers_never_construct_bpf_on_legacy(self):
+        source=(TOP/'system/memory/libmeminfo/sysmeminfo.cpp').read_text()
+        actual='\n'.join(method(source,sig) for sig in (
+            'bool ReadPerProcessGpuMem(', 'bool ReadProcessGpuUsageKb(',
+            'bool ReadGpuTotalUsageKb('))
+        fixture=r'''
+#include <cassert>
+#include <cerrno>
+#include <cstdint>
+#include <map>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+bool legacy=true,valid=true,readError=false;
+int constructed=0,propertyReads=0;
+std::map<uint64_t,uint64_t> values;
+namespace android::base {
+bool GetBoolProperty(const char* key,bool fallback){
+ assert(std::string(key)=="ro.kernel.ebpf.supported" && fallback);
+ ++propertyReads;return !legacy;
+}}
+template<class T> struct Result {
+ T data{};int code=0;
+ bool ok() const{return code==0;}
+ T value() const{assert(ok());return data;}
+ struct Error {int number;int code() const{return number;}};
+ Error error() const{return {code};}
+};
+namespace bpf {
+template<class K,class V> struct BpfMapRO {
+ explicit BpfMapRO(const char*) {assert(!legacy);++constructed;}
+ bool isValid() const{return valid;}
+ Result<K> getFirstKey() const {
+  if(values.empty())return {{},ENOENT};
+  return {values.begin()->first,0};
+ }
+ Result<K> getNextKey(K key) const {
+  auto i=values.upper_bound(key);if(i==values.end())return {{},ENOENT};return {i->first,0};
+ }
+ Result<V> readValue(K key) const {
+  if(readError)return {{},EIO};
+  auto i=values.find(key);
+  if(i==values.end())return {{},ENOENT};
+  return {i->second,0};
+ }
+};}
+#define LOG(x) std::ostringstream()
+ACTUAL
+int main(){
+ uint64_t size=991;std::unordered_map<uint32_t,uint64_t> out{{77,13}};
+#if defined(__ANDROID__) && !defined(__ANDROID_APEX__) && !defined(__ANDROID_VNDK__)
+ constexpr bool platform=true;
+#else
+ constexpr bool platform=false;
+#endif
+ assert(!ReadGpuTotalUsageKb(&size));assert(size==(platform?991:0));
+ assert(!ReadProcessGpuUsageKb(12,0,nullptr));
+ assert(!ReadPerProcessGpuMem(&out));assert(out.at(77)==13);
+ assert(!ReadPerProcessGpuMem(nullptr));assert(constructed==0);
+#if defined(__ANDROID__) && !defined(__ANDROID_APEX__) && !defined(__ANDROID_VNDK__)
+ assert(propertyReads==4);legacy=false;
+ values={{0,8192},{12,2048},{(uint64_t{1}<<32)|12,4096}};
+ assert(ReadGpuTotalUsageKb(&size) && size==8);
+ assert(ReadProcessGpuUsageKb(12,1,&size) && size==4);
+ assert(ReadProcessGpuUsageKb(12,1,nullptr));
+ assert(ReadPerProcessGpuMem(&out) && out.size()==2 && out.at(12)==6 && out.at(0)==8);
+ assert(!ReadPerProcessGpuMem(nullptr));
+ assert(ReadProcessGpuUsageKb(99,0,&size) && size==0);
+ valid=false;size=992;
+ assert(!ReadGpuTotalUsageKb(&size) && size==992);assert(!ReadPerProcessGpuMem(&out));
+ valid=true;readError=true;
+ assert(!ReadProcessGpuUsageKb(12,0,&size));assert(!ReadPerProcessGpuMem(&out));
+ readError=false;values.clear();out[77]=13;
+ assert(ReadPerProcessGpuMem(&out) && out.empty());
+#else
+ assert(size==0 && propertyReads==0); // Existing non-platform API behavior.
+#endif
+}
+'''.replace('ACTUAL',actual)
+        for flags in (('-D__ANDROID__',),(),('-D__ANDROID__','-D__ANDROID_VNDK__'),
+                      ('-D__ANDROID__','-D__ANDROID_APEX__')):
+            with self.subTest(flags=flags):self.cpp(fixture,flags)
+
+    def test_actual_bluetooth_music_headset_and_remote_profiles(self):
+        import re
+        mk=(ROOT/'device.mk').read_text().replace('\\\n',' ')
+        product='\n'.join(re.findall(r'^PRODUCT_PRODUCT_PROPERTIES\s*\+=\s*(.*)$',mk,re.M))
+        props=dict(re.findall(r'(bluetooth\.profile\.[\w.]+)=(\w+)',product))
+        definitions=(TOP/'system/libsysprop/srcs/android/sysprop/BluetoothProperties.sysprop').read_text()
+        api={}
+        for block in re.findall(r'prop\s*\{(.*?)\}',definitions,re.S):
+            name=re.search(r'api_name:\s*"([^"]+)"',block)
+            key=re.search(r'prop_name:\s*"([^"]+)"',block)
+            if name and key and re.search(r'type:\s*Boolean',block):
+                api[name[1]]=key[1]
+        self.assertTrue(props,'SDK33 classic profiles missing from product properties')
+        self.assertTrue(set(props)<=set(api.values()),'Unknown Bluetooth sysprop')
+        self.assertTrue(all(value=='true' for value in props.values()))
+        self.assertFalse(any('.bap.' in key for key in props),'GM8 does not advertise LE Audio')
+        services={'A2dpService':'a2dp','HeadsetService':'hfp','AvrcpTargetService':'avrcp'}
+        classes=[];accessors=[]
+        for name,folder in services.items():
+            source=(TOP/'packages/modules/Bluetooth/android/app/src/com/android/bluetooth'/folder/(name+'.java')).read_text()
+            actual=method(source,'public static boolean isEnabled()')
+            accessor=re.search(r'BluetoothProperties\.(\w+)\(',actual)[1]
+            self.assertEqual(props.get(api[accessor]),'true',name+' is disabled')
+            accessors.append('static Optional<Boolean> '+accessor+'(){return Optional.ofNullable(props.get('+json.dumps(api[accessor])+')).map(Boolean::parseBoolean);}')
+            classes.append('class '+name+'{'+actual+'}')
+        fixture='import java.util.*;\nclass BluetoothProperties{static Map<String,String> props=new HashMap<>();'+''.join(accessors)+'}\n'+''.join(classes)+'''
+public class ProfileSelectionTest {
+ public static void main(String[] args) {
+  assert !A2dpService.isEnabled() && !HeadsetService.isEnabled() && !AvrcpTargetService.isEnabled();
+  INSERT_PROPERTIES
+  assert A2dpService.isEnabled() && HeadsetService.isEnabled() && AvrcpTargetService.isEnabled();
+  BluetoothProperties.props.put("bluetooth.profile.a2dp.source.enabled","false");
+  assert !A2dpService.isEnabled() && HeadsetService.isEnabled();
+ }
+}'''.replace('INSERT_PROPERTIES','\n'.join('BluetoothProperties.props.put('+json.dumps(k)+','+json.dumps(v)+');' for k,v in props.items()))
+        java=find_java(TOP)
+        with tempfile.TemporaryDirectory(prefix='gm8-bt-profiles-') as tmp:
+            p=Path(tmp);source=p/'ProfileSelectionTest.java';source.write_text(fixture)
+            result=subprocess.run([java,'-m','jdk.compiler/com.sun.tools.javac.Main','-d',str(p),str(source)],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            result=subprocess.run([java,'-ea','-cp',str(p),'ProfileSelectionTest'],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
 
     def test_actual_cgroup_and_profile_selection_legacy_and_default(self):
         core=TOP/'system/core/libprocessgroup'

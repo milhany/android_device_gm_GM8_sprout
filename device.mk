@@ -14,6 +14,22 @@ PRODUCT_SYSTEM_PROPERTIES += \
     pm.dexopt.install=speed-profile \
     pm.dexopt.bg-dexopt=speed-profile
 
+# SDK33 Bluetooth services read sysprops, not the former profile resource bools.
+# Supply the classic phone roles; without them only GATT starts and pairing
+# cannot lead to a music/headset connection. Do not advertise LE Audio roles.
+PRODUCT_PRODUCT_PROPERTIES += \
+    bluetooth.profile.a2dp.source.enabled=true \
+    bluetooth.profile.avrcp.target.enabled=true \
+    bluetooth.profile.gatt.enabled=true \
+    bluetooth.profile.hfp.ag.enabled=true \
+    bluetooth.profile.hid.device.enabled=true \
+    bluetooth.profile.hid.host.enabled=true \
+    bluetooth.profile.map.server.enabled=true \
+    bluetooth.profile.opp.enabled=true \
+    bluetooth.profile.pan.nap.enabled=true \
+    bluetooth.profile.pan.panu.enabled=true \
+    bluetooth.profile.pbap.server.enabled=true
+
 # Retain the shipping FCM 2 contract, including its 3.18 kernel requirements.
 PRODUCT_PACKAGES += gm8_framework_compatibility_matrix.2.xml
 
