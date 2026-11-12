@@ -117,3 +117,7 @@ GNSS/sensors/fingerprint, suspend/wake, charging and idle battery measurement.
 Thermal HAL still reports sensors without its own mitigation policy; the
 existing kernel/firmware protection must be checked on hardware. No battery
 life or thermal improvement is claimed from successful compilation.
+
+The full runtime candidate subsequently compiled on the build host. See
+[FIRSTBOOT-20.0.md](FIRSTBOOT-20.0.md) for the existing-target-files signing and
+first-boot package workflow; no additional source build is required for it.
