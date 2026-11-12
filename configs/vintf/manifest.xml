@@ -649,4 +649,14 @@
         </interface>
         <fqname>@1.0::ISwfingerprint/default</fqname>
     </hal>
+    <!-- Existing vendor perf HAL is required by camera/audio performance clients. -->
+    <hal format="hidl">
+        <name>vendor.qti.hardware.perf</name>
+        <transport>hwbinder</transport>
+        <version>1.0</version>
+        <interface>
+            <name>IPerf</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
 </manifest>

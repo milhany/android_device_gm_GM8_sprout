@@ -1,0 +1,23 @@
+Subject: gm8: give system_server cpuacct access after mounting the hierarchy
+
+diff --git a/libprocessgroup/setup/cgroup_map_write.cpp b/libprocessgroup/setup/cgroup_map_write.cpp
+--- a/libprocessgroup/setup/cgroup_map_write.cpp
++++ b/libprocessgroup/setup/cgroup_map_write.cpp
+@@ -344,6 +344,17 @@
+         }
+     }
+ 
++    // /acct is on read-only SAR before the cgroup mount. Keep its descriptor
++    // ownership empty, then configure the writable hierarchy after mount.
++    // system_server creates isolated app groups after app-zygote forks.
++    if (result == 0 && controller->version() == 1 &&
++        !strcmp(controller->name(), "cpuacct") &&
++        android::base::GetBoolProperty("ro.vendor.gm8.legacy_cgroups", false)) {
++        if (!ChangeDirModeAndOwner(controller->path(), 0750, "system", "system")) {
++            LOG(ERROR) << "Failed to set legacy cpuacct hierarchy ownership";
++            return false;
++        }
++    }
+     return true;
+ }
+ 

@@ -1,0 +1,60 @@
+Subject: gm8: retain legacy WLAN stats when the newer duty-cycle attribute is absent
+
+diff --git a/wcn6740/qcwcn/wifi_hal/llstats.cpp b/wcn6740/qcwcn/wifi_hal/llstats.cpp
+--- a/wcn6740/qcwcn/wifi_hal/llstats.cpp
++++ b/wcn6740/qcwcn/wifi_hal/llstats.cpp
+@@ -24,6 +24,7 @@
+ #define LOG_TAG  "WifiHAL"
+ 
+ #include <utils/Log.h>
++#include <cutils/properties.h>
+ 
+ #include "wifi_hal.h"
+ #include "common.h"
+@@ -189,12 +190,21 @@
+     memcpy(&stats->country_str[0], nla_data(tb_vendor[QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_COUNTRY_STR]),
+            len);
+ 
+-    if (!tb_vendor[QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_TS_DUTY_CYCLE])
+-    {
+-        ALOGE("%s: QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_TS_DUTY_CYCLE not found", __FUNCTION__);
+-        return WIFI_ERROR_INVALID_ARGS;
+-    }
+-    stats->time_slicing_duty_cycle_percent = nla_get_u8(tb_vendor[QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_TS_DUTY_CYCLE]);
++    struct nlattr *duty = tb_vendor[QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_TS_DUTY_CYCLE];
++    if (!duty) {
++        if (!property_get_bool("ro.vendor.gm8.legacy_wifi_stats", false)) {
++            ALOGE("%s: QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_TS_DUTY_CYCLE not found", __FUNCTION__);
++            return WIFI_ERROR_INVALID_ARGS;
++        }
++        // The older stats ABI has no duty-cycle measurement. Use its
++        // no-time-slicing compatibility default, retaining the real counters.
++        stats->time_slicing_duty_cycle_percent = 100;
++    } else {
++        if (nla_len(duty) != 1 || nla_get_u8(duty) > 100) {
++            return WIFI_ERROR_INVALID_ARGS;
++        }
++        stats->time_slicing_duty_cycle_percent = nla_get_u8(duty);
++    }
+ #if QC_HAL_DEBUG
+     ALOGV("Mode : %d\n"
+           "Mac addr : "
+diff --git a/wcn6740/qcwcn/wifi_hal/Android.mk b/wcn6740/qcwcn/wifi_hal/Android.mk
+--- a/wcn6740/qcwcn/wifi_hal/Android.mk
++++ b/wcn6740/qcwcn/wifi_hal/Android.mk
+@@ -99,6 +99,7 @@
+ LOCAL_MODULE := libwifi-hal-qcom
+ LOCAL_VENDOR_MODULE := true
+ LOCAL_CLANG := true
++LOCAL_SHARED_LIBRARIES += libcutils
+ LOCAL_SHARED_LIBRARIES += libnetutils liblog libcld80211
+ LOCAL_SHARED_LIBRARIES += libcrypto
+ 
+@@ -177,6 +178,7 @@
+ LOCAL_MODULE := libwifi-hal-qcom
+ LOCAL_VENDOR_MODULE := true
+ LOCAL_CLANG := true
++LOCAL_SHARED_LIBRARIES += libcutils
+ LOCAL_SHARED_LIBRARIES += libnetutils liblog
+ LOCAL_SHARED_LIBRARIES += libdl libcld80211
+ LOCAL_SHARED_LIBRARIES += libwifi-hal-ctrl

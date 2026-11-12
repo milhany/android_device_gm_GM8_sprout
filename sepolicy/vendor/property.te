@@ -5,3 +5,5 @@ vendor_internal_prop(vendor_power_prop)
 vendor_public_prop(vendor_gm8_dpm_prop)
 
 vendor_public_prop(vendor_gm8_cgroup_prop)
+
+vendor_internal_prop(vendor_gm8_wifi_stats_prop)

@@ -89,3 +89,6 @@ ro.vendor.extension_library=libqti-perfd-client.so
 
 # Public read-only capability used by libprocessgroup in every process.
 ro.vendor.gm8.legacy_cgroups=true
+
+# Legacy WLAN firmware omits the newer optional time-slicing duty-cycle field.
+ro.vendor.gm8.legacy_wifi_stats=true

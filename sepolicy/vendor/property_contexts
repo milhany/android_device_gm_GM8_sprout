@@ -12,3 +12,4 @@ persist.vendor.dpm.feature u:object_r:vendor_gm8_dpm_prop:s0 exact string
 persist.vendor.dpm.loglevel u:object_r:vendor_gm8_dpm_prop:s0 exact string
 
 ro.vendor.gm8.legacy_cgroups u:object_r:vendor_gm8_cgroup_prop:s0 exact bool
+ro.vendor.gm8.legacy_wifi_stats u:object_r:vendor_gm8_wifi_stats_prop:s0 exact bool

@@ -7,7 +7,8 @@
       "path": "system/core",
       "patches": [
         "patches/sdk33/system_core/0001-gm8-cgroup-v1-process-tracking.patch",
-        "patches/sdk33/system_core/0002-gm8-authoritative-cgroup-v1-policy.patch"
+        "patches/sdk33/system_core/0002-gm8-authoritative-cgroup-v1-policy.patch",
+        "patches/sdk33/system_core/0003-gm8-cpuacct-owner-after-mount.patch"
       ]
     },
     {
@@ -83,6 +84,12 @@
       "patches": [
         "patches/sdk33/vendor_gm/0001-gm8-gate-absent-ssc-daemon.patch",
         "patches/sdk33/vendor_gm/0002-gm8-gate-absent-qmuxd.patch"
+      ]
+    },
+    {
+      "path": "hardware/qcom/wlan",
+      "patches": [
+        "patches/sdk33/qcom_wlan/0001-gm8-legacy-llstats-duty-cycle.patch"
       ]
     }
   ]
