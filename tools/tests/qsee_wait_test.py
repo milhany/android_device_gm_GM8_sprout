@@ -14,6 +14,7 @@ NAMES = [
     '__qseecom_clean_listener_sglistinfo',
     '__qseecom_process_incomplete_cmd',
     'qseecom_release',
+    'qseecom_register_listener',
 ]
 
 
@@ -31,7 +32,10 @@ def function(source, name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
-    parser.add_argument('--baseline', action='store_true')
+    baseline = parser.add_mutually_exclusive_group()
+    baseline.add_argument('--baseline', action='store_true')
+    baseline.add_argument('--group-baseline', action='store_true',
+                        help='Reproduce the multi-listener exit deadlock in the earlier close fix')
     parser.add_argument('--sanitize', action='store_true')
     args = parser.parse_args()
     source = args.source.read_text()
@@ -48,6 +52,8 @@ def main():
             cmd += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-no-pie']
         if args.baseline:
             cmd += ['-DBASELINE=1']
+        if args.group_baseline:
+            cmd += ['-DGROUP_BASELINE=1']
         cmd += [str(Path(__file__).with_name('qsee_host.c')), '-o', str(binary)]
         subprocess.run(cmd, check=True)
         subprocess.run([str(binary)], check=True, timeout=30)

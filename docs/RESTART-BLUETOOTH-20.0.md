@@ -35,7 +35,7 @@ implementation are not evidence that the working 2.0 provider is absent.
 
 | Finding | Evidence and next boundary |
 | --- | --- |
-| Keystore/Keymaster lockup | Two system_server main-thread watchdog traces wait in TrustManagerService -> Authorization.onLockScreenEvent. Keystore generateKey calls wait over 20 minutes in the Keymaster 3.0 bridge. The blocked-task dump also has qseecomd final close and a fingerprint ioctl waiting for QSEE mutexes. Exact lock ownership is not established; correlate the running kernel's vmlinux before changing its lifetime/locking. The GPU fix does not claim to repair this. |
+| Keystore/Keymaster lockup | The matching vmlinux identifies app_access_lock at both blocked QSEE sites. The predecessor's multi-listener group-exit deadlock is reproduced and a scoped owner-identity repair is staged in the paired kernel. See QSEE-GROUP-EXIT-20.0.md. The trace omits active listener ownership; real firmware acceptance and the reason for service exit remain open. |
 | LCD backlight | Disabling three display settings together restored blanking, but this did not isolate the cause. The permanent ambient-display suppression was withdrawn; see DISPLAY-SLEEP-20.0.md. |
 | mm-pp-dpps | One separate null-PC SIGSEGV exists in this proprietary display-processing daemon. The stack does not identify a failed symbol. No blob replacement, daemon removal or panel command rewrite is justified by that trace alone. |
 | Bluetooth package state | PackageManager repeatedly warns about the Bluetooth shared UID. Recheck after the restart loop is removed; do not edit packages.xml or format data to hide it. |
