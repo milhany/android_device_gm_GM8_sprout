@@ -118,6 +118,17 @@ class FirstBootTest(unittest.TestCase):
             'META/apkcerts.txt':f'name="System.apk" certificate="{old}" private_key="a.pk8"\nname="Flat.apk" certificate="{alias}" private_key="a.pk8"\nname="Gms.apk" certificate="PRESIGNED" private_key=""\n',
             'META/apexkeys.txt':f'name="com.android.fixture.apex" public_key="unused.avbpubkey" private_key="unused.pem" container_certificate="{old}" container_private_key="unused.pk8"\n',
             'VENDOR/etc/fstab.qcom':'/dev/block/by-name/userdata /data f2fs rw,noatime wait,check,formattable,quota\n',
+            'VENDOR/etc/init/android.hardware.wifi.supplicant-service.rc':
+                'service wpa_supplicant /vendor/bin/hw/wpa_supplicant \\\n'
+                '    -O/data/vendor/wifi/wpa/sockets -dd \\\n'
+                '    -g@android:wpa_wlan0\n'
+                '    interface aidl android.hardware.wifi.supplicant.ISupplicant/default\n'
+                '    class main\n    socket wpa_wlan0 dgram 660 wifi wifi\n    disabled\n    oneshot\n',
+            'VENDOR/bin/hw/wpa_supplicant':b'fixture-supplicant',
+            'VENDOR/etc/vintf/manifest/android.hardware.wifi.supplicant.xml':
+                '<manifest version="1.0" type="device"><hal format="aidl">'
+                '<name>android.hardware.wifi.supplicant</name><version>1</version>'
+                '<fqname>ISupplicant/default</fqname></hal></manifest>',
             'BOOT/RAMDISK/system/etc/recovery.fstab':'/dev/block/by-name/userdata /data f2fs rw wait,check,formattable,quota\n',
             'BOOT/RAMDISK/prop.default':'ro.debuggable=1\n',
             'SYSTEM/apex/com.android.fixture/apex_manifest.pb':b'flat-manifest',
@@ -319,6 +330,32 @@ class FirstBootTest(unittest.TestCase):
         self.assertEqual(plan['unused_apex_metadata'],['com.android.fixture.apex'])
         self.assertEqual(before,{p.name:p.read_bytes() for p in self.keys.iterdir()})
         self.assertTrue(any('/apex/' in a['entry'] and a['key'] for a in plan['apks']))
+
+    def test_packaged_wifi_requires_matching_rc_binary_and_vintf(self):
+        original=dict(self.entries)
+        rc='VENDOR/etc/init/android.hardware.wifi.supplicant-service.rc'
+        binary='VENDOR/bin/hw/wpa_supplicant'
+        manifest='VENDOR/etc/vintf/manifest/android.hardware.wifi.supplicant.xml'
+        with zipfile.ZipFile(self.target) as archive:
+            report=signer.inspection.wifi_init_service(archive)
+            self.assertEqual(report['rc'],rc);self.assertEqual(report['executable'],binary)
+        cases=[
+            ({rc:None},'init service'),
+            ({binary:None},'executable'),
+            ({rc:original[rc].replace('interface aidl','interface hidl')},'AIDL'),
+            ({'VENDOR/etc/init/duplicate.rc':original[rc]},'init service'),
+            ({manifest:None},'VINTF'),
+            ({manifest:original[manifest].replace('ISupplicant/default','ISupplicant/other')},'VINTF'),
+            ({rc:original[rc].replace('/vendor/bin/hw/wpa_supplicant','/vendor/bin/other')},'executable'),
+        ]
+        for changes,message in cases:
+            with self.subTest(changes=list(changes)):
+                self.entries=dict(original)
+                for path,data in changes.items():
+                    if data is None:self.entries.pop(path)
+                    else:self.entries[path]=data
+                self.write_target()
+                with self.assertRaisesRegex(ValueError,message):self.plan()
 
     def test_readonly_plan_rejects_missing_or_exposed_keys(self):
         (self.keys/'releasekey.pk8').unlink()

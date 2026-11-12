@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import xml.etree.ElementTree as ET
 import zipfile
 
 
@@ -44,6 +45,47 @@ def text_from_zip(archive, name):
 def properties(text):
     return dict(line.split('=', 1) for line in text.splitlines()
                 if '=' in line and not line.lstrip().startswith('#'))
+
+
+def wifi_init_service(archive):
+    """Check the packaged AIDL contract, not just PRODUCT_PACKAGES/VINTF claims."""
+    declarations=[];manifests=[]
+    interface='android.hardware.wifi.supplicant.ISupplicant/default'
+    for path in archive.namelist():
+        if re.fullmatch(r'VENDOR/etc/init/(?:.*/)?[^/]+\.rc',path):
+            # Init service options and continued command lines are indented;
+            # the next top-level section terminates the current service.
+            section=None
+            for line in text_from_zip(archive,path).splitlines():
+                raw=line.split('#',1)[0].rstrip()
+                if not raw.strip():continue
+                if not raw[0].isspace():
+                    words=raw.split();section=None
+                    if len(words)>=3 and words[:2]==['service','wpa_supplicant']:
+                        section={'rc':path,'executable':words[2],'options':[]}
+                        declarations.append(section)
+                elif section is not None:section['options'].append(raw.split())
+        if re.fullmatch(r'VENDOR/etc/vintf/(?:manifest\.xml|manifest/[^/]+\.xml)',path):
+            try:root=ET.fromstring(text_from_zip(archive,path))
+            except ET.ParseError as error:raise ValueError('Invalid packaged VINTF XML: '+path) from error
+            for hal in root.findall('hal'):
+                if hal.get('format')!='aidl' or hal.findtext('name')!='android.hardware.wifi.supplicant':continue
+                for name in hal.findall('fqname'):
+                    if (name.text or '').strip()=='ISupplicant/default':manifests.append(path)
+                for item in hal.findall('interface'):
+                    if item.findtext('name')=='ISupplicant':
+                        manifests.extend(path for name in item.findall('instance') if (name.text or '').strip()=='default')
+    if len(declarations)!=1:raise ValueError('Expected exactly one packaged wpa_supplicant init service; found '+str(len(declarations)))
+    entry=declarations[0]
+    if ['interface','aidl',interface] not in entry['options']:
+        raise ValueError('Packaged supplicant init service lacks the AIDL ISupplicant/default interface')
+    if entry['executable']!='/vendor/bin/hw/wpa_supplicant':raise ValueError('Unexpected packaged supplicant executable')
+    binary='VENDOR/bin/hw/wpa_supplicant'
+    if binary not in archive.namelist() or archive.getinfo(binary).file_size==0:
+        raise ValueError('Missing packaged supplicant executable: '+binary)
+    if len(manifests)!=1:raise ValueError('Expected exactly one packaged AIDL supplicant VINTF instance; found '+str(len(manifests)))
+    return {'rc':entry['rc'],'executable':binary,'interface':interface,'vintf':manifests[0],
+            'scope':'Packaged service wiring only; daemon operation and Wi-Fi connectivity require hardware testing.'}
 
 
 def current_sources(top):
@@ -132,6 +174,7 @@ def inspect(top, target):
                 if 'ro.build.version.sdk' in p}
         if '33' not in sdks:
             raise ValueError('No SDK33 build property found in target-files')
+        report['wifi_service']=wifi_init_service(archive)
         if not report['data_fstabs']:
             observations.append('No /data entry found in the inspected packaged fstab paths.')
         for path, entries in report['data_fstabs'].items():

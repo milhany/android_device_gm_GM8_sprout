@@ -30,6 +30,8 @@ ROOT=Path(__file__).resolve().parents[1]
 # SDK32 inventory, key generation and signing entry points are never called.
 spec=importlib.util.spec_from_file_location('gm8_signing_crypto',ROOT/'tools/release-19.1.py')
 crypto=importlib.util.module_from_spec(spec);spec.loader.exec_module(crypto)
+inspection_spec=importlib.util.spec_from_file_location('gm8_sdk33_inspection',ROOT/'tools/inspect-target-files-20.0.py')
+inspection=importlib.util.module_from_spec(inspection_spec);inspection_spec.loader.exec_module(inspection)
 sys.path.insert(0,str(ROOT/'tools/tests'))
 from host_java import find_java
 
@@ -62,6 +64,7 @@ def metadata(z,signed=False):
         raise ValueError('Expected GM8 SDK33 userdebug target-files')
     if signed and set(build.get('ro.build.tags','').split(','))!={'release-keys'}:
         raise ValueError('Signed candidate must have release-keys tags')
+    inspection.wifi_init_service(z)
     misc=crypto.props(crypto.text(z,'META/misc_info.txt'))
     if misc.get('ab_update')!='true':raise ValueError('Expected A/B target-files')
     if misc.get('avb_enable')=='true' or misc.get('verity')=='true':

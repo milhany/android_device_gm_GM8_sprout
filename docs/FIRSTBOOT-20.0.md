@@ -106,7 +106,7 @@ and its payload are still signed/verified with the single planned primary key.
 
 The plan format is version 2. Retry using the wrapper, which creates a fresh
 output directory rather than reusing an older or failed plan. The host suite
-now includes 21 cases covering public-only extras, scope separation, remapping,
+now includes 22 cases covering public-only extras, scope separation, remapping,
 changed public certificates, and exact duplicate handling in addition to the
 original signing/boot/payload regressions. New cases verify multi-role discovery,
 reuse, password validation/encryption, incomplete pairs, publication collisions,
@@ -114,6 +114,16 @@ preparation locking and the single-password package CLI. APK-specific cases
 exercise combined standard/custom discovery, alias deduplication, existing
 owned-certificate reuse, persistent retries, partial pairs, private directory
 permissions, installed-APK proof and primary-key exclusion.
+
+The first hardware boot exposed a missing supplicant init service even though
+its AIDL VINTF instance was installed. BoardConfig now enables the upstream
+`WIFI_HIDL_UNIFIED_SUPPLICANT_SERVICE_RC_ENTRY` gate (the historical name also
+controls SDK33's AIDL RC). The target-files inspector and signing metadata gate
+now require exactly one packaged `wpa_supplicant` service with the AIDL
+`ISupplicant/default` interface, its executable and matching VINTF declaration.
+The regression covers absent/duplicate RCs, missing or wrong executables and
+missing or mismatched interfaces. Rebuild target-files before packaging this
+fix; the older archive fails this gate. No driver or firmware change is included.
 
 The actual OTA whole-file CMS signature is verified with OpenSSL. The v2 payload
 manifest must be a full update of exactly boot/system/vendor, with no old source
