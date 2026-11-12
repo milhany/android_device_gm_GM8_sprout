@@ -64,5 +64,13 @@ public class CumulativeSnapshotFixture {
         Files.delete(root.resolve("net/xt_qtaguid/iface_stat_all"));
         ioError(()->factory.readNetworkStatsSummaryDev());check(StrictMode.current==policy);
         check(BpfNetMaps.created==0&&BpfNetMaps.swaps==0);
+        // The final runtime stack adds UID purge; older read-only checkpoints do not.
+        try {
+            java.lang.reflect.Method purge=NetworkStatsFactory.class.getMethod("removeLegacyUids",int[].class);
+            purge.invoke(factory,(Object)new int[]{10001});
+            put(stats,first); // Reused UID starts again with lower kernel counters.
+            check(bytes(factory.readNetworkStatsDetail(10001,null,0))==200);
+        } catch (NoSuchMethodException oldCheckpoint) { }
+
     }
 }

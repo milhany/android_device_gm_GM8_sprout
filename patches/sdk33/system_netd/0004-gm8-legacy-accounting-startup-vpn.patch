@@ -1,3 +1,22 @@
+diff --git a/Android.bp b/Android.bp
+--- a/Android.bp
++++ b/Android.bp
+@@ -13,6 +13,15 @@
+     license_text: [
+         "NOTICE",
+     ],
++}
++
++// Private wire declarations shared by the paired GM8 system/APEX build.
++// No platform-only libnetd_client binary is linked into the Tethering APEX.
++cc_library_headers {
++    name: "libgm8_legacy_fwmark_headers",
++    export_include_dirs: ["include"],
++    min_sdk_version: "30",
++    apex_available: ["//apex_available:platform", "com.android.tethering"],
+ }
+ 
+ cc_library_headers {
 diff --git a/include/FwmarkCommand.h b/include/FwmarkCommand.h
 --- a/include/FwmarkCommand.h
 +++ b/include/FwmarkCommand.h
@@ -14,7 +33,20 @@ diff --git a/include/FwmarkCommand.h b/include/FwmarkCommand.h
 diff --git a/server/Controllers.cpp b/server/Controllers.cpp
 --- a/server/Controllers.cpp
 +++ b/server/Controllers.cpp
-@@ -221,7 +221,9 @@
+@@ -187,7 +187,11 @@
+         }
+     }
+     command += "COMMIT\n";
+-    execIptablesRestore(target, command);
++    const int result = execIptablesRestore(target, command);
++    if (result && FirewallController::isLegacyMode()) {
++        ALOGE("Legacy child-chain initialization failed");
++        exit(1);
++    }
+ }
+ 
+ Controllers::Controllers()
+@@ -221,7 +225,9 @@
       */
  
      // Create chains for child modules.
@@ -25,7 +57,7 @@ diff --git a/server/Controllers.cpp b/server/Controllers.cpp
      createChildChains(V4V6, "filter", "FORWARD", FILTER_FORWARD, true);
      createChildChains(V4V6, "raw", "PREROUTING", RAW_PREROUTING, true);
      createChildChains(V4V6, "mangle", "FORWARD", MANGLE_FORWARD, true);
-@@ -245,7 +247,13 @@
+@@ -245,7 +251,13 @@
      gLog.info("Setting up OEM hooks: %" PRId64 "us", s.getTimeAndResetUs());
  
      /* When enabled, DROPs all packets except those matching rules. */

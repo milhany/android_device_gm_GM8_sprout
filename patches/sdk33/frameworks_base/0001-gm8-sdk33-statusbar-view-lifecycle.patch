@@ -1,0 +1,19 @@
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
+@@ -383,6 +383,7 @@
+ 
+     @Override
+     public void onDestroyView() {
++        Dependency.get(TunerService.class).removeTunable(this);
+         super.onDestroyView();
+         mStatusBarIconController.removeIconGroup(mDarkIconManager);
+         mCarrierConfigTracker.removeCallback(mCarrierConfigCallback);
+@@ -398,6 +399,7 @@
+ 
+     @Override
+     public void onTuningChanged(String key, String newValue) {
++        if (getView() == null) return;
+         boolean wasClockBlacklisted = mIsClockBlacklisted;
+         mIsClockBlacklisted = StatusBarIconController.getIconHideList(
+                 mContext, newValue).contains("clock");

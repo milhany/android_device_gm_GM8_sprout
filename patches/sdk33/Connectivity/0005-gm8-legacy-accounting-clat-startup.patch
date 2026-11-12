@@ -26,7 +26,7 @@ diff --git a/service/Android.bp b/service/Android.bp
          "jni/onload.cpp",
      ],
      header_libs: [
-+        "libnetd_client_headers",
++        "libgm8_legacy_fwmark_headers",
          "bpf_connectivity_headers",
      ],
      static_libs: [

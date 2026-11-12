@@ -1,5 +1,10 @@
 # GM8 LineageOS 20 / Android 13 source bring-up
 
+The complete paired runtime source candidate now uses `build-20.0.sh runtime`.
+See [RUNTIME-20.0.md](RUNTIME-20.0.md) for its implementation, full-build entry
+point and validation boundaries. The individual checkpoints below describe
+the earlier incremental bring-up; they are not substitutes for the full stack.
+
 Stage: source checkout, build-graph investigation and unsigned target-files
 compilation. No bootable Android 13 ROM, signed OTA or phone validation is
 claimed. Do not install bring-up images while runtime ports remain open.

@@ -2,7 +2,10 @@
 # SDK33 audit, build graph and unsigned target-files compilation checkpoints.
 set -euo pipefail
 stage="${1:-audit}"
-case "$stage" in audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions|network-snapshots) ;; *) echo 'Usage: build-20.0.sh [audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions|network-snapshots]' >&2; exit 2;; esac
+if [[ "$stage" == runtime ]]; then
+    exec bash "$(dirname "${BASH_SOURCE[0]}")/build-runtime-20.0.sh"
+fi
+case "$stage" in audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions|network-snapshots) ;; *) echo 'Usage: build-20.0.sh [runtime|audit|configure|compile|network-stats|network-firewall|network-policy|network-sockets|network-permissions|network-snapshots]' >&2; exit 2;; esac
 script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 top="$(cd "$script/../../../.." && pwd)"
 cd "$top"

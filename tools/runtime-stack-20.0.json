@@ -10,6 +10,18 @@
       ]
     },
     {
+      "path": "packages/modules/NetworkStack",
+      "patches": [
+        "patches/sdk33/NetworkStack/0001-gm8-sdk33-bound-legacy-tcp-info.patch"
+      ]
+    },
+    {
+      "path": "frameworks/base",
+      "patches": [
+        "patches/sdk33/frameworks_base/0001-gm8-sdk33-statusbar-view-lifecycle.patch"
+      ]
+    },
+    {
       "path": "system/netd",
       "patches": [
         "patches/sdk33/system_netd/0001-gm8-legacy-uid-firewall.patch",
