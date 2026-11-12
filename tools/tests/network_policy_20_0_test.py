@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from host_java import find_java
 
 ROOT = Path(__file__).resolve().parents[2]
 HELPER = ROOT / 'tools/apply-network-policy-20.0.py'
@@ -216,10 +217,7 @@ public interface INetd {
 }'''}
         for name, text in stubs.items():
             path = host / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text(text)
-        candidates = [TOP / 'prebuilts/jdk/jdk11/linux-x86/bin/java', TOP / 'prebuilts/jdk/jdk17/linux-x86/bin/java',
-                      Path(shutil.which('java') or '/nonexistent'), Path('/usr/lib/jvm/default-java/bin/java')]
-        java = next((str(p) for p in candidates if p.is_file()), None)
-        self.assertIsNotNone(java, 'A Java runtime with jdk.compiler is required for host checks.')
+        java = find_java(TOP)
         classes = host / 'classes'; classes.mkdir()
         # Minimal runtimes can contain jdk.compiler without ct.sym; use source/
         # target language selection. Android APIs are fixtures, not SDK validation.

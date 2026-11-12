@@ -30,5 +30,13 @@
     "patches/sdk33/system_netd/0003-gm8-legacy-socket-tagging.patch": "4314464c8b6969996f5982e5af5c10774c2d357ec1453b3210741a3c8f32f686",
     "patches/sdk33/system_netd/0004-gm8-legacy-accounting-startup-vpn.patch": "b11af365de5576eae96fa307514200e055ad93490eb19b43695dacf243d94b35",
     "patches/sdk33/telephony/0001-gm8-sdk33-legacy-data-switch.patch": "53ac7a9be50f6e4f419ef527ee5d07604e04413de7a11ca83998d5b0a53360e5"
+  },
+  "host_jdk_resolution": {
+    "checked_utc": "2026-11-12T05:54:04.559466+00:00",
+    "resolver_regression_cases": 6,
+    "resolver_checks_passed": true,
+    "complete_runtime_host_suite_without_java_on_path": "passed",
+    "jdk_selected_from_real_checkout": true,
+    "jdk_free_child_fixtures": "passed"
   }
 }

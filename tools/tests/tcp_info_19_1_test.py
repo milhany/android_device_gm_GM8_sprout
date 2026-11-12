@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from host_java import find_java
 
 
 def block(source, signature):
@@ -27,9 +28,9 @@ def clean(source):
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--top', type=Path, default=Path(__file__).resolve().parents[5])
 parser.add_argument('--source', type=Path)
-parser.add_argument('--java', default=shutil.which('java') or
-                    '/usr/lib/jvm/java-17-openjdk-amd64/bin/java')
+parser.add_argument('--java')
 args = parser.parse_args()
+args.java = find_java(args.top, args.java)
 repo = args.source or args.top / 'packages/modules/NetworkStack'
 relative = 'src/com/android/networkstack/netlink/'
 current = (repo / relative / 'TcpSocketTracker.java').read_text()

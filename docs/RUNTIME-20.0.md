@@ -31,6 +31,13 @@ then validates the actual Android graph, kernel/native/Java sources, policy and
 packaging. Generated `KERNEL_OBJ`, installed kernel and `boot.img` are removed
 before this build to force a kernel rebuild; other outputs are retained.
 
+Host Java is selected and probed from the real checkout before creating a
+source-only test fixture. Its absolute path is passed to every Java host test
+through `GM8_HOST_JAVA`, including permission/snapshot/runtime and TCP parser
+checks. A system-wide `java` installation or PATH entry is not required when
+the checkout JDK works. A broken explicit override or missing compiler fails
+with the selected path and probe error before the long test suite.
+
 Records and the live log are under `../gm8-20.0-records/*-runtime-*/`.
 The target-files output remains in the normal product packaging directory.
 The final inspector reads that new archive. No keys are generated or modified,

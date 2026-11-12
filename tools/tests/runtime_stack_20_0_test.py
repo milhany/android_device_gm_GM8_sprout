@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from host_java import find_java
 
 ROOT = Path(__file__).resolve().parents[2]
 TOP = None
@@ -65,8 +66,7 @@ class RuntimeStackTest(unittest.TestCase):
             p = self.host / 'src' / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content)
-        java = TOP/'prebuilts/jdk/jdk11/linux-x86/bin/java'
-        if not java.is_file(): java = Path(shutil.which('java') or '/nonexistent')
+        java = find_java(TOP)
         result = run([java, '-m', 'jdk.compiler/com.sun.tools.javac.Main', '-source', '8',
                       '-target', '8', '-d', self.host/'classes', *sorted((self.host/'src').rglob('*.java'))])
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -336,8 +336,7 @@ int main(int,char**){using android::gm8legacy::request;auto cmd=FwmarkCommand::_
         stubs['com/android/server/NetworkPolicyFixture.java']=code
         stubs['com/android/server/BpfNetMaps.java']=(TOP/'packages/modules/Connectivity/service/src/com/android/server/BpfNetMaps.java').read_text()
         self.java(stubs,'com.android.server.NetworkPolicyFixture',['-Dro.kernel.ebpf.supported=false'], ['legacy'])
-        java=TOP/'prebuilts/jdk/jdk11/linux-x86/bin/java'
-        if not java.is_file():java=Path(shutil.which('java'))
+        java=find_java(TOP)
         for mode in ('modern','default','pret','load-failure'):
             flags=[] if mode=='default' else ['-Dro.kernel.ebpf.supported=true']
             if mode=='pret':flags.append('-Dgm8.sdk.t=false')

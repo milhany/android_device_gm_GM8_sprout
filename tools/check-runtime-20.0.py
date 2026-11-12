@@ -3,6 +3,7 @@
 import argparse
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -10,6 +11,8 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'tools/tests'))
+from host_java import find_java
 spec = importlib.util.spec_from_file_location('stack', ROOT/'tools/apply-runtime-stack-20.0.py')
 stack = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(stack)
@@ -19,6 +22,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--top',type=Path,required=True)
     args=parser.parse_args();top=args.top.resolve()
+    java=find_java(top)
+    child_env={**os.environ, 'GM8_HOST_JAVA':java}
+    print(f'Host test JDK: {java}',flush=True)
+    subprocess.run([sys.executable,str(ROOT/'tools/tests/host_java_test.py')],check=True,env=child_env)
     subprocess.run([sys.executable,str(ROOT/'tools/apply-runtime-stack-20.0.py'),'--top',str(top),'--check'],check=True)
     config=json.loads((ROOT/'tools/runtime-stack-20.0.json').read_text())
     with tempfile.TemporaryDirectory(prefix='gm8-runtime-predecessor-tests-') as temporary:
@@ -58,12 +65,12 @@ def main():
             ('permissions_20_0_test.py',['--top',str(baseline)]),
         ]
         for name,flags in tests:
-            subprocess.run([sys.executable,str(ROOT/'tools/tests'/name),*flags],check=True)
+            subprocess.run([sys.executable,str(ROOT/'tools/tests'/name),*flags],check=True,env=child_env)
     # Compile the final factory and routing/backend methods, not normalized ones.
     for name in ('snapshots_20_0_test.py','runtime_stack_20_0_test.py'):
-        subprocess.run([sys.executable,str(ROOT/'tools/tests'/name),'--top',str(top)],check=True)
+        subprocess.run([sys.executable,str(ROOT/'tools/tests'/name),'--top',str(top)],check=True,env=child_env)
     subprocess.run([sys.executable,str(ROOT/'tools/tests/tcp_info_19_1_test.py'),'--source',
-                    str(top/'packages/modules/NetworkStack')],check=True)
+                    str(top/'packages/modules/NetworkStack'),'--java',java],check=True,env=child_env)
     print('Host source regressions passed. Android build, real networking and hardware remain unvalidated.')
 
 

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from host_java import find_java
 
 ROOT = Path(__file__).resolve().parents[2]
 TOP = None
@@ -134,10 +135,7 @@ public class ProcFileReader implements Closeable {
 }'''}
         for name, content in stubs.items():
             path = source / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text(content)
-        candidates = [TOP / 'prebuilts/jdk/jdk11/linux-x86/bin/java', TOP / 'prebuilts/jdk/jdk17/linux-x86/bin/java',
-                      Path(shutil.which('java') or '/nonexistent'), Path('/usr/lib/jvm/default-java/bin/java')]
-        java = next((str(path) for path in candidates if path.is_file()), None)
-        self.assertIsNotNone(java)
+        java = find_java(TOP)
         classes = host / 'classes'; classes.mkdir()
         built = run([java, '-m', 'jdk.compiler/com.sun.tools.javac.Main', '-source', '8', '-target', '8',
                      '-d', str(classes)] + [str(path) for path in source.rglob('*.java')])
