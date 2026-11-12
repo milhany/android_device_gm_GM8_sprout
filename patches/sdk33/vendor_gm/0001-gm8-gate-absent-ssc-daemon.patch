@@ -1,0 +1,26 @@
+Subject: gm8: retain QTI sensors without starting an absent SSC binary
+
+diff --git a/proprietary/vendor/bin/init.qcom.sensors.sh b/proprietary/vendor/bin/init.qcom.sensors.sh
+index cb4d5b9..184b2de 100644
+--- a/proprietary/vendor/bin/init.qcom.sensors.sh
++++ b/proprietary/vendor/bin/init.qcom.sensors.sh
+@@ -32,12 +32,16 @@
+ start_sensors()
+ {
+     sscrpcd_status=`getprop init.svc.vendor.sensors`
+-    chmod -h 664 /persist/sensors/sensors_settings
+-    chown -h -R system.system /persist/sensors
++    if [ -f /persist/sensors/sensors_settings ]; then
++        chmod -h 664 /persist/sensors/sensors_settings
++    fi
++    if [ -d /persist/sensors ]; then
++        chown -h -R system.system /persist/sensors
++    fi
+     start vendor.sensors.qti
+ 
+     # Only for SLPI
+-    if [ -c /dev/msm_dsps -o -c /dev/sensors ] && [ -z "$sscrpcd_status" ]; then
++    if [ -x /vendor/bin/sscrpcd ] && [ -c /dev/msm_dsps -o -c /dev/sensors ] && [ -z "$sscrpcd_status" ]; then
+         start vendor.sensors
+     fi
+ }

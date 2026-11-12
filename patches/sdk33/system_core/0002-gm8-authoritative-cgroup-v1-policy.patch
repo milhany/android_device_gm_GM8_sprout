@@ -1,0 +1,37 @@
+Subject: gm8: load the paired complete cgroup-v1 controller and task policy
+
+diff --git a/libprocessgroup/setup/cgroup_map_write.cpp b/libprocessgroup/setup/cgroup_map_write.cpp
+--- a/libprocessgroup/setup/cgroup_map_write.cpp
++++ b/libprocessgroup/setup/cgroup_map_write.cpp
+@@ -225,6 +225,12 @@
+ }
+ 
+ static bool ReadDescriptors(std::map<std::string, CgroupDescriptor>* descriptors) {
++    // The paired GM8 3.18 vendor policy is complete: do not merge in v2,
++    // memcg, blkio or schedtune controllers that the kernel cannot mount.
++    if (android::base::GetBoolProperty("ro.vendor.gm8.legacy_cgroups", false)) {
++        return ReadDescriptorsFromFile(CGROUPS_DESC_VENDOR_FILE, descriptors);
++    }
++
+     // load system cgroup descriptors
+     if (!ReadDescriptorsFromFile(CGROUPS_DESC_FILE, descriptors)) {
+         return false;
+diff --git a/libprocessgroup/task_profiles.cpp b/libprocessgroup/task_profiles.cpp
+--- a/libprocessgroup/task_profiles.cpp
++++ b/libprocessgroup/task_profiles.cpp
+@@ -590,6 +590,15 @@
+ }
+ 
+ TaskProfiles::TaskProfiles() {
++    // Paired with the complete legacy cgroup-v1 vendor profile database.
++    // Loading generic profiles first would cache paths to absent controllers.
++    if (android::base::GetBoolProperty("ro.vendor.gm8.legacy_cgroups", false)) {
++        if (!Load(CgroupMap::GetInstance(), TASK_PROFILE_DB_VENDOR_FILE)) {
++            LOG(ERROR) << "Loading complete legacy task profiles failed";
++        }
++        return;
++    }
++
+     // load system task profiles
+     if (!Load(CgroupMap::GetInstance(), TASK_PROFILE_DB_FILE)) {
+         LOG(ERROR) << "Loading " << TASK_PROFILE_DB_FILE << " for [" << getpid() << "] failed";

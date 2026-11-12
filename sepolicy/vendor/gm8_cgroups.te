@@ -1,0 +1,3 @@
+# Public immutable kernel capability; libprocessgroup is called in app,
+# platform and vendor processes. This grants reads of this one property only.
+get_prop(domain, vendor_gm8_cgroup_prop)

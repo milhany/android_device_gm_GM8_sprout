@@ -30,15 +30,7 @@
 #
 #
 
-import init.carrier.rc
-
 on early-init
-    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules audio_apr audio_adsp_loader audio_q6_notifier audio_q6 audio_usf audio_native audio_pinctrl_wcd audio_swr audio_platform audio_swr_ctrl audio_hdmi audio_wcd9xxx audio_wcd_core audio_wsa881x_analog audio_wsa881x audio_mbhc audio_stub audio_digital_cdc audio_analog_cdc audio_wcd_cpe audio_cpe_lsm audio_wcd9335 audio_machine_sdm450 audio_machine_ext_sdm450
-    mkdir /firmware 0771 system system
-    mkdir /system 0777 root root
-    mkdir /bt_firmware 0771 system system
-    symlink /data/tombstones /tombstones
-    mkdir /dsp 0771 media media
 
 on fs
     wait /dev/block/platform/soc/${ro.boot.bootdevice}
@@ -50,7 +42,6 @@ on fs
     # Legacy GM8 Qualcomm blobs still use /persist while Android 12 mounts the
     # partition at /mnt/vendor/persist.  Bind the modern mount to the legacy
     # path so calibration and regionalization data remain visible.
-    mkdir /persist 0771 root system
     mount none /mnt/vendor/persist /persist bind
 
     chown root system /mnt/vendor/persist
@@ -61,8 +52,6 @@ on fs
 
     #write /sys/kernel/boot_adsp/boot 1
 
-    wait /dev/block/bootdevice/by-name/oem
-    mount ext4 /dev/block/bootdevice/by-name/oem /oem ro nosuid nodev barrier=1
 
 on post-fs
     # set RLIMIT_MEMLOCK to 64MB
@@ -70,18 +59,15 @@ on post-fs
 
     start vendor.qseecomd
     exec - system system -- /vendor/bin/init.qti.qseecomd.sh
-    write /dev/ipa 1
 
 on post-fs-data
-    mkdir /data/tombstones 0771 system system
-    mkdir /tombstones/modem 0771 system system
-    mkdir /tombstones/lpass 0771 system system
-    mkdir /tombstones/wcnss 0771 system system
-    mkdir /tombstones/dsps 0771 system system
+    mkdir /data/vendor/tombstones/modem 0771 system system
+    mkdir /data/vendor/tombstones/lpass 0771 system system
+    mkdir /data/vendor/tombstones/wcnss 0771 system system
+    mkdir /data/vendor/tombstones/dsps 0771 system system
     mkdir /persist/data/sfs 0700 system system
     mkdir /persist/data/tz 0700 system system
     #mkdir /data/vendor/hbtp 0750 system system
-    mkdir /data/misc/dts 0770 media audio
     mkdir /data/vendor/tloc 0700 system drmrpc
     mkdir /data/fpc 0700 system system
     restorecon_recursive /data/fpc
@@ -113,23 +99,6 @@ on init
    write /dev/cpuset/system-background/cpus 4-7
    write /dev/cpuset/restricted/cpus 4-7
    write /sys/module/qpnp_rtc/parameters/poweron_alarm 1
-
-service qfp-daemon /system/vendor/bin/qfp-daemon
-   class late_start
-   user system
-   group system drmrpc
-
-# Allow usb charging to be disabled peristently
-on property:persist.usb.chgdisabled=1
-    write /sys/class/power_supply/battery/charging_enabled 0
-
-on property:persist.usb.chgdisabled=0
-    write /sys/class/power_supply/battery/charging_enabled 1
-
-service qrngd /system/bin/qrngd -f
-   class main
-   user root
-   group root
 
 service qrngp /system/bin/qrngp -f
    class main
@@ -164,13 +133,6 @@ service thermal-engine /system/vendor/bin/thermal-engine
    socket thermal-recv-passive-client stream 0666 system system
    socket thermal-send-rule stream 0660 system system
    group root
-
-service time_daemon /system/vendor/bin/time_daemon
-   class late_start
-   user root
-   group root
-
-# Soundcard/DSP monitoring is handled by the audio HAL's sndmonitor.
 
 on boot
     # The service is named vendor.rmt_storage in init.qcom.rc.  It is a core
@@ -325,25 +287,10 @@ on charger
 #    group system
 #    disabled
 
-service dts_configurator /system/vendor/bin/dts_configurator
-    class late_start
-    user system
-    group media audio
-    oneshot
-
-service dtseagleservice /system/vendor/bin/dts_eagle_service
-    class late_start
-    user system
-    group audio media
-    disabled
-
 service adsprpcd /system/vendor/bin/adsprpcd
     class main
     user media
     group media
-
-on property:init.svc.dts_configurator=stopped
-    start dtseagleservice
 
 service vendor.per_mgr /system/vendor/bin/pm-service
     class core
@@ -367,19 +314,9 @@ service vendor.hvdcp_opti /vendor/bin/hvdcp_opti
     user root
     group system wakelock
 
-service mdtpd /system/vendor/bin/mdtpd
-    class late_start
-    user root
-    group system radio drmrpc
-
 on boot
     write /sys/devices/soc.0/78b8000.i2c/i2c-4/4-0020/input/input0/fw_name PR1702898-s3528t_00260005_00380008.img
     write /sys/devices/soc.0/78b8000.i2c/i2c-4/4-0020/input/input0/update_fw 1
-
-service vendor.tlocd /vendor/bin/tloc_daemon
-    class late_start
-    user system
-    group drmrpc gps net_raw
 
 service swfingerprint-hal-1.0 /vendor/bin/hw/vendor.sw.swfingerprint@1.0-service
     class late_start

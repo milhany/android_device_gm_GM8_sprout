@@ -139,6 +139,13 @@ class FirstBootTest(unittest.TestCase):
             'BOOT/RAMDISK/system/etc/security/otacerts.zip':self.store,
             'BOOT/kernel':self.kernel,'IMAGES/boot.img':self.boot,
             'IMAGES/system.img':b'system','IMAGES/vendor.img':b'vendor'}
+        self.entries['VENDOR/build.prop']='ro.vendor.gm8.legacy_cgroups=true\nro.vendor.extension_library=libqti-perfd-client.so\n'
+        self.entries['VENDOR/etc/cgroups.json']=(ROOT/'configs/cgroups-gm8.json').read_text()
+        self.entries['VENDOR/etc/task_profiles.json']=(ROOT/'configs/task-profiles-gm8.json').read_text()
+        for directory,elf_class,machine in [('lib',1,40),('lib64',2,183)]:
+            header=bytearray(64);header[:6]=b'\x7fELF'+bytes([elf_class,1]);struct.pack_into('<H',header,18,machine)
+            self.entries['SYSTEM/system_ext/'+directory+'/vendor.qti.hardware.camera.device@1.0.so']=bytes(header)
+            self.entries['VENDOR/'+directory+'/libqti-perfd-client.so']=b'fixture-client'
         self.target=self.work/'target.zip';self.write_target()
 
     def write_target(self):self.target.write_bytes(zipped(self.entries))
@@ -356,6 +363,34 @@ class FirstBootTest(unittest.TestCase):
                     else:self.entries[path]=data
                 self.write_target()
                 with self.assertRaisesRegex(ValueError,message):self.plan()
+
+    def test_packaged_kernel_policy_and_both_ims_callback_architectures(self):
+        original=dict(self.entries)
+        self.entries['VENDOR/build.prop']='ro.vendor.gm8.legacy_cgroups=true\nro.vendor.extension_library=libqti-perfd-client.so\n'
+        self.entries['VENDOR/etc/cgroups.json']=(ROOT/'configs/cgroups-gm8.json').read_text()
+        self.entries['VENDOR/etc/task_profiles.json']=(ROOT/'configs/task-profiles-gm8.json').read_text()
+        for directory,elf_class,machine in [('lib',1,40),('lib64',2,183)]:
+            header=bytearray(64);header[:6]=b'\x7fELF'+bytes([elf_class,1]);struct.pack_into('<H',header,18,machine)
+            self.entries['SYSTEM/system_ext/'+directory+'/vendor.qti.hardware.camera.device@1.0.so']=bytes(header)
+            self.entries['VENDOR/'+directory+'/libqti-perfd-client.so']=b'fixture-client'
+        complete=dict(self.entries);self.write_target()
+        with zipfile.ZipFile(self.target) as archive:
+            report=signer.inspection.legacy_runtime_policy(archive)
+            self.assertEqual(report['profiles'],40);self.assertEqual(set(report['ims_camera_libraries']),{'lib','lib64'})
+        for path,value in [
+            ('VENDOR/build.prop','ro.vendor.gm8.legacy_cgroups=false\n'),
+            ('VENDOR/etc/cgroups.json','{"Cgroups": []}'),
+            ('VENDOR/etc/task_profiles.json','{"Profiles": []}'),
+            ('SYSTEM/system_ext/lib64/vendor.qti.hardware.camera.device@1.0.so',b'wrong ELF'),
+            ('VENDOR/lib/libqti-perfd-client.so',None),
+        ]:
+            self.entries=dict(complete)
+            if value is None:self.entries.pop(path)
+            else:self.entries[path]=value
+            self.write_target()
+            with zipfile.ZipFile(self.target) as archive:
+                with self.assertRaises(ValueError):signer.inspection.legacy_runtime_policy(archive)
+        self.entries=original;self.write_target()
 
     def test_readonly_plan_rejects_missing_or_exposed_keys(self):
         (self.keys/'releasekey.pk8').unlink()

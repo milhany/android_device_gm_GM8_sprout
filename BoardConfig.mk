@@ -201,3 +201,13 @@ TARGET_DISABLE_WCNSS_CONFIG_COPY := true
 WIFI_DRIVER_FW_PATH_AP := "ap"
 WIFI_DRIVER_FW_PATH_STA := "sta"
 WPA_SUPPLICANT_VERSION := VER_0_8_X
+
+# Stock crash collectors still use this path; root is read-only at runtime.
+BOARD_ROOT_EXTRA_SYMLINKS += \
+    /data/vendor/tombstones:tombstones \
+    /vendor/firmware_mnt:firmware \
+    /vendor/bt_firmware:bt_firmware \
+    /vendor/dsp:dsp
+
+# Existing Qualcomm blobs use a bind-mounted /persist alias.
+BOARD_ROOT_EXTRA_FOLDERS += persist

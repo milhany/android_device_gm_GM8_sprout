@@ -18,7 +18,10 @@ and 94 WifiThreadRunner timeout messages. Stack traces put the Wi-Fi worker in
 The SDK33 wpa_supplicant Android.mk installs its AIDL VINTF fragment, but installs
 `aidl/android.hardware.wifi.supplicant-service.rc` only when
 `WIFI_HIDL_UNIFIED_SUPPLICANT_SERVICE_RC_ENTRY=true`. This board omitted the flag.
-The log lists the vendor init files being parsed without a supplicant RC.
+The log lists the vendor init files being parsed without the standalone AIDL
+supplicant RC. init.qcom.rc still contains an old HIDL service of the same name;
+the complete compatibility batch removes that definition to avoid a collision
+with the upstream AIDL RC.
 
 The board now enables that existing upstream gate. The standard RC registers
 `android.hardware.wifi.supplicant.ISupplicant/default`, invokes the matching

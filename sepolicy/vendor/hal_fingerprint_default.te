@@ -23,3 +23,10 @@ set_prop(hal_fingerprint_default, ctl_start_prop)
 
 add_hwservice(hal_fingerprint_default, hal_swfingerprint_hwservice)
 add_service(hal_fingerprint_default, sf_service)
+
+# FPC extension lookups must not fall back to default_android_hwservice.
+# Registration stays restricted to the fingerprint HAL; only system_server
+# receives lookup access. This does not advertise an absent implementation.
+type hal_gm8_fingerprint_extension_hwservice, hwservice_manager_type, protected_hwservice;
+add_hwservice(hal_fingerprint_default, hal_gm8_fingerprint_extension_hwservice)
+allow system_server hal_gm8_fingerprint_extension_hwservice:hwservice_manager find;

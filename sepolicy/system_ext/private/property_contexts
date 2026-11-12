@@ -147,3 +147,10 @@ persist.denoise.process.plates u:object_r:gm8_legacy_camera_prop:s0 exact string
 # SDK33 platform-owned legacy compatibility selectors.
 ro.ril.use_legacy_data_switch u:object_r:gm8_legacy_ril_prop:s0 exact bool
 wifi.mac_rand_no_keystore u:object_r:gm8_legacy_wifi_prop:s0 exact bool
+
+dolby.dap.param.tee u:object_r:gm8_legacy_dolby_prop:s0 exact string
+
+# SDK33 base_vendor declares these IDs but has no matching exact labels.
+ro.recovery.usb.vid u:object_r:recovery_config_prop:s0 exact string
+ro.recovery.usb.adb.pid u:object_r:recovery_config_prop:s0 exact string
+ro.recovery.usb.fastboot.pid u:object_r:recovery_config_prop:s0 exact string

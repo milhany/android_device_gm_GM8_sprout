@@ -65,6 +65,7 @@ def metadata(z,signed=False):
     if signed and set(build.get('ro.build.tags','').split(','))!={'release-keys'}:
         raise ValueError('Signed candidate must have release-keys tags')
     inspection.wifi_init_service(z)
+    inspection.legacy_runtime_policy(z)
     misc=crypto.props(crypto.text(z,'META/misc_info.txt'))
     if misc.get('ab_update')!='true':raise ValueError('Expected A/B target-files')
     if misc.get('avb_enable')=='true' or misc.get('verity')=='true':

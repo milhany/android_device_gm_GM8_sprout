@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import struct
 import subprocess
 import xml.etree.ElementTree as ET
 import zipfile
@@ -86,6 +87,56 @@ def wifi_init_service(archive):
     if len(manifests)!=1:raise ValueError('Expected exactly one packaged AIDL supplicant VINTF instance; found '+str(len(manifests)))
     return {'rc':entry['rc'],'executable':binary,'interface':interface,'vintf':manifests[0],
             'scope':'Packaged service wiring only; daemon operation and Wi-Fi connectivity require hardware testing.'}
+
+
+def legacy_runtime_policy(archive):
+    """Validate the paired packaged kernel policy and IMS camera callback ABIs."""
+    names=archive.namelist()
+    vendor=properties(text_from_zip(archive,'VENDOR/build.prop'))
+    if vendor.get('ro.vendor.gm8.legacy_cgroups')!='true':
+        raise ValueError('Missing packaged GM8 legacy-cgroup policy selector')
+    cgroups=json.loads(text_from_zip(archive,'VENDOR/etc/cgroups.json'))
+    expected={'cpu':'/dev/cpuctl','cpuset':'/dev/cpuset','cpuacct':'/acct'}
+    entries=cgroups.get('Cgroups',[])
+    if ('Cgroups2' in cgroups or len(entries)!=3 or
+            {c['Controller']:c['Path'] for c in entries}!=expected):
+        raise ValueError('Packaged legacy cgroup controllers do not match the supported GM8 policy')
+    profiles=json.loads(text_from_zip(archive,'VENDOR/etc/task_profiles.json'))
+    attrs={a['Name'] for a in profiles.get('Attributes',[])}
+    for attr in profiles.get('Attributes',[]):
+        if attr['Controller'] not in expected or attr['File'].startswith('cpu.uclamp.'):
+            raise ValueError('Unsupported packaged legacy cgroup attribute')
+    available={p['Name'] for p in profiles.get('Profiles',[])}
+    if len(available)!=40 or len(profiles.get('AggregateProfiles',[]))!=15:
+        raise ValueError('Incomplete packaged GM8 task profile database')
+    for profile in profiles['Profiles']:
+        for action in profile['Actions']:
+            params=action.get('Params',{})
+            if action['Name']=='SetClamps':raise ValueError('Legacy kernel does not implement uclamp')
+            if action['Name']=='JoinCgroup' and params['Controller'] not in expected:
+                raise ValueError('Task profile references an unsupported controller')
+            if action['Name']=='SetAttribute' and params['Name'] not in attrs:
+                raise ValueError('Task profile references an absent attribute')
+    if any(not set(p['Profiles'])<=available for p in profiles['AggregateProfiles']):
+        raise ValueError('Aggregate task profile references an absent profile')
+    libraries={}
+    for directory,elf_class,machine in [('lib',1,40),('lib64',2,183)]:
+        suffix=directory+'/vendor.qti.hardware.camera.device@1.0.so'
+        matches=[n for n in names if n in {'SYSTEM_EXT/'+suffix,'SYSTEM/system_ext/'+suffix}]
+        if len(matches)!=1:raise ValueError('Missing/duplicate packaged IMS camera callback ABI: '+suffix)
+        with archive.open(matches[0]) as stream:header=stream.read(64)
+        if (len(header)<20 or header[:4]!=b'\x7fELF' or header[4]!=elf_class or
+                header[5]!=1 or struct.unpack_from('<H',header,18)[0]!=machine):
+            raise ValueError('Wrong packaged IMS camera callback ELF ABI: '+matches[0])
+        libraries[directory]=matches[0]
+    if vendor.get('ro.vendor.extension_library')!='libqti-perfd-client.so':
+        raise ValueError('Missing packaged Qualcomm audio/video performance client selection')
+    for directory in ('lib','lib64'):
+        if 'VENDOR/'+directory+'/libqti-perfd-client.so' not in names:
+            raise ValueError('Missing packaged Qualcomm performance client: '+directory)
+    return {'controllers':expected,'profiles':len(available),'ims_camera_libraries':libraries,
+            'performance_client':'libqti-perfd-client.so',
+            'scope':'Packaged policy, presence and ELF architecture checks; not runtime/IMS/audio acceptance.'}
 
 
 def current_sources(top):
@@ -175,6 +226,7 @@ def inspect(top, target):
         if '33' not in sdks:
             raise ValueError('No SDK33 build property found in target-files')
         report['wifi_service']=wifi_init_service(archive)
+        report['legacy_runtime_policy']=legacy_runtime_policy(archive)
         if not report['data_fstabs']:
             observations.append('No /data entry found in the inspected packaged fstab paths.')
         for path, entries in report['data_fstabs'].items():

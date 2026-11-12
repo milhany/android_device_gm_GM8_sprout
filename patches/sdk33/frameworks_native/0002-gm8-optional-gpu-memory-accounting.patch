@@ -1,0 +1,30 @@
+Subject: gm8: skip unsupported GPU-memory eBPF initialization on legacy kernels
+
+diff --git a/services/gpuservice/gpumem/GpuMem.cpp b/services/gpuservice/gpumem/GpuMem.cpp
+index dd3cc3b..791790d 100644
+--- a/services/gpuservice/gpumem/GpuMem.cpp
++++ b/services/gpuservice/gpumem/GpuMem.cpp
+@@ -21,6 +21,7 @@
+ #include "gpumem/GpuMem.h"
+ 
+ #include <android-base/stringprintf.h>
++#include <android-base/properties.h>
+ #include <libbpf.h>
+ #include <bpf/WaitForProgsLoaded.h>
+ #include <log/log.h>
+@@ -36,10 +37,15 @@ namespace android {
+ using base::StringAppendF;
+ 
+ GpuMem::~GpuMem() {
++    if (!base::GetBoolProperty("ro.kernel.ebpf.supported", true)) return;
+     bpf_detach_tracepoint(kGpuMemTraceGroup, kGpuMemTotalTracepoint);
+ }
+ 
+ void GpuMem::initialize() {
++    if (!base::GetBoolProperty("ro.kernel.ebpf.supported", true)) {
++        ALOGI("Legacy kernel: GPU memory eBPF collector unavailable");
++        return;
++    }
+     // Make sure bpf programs are loaded
+     bpf::waitForProgsLoaded();
+ 

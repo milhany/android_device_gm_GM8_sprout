@@ -1,0 +1,17 @@
+Subject: gm8: start the standalone legacy QMUX daemon only when installed
+
+diff --git a/proprietary/vendor/bin/init.class_main.sh b/proprietary/vendor/bin/init.class_main.sh
+--- a/proprietary/vendor/bin/init.class_main.sh
++++ b/proprietary/vendor/bin/init.class_main.sh
+@@ -48,7 +48,10 @@
+ 
+ case "$baseband" in
+     "msm" | "csfb" | "svlte2a" | "mdm" | "mdm2" | "sglte" | "sglte2" | "dsda2" | "unknown" | "dsda3")
+-    start vendor.qmuxd
++    # QCRIL packages on GM8 do not ship the legacy standalone qmuxd.
++    if [ -x /vendor/bin/qmuxd ]; then
++        start vendor.qmuxd
++    fi
+ esac
+ 
+ case "$baseband" in

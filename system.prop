@@ -126,3 +126,6 @@ wifi.mac_rand_no_keystore=true
 # Stock 3.18 has xt_qtaguid, not the Android 12 eBPF ABI.
 # Requires the paired system/bpf + system/netd patches checked by preflight.
 ro.kernel.ebpf.supported=false
+
+# This legacy backup NTP property is system-owned.
+persist.backup.ntpServer=0.pool.ntp.org

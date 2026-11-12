@@ -2,3 +2,6 @@
 system_vendor_config_prop(gm8_legacy_camera_prop)
 system_vendor_config_prop(gm8_legacy_ril_prop)
 system_vendor_config_prop(gm8_legacy_fingerprint_prop)
+
+# Optional stock Dolby configuration is read by the vendor audio HAL.
+system_vendor_config_prop(gm8_legacy_dolby_prop)

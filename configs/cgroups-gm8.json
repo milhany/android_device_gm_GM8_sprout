@@ -1,6 +1,20 @@
 {
   "Cgroups": [
     {
+      "Controller": "cpu",
+      "Path": "/dev/cpuctl",
+      "Mode": "0755",
+      "UID": "system",
+      "GID": "system"
+    },
+    {
+      "Controller": "cpuset",
+      "Path": "/dev/cpuset",
+      "Mode": "0755",
+      "UID": "system",
+      "GID": "system"
+    },
+    {
       "Controller": "cpuacct",
       "Path": "/acct",
       "Mode": "0000",

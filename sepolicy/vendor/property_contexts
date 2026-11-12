@@ -7,3 +7,8 @@ vendor.gm8.fingerprint.sensor            u:object_r:vendor_gm8_fingerprint_prop:
 # Exact properties written by the stock GM8 camera daemon.
 persist.vendor.camera.aeinfo              u:object_r:vendor_gm8_camera_aeinfo_prop:s0 exact string
 persist.camera.debug.logfile              u:object_r:vendor_gm8_camera_debug_prop:s0 exact string
+
+persist.vendor.dpm.feature u:object_r:vendor_gm8_dpm_prop:s0 exact string
+persist.vendor.dpm.loglevel u:object_r:vendor_gm8_dpm_prop:s0 exact string
+
+ro.vendor.gm8.legacy_cgroups u:object_r:vendor_gm8_cgroup_prop:s0 exact bool

@@ -1,2 +1,7 @@
 # Power HAL state is owned and used by vendor components.
 vendor_internal_prop(vendor_power_prop)
+
+# Public configuration consumed by platform FM/DPM clients and set by vendor init.
+vendor_public_prop(vendor_gm8_dpm_prop)
+
+vendor_public_prop(vendor_gm8_cgroup_prop)

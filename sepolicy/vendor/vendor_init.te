@@ -1,1 +1,9 @@
 set_prop(vendor_init, vendor_power_prop)
+
+# Keep the established QTI FM property type and its existing consumers.
+set_prop(vendor_init, vendor_fm_prop)
+set_prop(vendor_init, vendor_gm8_dpm_prop)
+set_prop(vendor_init, vendor_gm8_cgroup_prop)
+
+# Platform explicitly exports recovery configuration to vendor init.
+set_prop(vendor_init, recovery_config_prop)

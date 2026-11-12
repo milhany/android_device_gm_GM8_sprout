@@ -24,3 +24,5 @@ type vendor_gm8_dolby_data_file, file_type, data_file_type;
 allow hal_gm8_dolby_default vendor_data_file:dir search;
 allow hal_gm8_dolby_default vendor_gm8_dolby_data_file:dir create_dir_perms;
 allow hal_gm8_dolby_default vendor_gm8_dolby_data_file:file create_file_perms;
+
+get_prop(hal_gm8_dolby_default, gm8_legacy_dolby_prop)

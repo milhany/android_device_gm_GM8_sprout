@@ -36,6 +36,7 @@ def audit(top):
         'device/gm/GM8_sprout/rootdir/etc/fstab.qcom',
         'vendor/gm/GM8_sprout/GM8_sprout-vendor.mk',
         'kernel/gm/msm8937/Makefile',
+        'vendor/qcom/opensource/interfaces/camera/device/1.0/Android.bp',
         'packages/modules/Connectivity/netd/BpfHandler.cpp',
         'packages/modules/Connectivity/service-t/jni/com_android_server_net_NetworkStatsService.cpp',
         'packages/modules/Connectivity/service/Android.bp',

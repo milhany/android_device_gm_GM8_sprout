@@ -1,3 +1,6 @@
 vendor.sw.swfingerprint::ISwfingerprint u:object_r:hal_swfingerprint_hwservice:s0
 vendor.dolby.hardware.dms::IDms u:object_r:hal_gm8_dolby_hwservice:s0
 
+
+com.fingerprints.extension::IFingerprintNavigation u:object_r:hal_gm8_fingerprint_extension_hwservice:s0
+com.fingerprints.extension::IFingerprintSensorTest u:object_r:hal_gm8_fingerprint_extension_hwservice:s0

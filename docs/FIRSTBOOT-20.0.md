@@ -106,7 +106,7 @@ and its payload are still signed/verified with the single planned primary key.
 
 The plan format is version 2. Retry using the wrapper, which creates a fresh
 output directory rather than reusing an older or failed plan. The host suite
-now includes 22 cases covering public-only extras, scope separation, remapping,
+now includes 23 cases covering public-only extras, scope separation, remapping,
 changed public certificates, and exact duplicate handling in addition to the
 original signing/boot/payload regressions. New cases verify multi-role discovery,
 reuse, password validation/encryption, incomplete pairs, publication collisions,
@@ -124,6 +124,13 @@ now require exactly one packaged `wpa_supplicant` service with the AIDL
 The regression covers absent/duplicate RCs, missing or wrong executables and
 missing or mismatched interfaces. Rebuild target-files before packaging this
 fix; the older archive fails this gate. No driver or firmware change is included.
+
+The complete first-boot compatibility batch is described in
+[BOOT-FIXES-20.0.md](BOOT-FIXES-20.0.md). Both inspection and signing now require
+the complete packaged legacy task/controller policy, the explicit selector,
+the audio/video performance client and both system_ext IMS camera callback
+architectures. Rebuild the target-files archive before retrying; older inputs
+are intentionally rejected. Host checks do not replace device acceptance.
 
 The actual OTA whole-file CMS signature is verified with OpenSSL. The v2 payload
 manifest must be a full update of exactly boot/system/vendor, with no old source

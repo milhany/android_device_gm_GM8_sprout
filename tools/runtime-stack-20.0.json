@@ -6,7 +6,8 @@
     {
       "path": "system/core",
       "patches": [
-        "patches/sdk33/system_core/0001-gm8-cgroup-v1-process-tracking.patch"
+        "patches/sdk33/system_core/0001-gm8-cgroup-v1-process-tracking.patch",
+        "patches/sdk33/system_core/0002-gm8-authoritative-cgroup-v1-policy.patch"
       ]
     },
     {
@@ -49,7 +50,8 @@
     {
       "path": "frameworks/native",
       "patches": [
-        "patches/sdk33/frameworks_native/0001-gm8-optional-gpu-work-accounting.patch"
+        "patches/sdk33/frameworks_native/0001-gm8-optional-gpu-work-accounting.patch",
+        "patches/sdk33/frameworks_native/0002-gm8-optional-gpu-memory-accounting.patch"
       ]
     },
     {
@@ -68,6 +70,13 @@
       "path": "packages/modules/Wifi",
       "patches": [
         "patches/sdk33/Wifi/0001-gm8-sdk33-persistent-mac-no-keystore.patch"
+      ]
+    },
+    {
+      "path": "vendor/gm/GM8_sprout",
+      "patches": [
+        "patches/sdk33/vendor_gm/0001-gm8-gate-absent-ssc-daemon.patch",
+        "patches/sdk33/vendor_gm/0002-gm8-gate-absent-qmuxd.patch"
       ]
     }
   ]

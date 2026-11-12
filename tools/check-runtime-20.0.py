@@ -67,7 +67,7 @@ def main():
         for name,flags in tests:
             subprocess.run([sys.executable,str(ROOT/'tools/tests'/name),*flags],check=True,env=child_env)
     # Compile the final factory and routing/backend methods, not normalized ones.
-    for name in ('snapshots_20_0_test.py','runtime_stack_20_0_test.py'):
+    for name in ('snapshots_20_0_test.py','runtime_stack_20_0_test.py','boot_findings_20_0_test.py'):
         subprocess.run([sys.executable,str(ROOT/'tools/tests'/name),'--top',str(top)],check=True,env=child_env)
     subprocess.run([sys.executable,str(ROOT/'tools/tests/tcp_info_19_1_test.py'),'--source',
                     str(top/'packages/modules/NetworkStack'),'--java',java],check=True,env=child_env)

@@ -310,7 +310,9 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/task-profiles-gm8.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
 
 # RIL
+# IMS video links this Qualcomm camera callback ABI from system_ext (both ABIs).
 PRODUCT_PACKAGES += \
+    vendor.qti.hardware.camera.device@1.0 \
     android.hardware.radio@1.2 \
     android.hardware.radio@1.3 \
     android.hardware.radio@1.4 \
@@ -373,3 +375,7 @@ PRODUCT_PACKAGES += \
 
 # Inherit vendor
 include vendor/gm/GM8_sprout/GM8_sprout-vendor.mk
+
+# Platform-owned init actions cannot be triggered from the vendor subcontext.
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/rootdir/etc/init.gm8.system.rc:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/init/init.gm8.system.rc
