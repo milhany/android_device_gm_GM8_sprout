@@ -6,6 +6,7 @@ fixtures here; the owner must run the actual binaries before installation.
 """
 import base64
 import contextlib
+import fcntl
 import gzip
 import hashlib
 import importlib.util
@@ -17,6 +18,7 @@ import shutil
 import stat
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -94,6 +96,7 @@ class FirstBootTest(unittest.TestCase):
     def tearDownClass(cls):cls.temp.cleanup()
 
     def setUp(self):
+        quiet=contextlib.redirect_stdout(io.StringIO());quiet.__enter__();self.addCleanup(quiet.__exit__,None,None,None)
         self.temp=tempfile.TemporaryDirectory(prefix='gm8-firstboot-test-')
         self.addCleanup(self.temp.cleanup);self.work=Path(self.temp.name)
         self.top=self.work/'android';self.top.mkdir()
@@ -131,6 +134,101 @@ class FirstBootTest(unittest.TestCase):
 
     def plan(self):return signer.inventory(self.top,self.target,self.keys)
 
+    def add_sdk33_role(self,role):
+        original='recovery-extra' if role=='sdk_sandbox' else 'system-extra'
+        relative='build/make/target/product/security/'+role
+        shutil.copyfile(self.root/(original+'.x509.pem'),self.top/(relative+'.x509.pem'))
+        self.entries['META/apkcerts.txt']+=f'name="{role}.apk" certificate="{relative}.x509.pem" private_key="unused.pk8"\n'
+        self.entries[f'SYSTEM/apex/com.android.fixture/priv-app/{role}/{role}.apk']=b'new SDK33 app'
+        self.write_target()
+
+    def test_prepare_all_needed_sdk33_roles_and_reuse_without_key_changes(self):
+        for role in ('sdk_sandbox','bluetooth'):self.add_sdk33_role(role)
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        self.assertIsNone(probe['target_sha256'])
+        self.assertEqual(missing,{str(self.keys/role) for role in ('sdk_sandbox','bluetooth')})
+        before={p:p.read_bytes() for p in self.keys.iterdir()}
+        created=signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+        self.assertEqual({c['role'] for c in created},{'sdk_sandbox','bluetooth'})
+        for path,value in before.items():self.assertEqual(path.read_bytes(),value)
+        for role in ('sdk_sandbox','bluetooth'):
+            signer.crypto.validate_private(str(self.keys/role),'')
+            self.assertEqual(stat.S_IMODE((self.keys/(role+'.pk8')).stat().st_mode),0o600)
+        complete=self.plan();self.assertTrue(complete['target_sha256'])
+        after={p:p.read_bytes() for p in self.keys.iterdir()}
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        self.assertFalse(missing)
+        self.assertEqual(signer.prepare_sdk33_roles(probe,missing,self.keys,''),[])
+        self.assertEqual(after,{p:p.read_bytes() for p in self.keys.iterdir()})
+
+    def test_sdk33_preparation_validates_old_password_and_encrypts_new_pair(self):
+        self.add_sdk33_role('sdk_sandbox')
+        password='existing-fixture-password'
+        signer.crypto.run(['openssl','pkcs8','-topk8','-in',self.root/'release.pem','-outform','DER',
+            '-out',self.keys/'releasekey.pk8','-v1','PBE-SHA1-3DES','-passout','stdin'],(password+'\n').encode())
+        (self.keys/'releasekey.pk8').chmod(0o600)
+        original=(self.keys/'releasekey.pk8').read_bytes()
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        with self.assertRaises(subprocess.CalledProcessError):signer.prepare_sdk33_roles(probe,missing,self.keys,'wrong')
+        self.assertFalse((self.keys/'sdk_sandbox.pk8').exists())
+        self.assertEqual((self.keys/'releasekey.pk8').read_bytes(),original)
+        signer.prepare_sdk33_roles(probe,missing,self.keys,password)
+        signer.crypto.validate_private(str(self.keys/'sdk_sandbox'),password)
+        with self.assertRaises(subprocess.CalledProcessError):signer.crypto.validate_private(str(self.keys/'sdk_sandbox'),'wrong')
+        self.assertEqual((self.keys/'releasekey.pk8').read_bytes(),original)
+
+    def test_partial_sdk33_or_missing_primary_keys_never_regenerate(self):
+        self.add_sdk33_role('sdk_sandbox')
+        partial=self.keys/'sdk_sandbox.x509.pem';partial.write_bytes(self.cert)
+        missing=set()
+        with self.assertRaisesRegex(ValueError,'Missing existing key pair'):signer.inventory(self.top,self.target,self.keys,missing)
+        self.assertEqual(partial.read_bytes(),self.cert);self.assertFalse((self.keys/'sdk_sandbox.pk8').exists())
+        partial.unlink();(self.keys/'releasekey.pk8').unlink()
+        with self.assertRaisesRegex(ValueError,'releasekey'):signer.inventory(self.top,self.target,self.keys,set())
+        self.assertFalse((self.keys/'releasekey.pk8').exists())
+
+    def test_key_publish_collision_cannot_overwrite_and_rolls_back_own_half(self):
+        self.add_sdk33_role('sdk_sandbox')
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        real_link=os.link
+        def collision(source,destination):
+            if str(destination).endswith('.x509.pem'):Path(destination).write_bytes(b'concurrent certificate')
+            return real_link(source,destination)
+        with patch.object(signer.os,'link',side_effect=collision):
+            with self.assertRaises(FileExistsError):signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+        self.assertEqual((self.keys/'sdk_sandbox.x509.pem').read_bytes(),b'concurrent certificate')
+        self.assertFalse((self.keys/'sdk_sandbox.pk8').exists())
+
+    def test_unknown_roles_and_concurrent_preparation_are_refused(self):
+        probe=self.plan()
+        with self.assertRaisesRegex(ValueError,'established/unknown'):
+            signer.prepare_sdk33_roles(probe,{str(self.keys/'releasekey')},self.keys,'')
+        self.add_sdk33_role('sdk_sandbox');missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        with (self.keys/'.sdk33-role-keys.lock').open('w+b') as locked:
+            os.chmod(locked.name,0o600);fcntl.flock(locked,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError,'Another SDK33 key preparation'):
+                signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+        self.assertFalse((self.keys/'sdk_sandbox.pk8').exists())
+
+    def test_package_cli_prepares_missing_role_and_prompts_once(self):
+        self.add_sdk33_role('sdk_sandbox')
+        output=self.work/'package-output';old_temp=tempfile.tempdir;old_mask=os.umask(0o077)
+        captured=[]
+        def capture(plan,directory,host,java,password):captured.append((plan,directory,password))
+        argv=['firstboot-20.0.py','package','--top',str(self.top),'--target-files',str(self.target),
+              '--key-dir',str(self.keys),'--output-dir',str(output)]
+        try:
+            with (patch.object(sys,'argv',argv),patch.object(signer,'host_tools',return_value=(self.work,'java')),
+                  patch.object(signer.crypto,'key_password',return_value='') as prompt,patch.object(signer,'sign',side_effect=capture)):
+                signer.main()
+            self.assertEqual(prompt.call_count,1)
+        finally:tempfile.tempdir=old_temp;os.umask(old_mask)
+        self.assertEqual(len(captured),1);plan,directory,password=captured[0]
+        self.assertEqual(password,'');self.assertEqual(directory,output)
+        self.assertEqual([r['role'] for r in plan['new_sdk33_role_keys']],['sdk_sandbox'])
+        self.assertTrue(all(c['new_sha256'] for c in plan['certificates'].values()))
+        self.assertEqual(json.loads((output/'firstboot-plan.json').read_text())['target_sha256'],signer.crypto.digest(self.target))
+
     def test_plan_uses_existing_keys_and_all_flattened_apks(self):
         before={p.name:p.read_bytes() for p in self.keys.iterdir()}
         plan=self.plan()
@@ -140,9 +238,9 @@ class FirstBootTest(unittest.TestCase):
         self.assertEqual(before,{p.name:p.read_bytes() for p in self.keys.iterdir()})
         self.assertTrue(any('/apex/' in a['entry'] and a['key'] for a in plan['apks']))
 
-    def test_missing_or_exposed_keys_are_not_generated_or_overwritten(self):
+    def test_readonly_plan_rejects_missing_or_exposed_keys(self):
         (self.keys/'releasekey.pk8').unlink()
-        with self.assertRaisesRegex(ValueError,'no keys generated'):self.plan()
+        with self.assertRaisesRegex(ValueError,'no automatic replacement'):self.plan()
         self.assertFalse((self.keys/'releasekey.pk8').exists())
         shutil.copyfile(self.root/'release.pk8',self.keys/'releasekey.pk8');(self.keys/'releasekey.pk8').chmod(0o644)
         with self.assertRaisesRegex(ValueError,'Private key'):self.plan()

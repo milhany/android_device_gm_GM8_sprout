@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Sign an existing flattened SDK33 userdebug target-files with existing keys.
+"""Sign an existing flattened SDK33 userdebug target-files with persistent role keys.
 
 Produces and verifies a clean-install hardware-test OTA and matching boot image.
-Never builds Android, generates keys, flashes, selects a slot or formats data.
+Only absent SDK33 sandbox/Bluetooth pairs may be created by the package stage.
+Never builds Android, replaces an existing key, flashes or formats data.
 """
 import argparse
 import base64
 from collections import Counter
+import fcntl
 import gzip
 import hashlib
 import importlib.util
@@ -33,6 +35,7 @@ from host_java import find_java
 
 PARTITIONS={'boot','system','vendor'}
 LIMIT=16*1024*1024
+NEW_SDK33_ROLES={'sdk_sandbox','bluetooth'}
 
 
 def boot_layout(header):
@@ -101,12 +104,12 @@ def existing_key_dir(path,top):
 def require_pair(base):
     for suffix in ('.x509.pem','.pk8'):
         path=Path(base+suffix)
-        if path.is_symlink() or not path.is_file():raise ValueError('Missing existing key pair (no keys generated): '+base)
+        if path.is_symlink() or not path.is_file():raise ValueError('Missing existing key pair (no automatic replacement): '+base)
         if suffix=='.pk8' and (path.stat().st_uid!=os.getuid() or stat.S_IMODE(path.stat().st_mode)&0o077):
             raise ValueError('Private key must be owned by this user without group/other access: '+str(path))
 
 
-def inventory(top,target,keys):
+def inventory(top,target,keys,missing=None):
     with zipfile.ZipFile(target) as z:
         build,misc,flat=metadata(z)
         apkcerts=crypto.records(crypto.text(z,'META/apkcerts.txt'))
@@ -128,9 +131,18 @@ def inventory(top,target,keys):
                 old=crypto.source_certificate(top,name)
                 old_hash=hashlib.sha256(crypto.cert_der(old)).hexdigest()
                 base=known.get(old_hash,str(keys/'certs'/old_hash))
-                require_pair(base)
+                absent=all(not Path(base+suffix).exists() and not Path(base+suffix).is_symlink()
+                           for suffix in ('.x509.pem','.pk8'))
+                may_prepare=(missing is not None and Path(base).parent==keys
+                             and Path(base).name in NEW_SDK33_ROLES and absent)
+                if may_prepare:
+                    missing.add(base)
+                    new_hash=None # Discovery only; never saved as a signing plan.
+                else:
+                    require_pair(base)
+                    new_hash=hashlib.sha256(crypto.cert_der(base+'.x509.pem')).hexdigest()
                 certs[name]={'key':base,'old_sha256':old_hash,
-                             'new_sha256':hashlib.sha256(crypto.cert_der(base+'.x509.pem')).hexdigest()}
+                             'new_sha256':new_hash}
             return certs[name]['key']
         ota=certificate(dev+'.x509.pem')
         for old in crypto.text(z,'META/otakeys.txt').split():
@@ -174,12 +186,86 @@ def inventory(top,target,keys):
             if not re.fullmatch(r'[A-Za-z0-9_.-]+\.apex',name):raise ValueError('Unexpected APEX metadata name')
         with z.open('IMAGES/boot.img') as image:layout=boot_layout(image.read(48))
         return {'schema':2,'sdk':33,'variant':'userdebug','top':str(top),'target':str(target),
-                'target_bytes':target.stat().st_size,'target_sha256':crypto.digest(target),
+                'target_bytes':target.stat().st_size,'target_sha256':crypto.digest(target) if missing is None else None,
                 'key_dir':str(keys),'ota_key':ota,'certificates':certs,'apks':apks,
                 'unused_apex_metadata':sorted(apexcerts),'flattened_manifests':flat,
                 'original_build':build,'original_kernel_sha256':hashlib.sha256(z.read('BOOT/kernel')).hexdigest(),
                 'boot_layout':layout,'trust_stores':trust,'trust_metadata':trust_metadata,
                 'requires_clean_install':True,'hardware_tested':False}
+
+
+def prepare_sdk33_roles(probe,missing,keys,password):
+    """Create only fully absent new SDK33 roles; never repair/replace old pairs."""
+    for base in missing:
+        if Path(base).parent!=keys or Path(base).name not in NEW_SDK33_ROLES:
+            raise ValueError('Refusing to generate an established/unknown signing role: '+base)
+    snapshots={}
+    def validate_existing():
+        for base in sorted({c['key'] for c in probe['certificates'].values()}):
+            absent=all(not Path(base+s).exists() and not Path(base+s).is_symlink()
+                       for s in ('.x509.pem','.pk8'))
+            if base in missing and absent:continue
+            require_pair(base);crypto.validate_private(base,password)
+            expected={c['new_sha256'] for c in probe['certificates'].values()
+                      if c['key']==base and c['new_sha256'] is not None}
+            actual=hashlib.sha256(crypto.cert_der(base+'.x509.pem')).hexdigest()
+            if expected and expected!={actual}:raise ValueError('Existing certificate changed during preparation')
+            for suffix in ('.x509.pem','.pk8'):
+                path=Path(base+suffix);snapshots[path]=crypto.digest(path)
+    if not missing:
+        validate_existing()
+        return []
+    lock=keys/'.sdk33-role-keys.lock'
+    fd=os.open(lock,os.O_RDWR|os.O_CREAT|os.O_CLOEXEC|os.O_NOFOLLOW,0o600)
+    created=[]
+    with os.fdopen(fd,'r+b') as held:
+        state=os.fstat(held.fileno())
+        if not stat.S_ISREG(state.st_mode) or state.st_uid!=os.getuid() or stat.S_IMODE(state.st_mode)&0o077:
+            raise ValueError('Unsafe SDK33 key preparation lock')
+        try:fcntl.flock(held.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:raise ValueError('Another SDK33 key preparation is running; retry after it finishes')
+        # Validate the existing password and every current pair before creating
+        # any new material. A missing/partial established role is never replaced.
+        validate_existing()
+        for base in sorted(missing):
+            destinations=[Path(base+'.pk8'),Path(base+'.x509.pem')]
+            if any(path.exists() or path.is_symlink() for path in destinations):
+                require_pair(base);crypto.validate_private(base,password)
+                continue
+            role=Path(base).name
+            print('Preparing missing SDK33 signing role: '+role,flush=True)
+            with tempfile.TemporaryDirectory(dir=keys,prefix='.sdk33-role-') as temporary:
+                stage=Path(temporary);raw=stage/'raw.pem';staged=stage/'key'
+                crypto.run(['openssl','genrsa','-out',raw,'4096'])
+                crypto.run(['openssl','req','-new','-x509','-sha256','-key',raw,'-days','10000',
+                            '-subj','/C=TR/O=GM8 Community/CN=GM8 SDK33 '+role,
+                            '-out',str(staged)+'.x509.pem'])
+                command=['openssl','pkcs8','-topk8','-in',raw,'-outform','DER','-out',str(staged)+'.pk8']
+                command+=['-v1','PBE-SHA1-3DES','-passout','stdin'] if password else ['-nocrypt']
+                crypto.run(command,(password+'\n').encode() if password else None)
+                crypto.validate_private(str(staged),password)
+                sources=[Path(str(staged)+'.pk8'),Path(str(staged)+'.x509.pem')]
+                for source in sources:
+                    source.chmod(0o600)
+                    with source.open('rb') as stream:os.fsync(stream.fileno())
+                linked=[]
+                try:
+                    # Hard-link creation is atomic and refuses existing names;
+                    # unlike replace(), it cannot overwrite a concurrent pair.
+                    for source,destination in zip(sources,destinations):
+                        os.link(source,destination);linked.append((source,destination))
+                except BaseException:
+                    for source,destination in reversed(linked):
+                        if destination.exists() and os.path.samefile(source,destination):destination.unlink()
+                    raise
+                directory=os.open(keys,os.O_RDONLY|os.O_DIRECTORY)
+                try:os.fsync(directory)
+                finally:os.close(directory)
+            require_pair(base);crypto.validate_private(base,password)
+            created.append({'role':role,'certificate_sha256':hashlib.sha256(crypto.cert_der(base+'.x509.pem')).hexdigest()})
+        if any(crypto.digest(path)!=value for path,value in snapshots.items()):
+            raise ValueError('An existing key changed during SDK33 role preparation')
+    return created
 
 
 def trust_store(data,wanted):
@@ -439,7 +525,8 @@ def sign(plan,output,host,java,password):
             'ota_sha256':crypto.digest(ota),'ota_metadata':ota_info,'payload_partitions':parts,
             'whole_ota_signature_verified':True,'payload_signature_verified':True,
             'hardware_tested':False,'public_release':False,'requires_clean_install':True,
-            'automatic_wipe':False,'output_zip':str(ota),'output_boot':str(boot)}
+            'automatic_wipe':False,'new_sdk33_role_keys':plan.get('new_sdk33_role_keys',[]),
+            'output_zip':str(ota),'output_boot':str(boot)}
     (output/'verification.json').write_text(json.dumps(result,indent=2)+'\n')
     print('Verified hardware-test OTA: '+str(ota))
     print('Matching signed recovery-as-boot: '+str(boot))
@@ -449,7 +536,7 @@ def sign(plan,output,host,java,password):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('stage',choices=('plan','sign'))
+    parser.add_argument('stage',choices=('plan','sign','package'))
     parser.add_argument('--top',type=Path,required=True)
     parser.add_argument('--target-files',type=Path)
     parser.add_argument('--key-dir',type=Path)
@@ -464,16 +551,26 @@ def main():
             raise ValueError('Output must be owned by this user with mode 0700')
         tempfile.tempdir=str(output)
         planfile=output/'firstboot-plan.json'
-        if args.stage=='plan':
+        if args.stage in ('plan','package'):
             if args.target_files is None or args.key_dir is None:raise ValueError('plan requires --target-files and --key-dir')
             if any(output.iterdir()):raise ValueError('Plan output directory must be empty')
             keys=existing_key_dir(args.key_dir,top)
             target=args.target_files.expanduser().resolve(strict=True)
+            password=None;created=[]
+            if args.stage=='package':
+                missing=set();probe=inventory(top,target,keys,missing)
+                if missing:print('New SDK33 role keys required: '+', '.join(sorted(Path(base).name for base in missing)),flush=True)
+                password=crypto.key_password()
+                created=prepare_sdk33_roles(probe,missing,keys,password)
             plan=inventory(top,target,keys)
+            plan['new_sdk33_role_keys']=created
             with planfile.open('x') as stream:json.dump(plan,stream,indent=2);stream.write('\n')
             print(f'Planned {len(plan["apks"])} APKs and {len(plan["flattened_manifests"])} flattened APEXes: {planfile}')
             print(f'Planned OTA trust: system={len(plan["trust_stores"]["system"])}, recovery={len(plan["trust_stores"]["recovery"])} certificate entries.')
-            print('Existing keys only; no keys generated and no signing/device operation performed.')
+            if args.stage=='plan':print('Read-only key inventory; no keys generated or device operation performed.')
+            else:
+                if created:print('Created persistent new SDK33 role pairs; include them in your private key backup.')
+                sign(plan,output,host,java,password)
         else:
             plan=json.loads(planfile.read_text())
             if plan['schema']!=2 or plan['top']!=str(top) or plan['sdk']!=33 or plan['variant']!='userdebug':raise ValueError('Plan does not match the current SDK33 userdebug signer; create a fresh plan directory')

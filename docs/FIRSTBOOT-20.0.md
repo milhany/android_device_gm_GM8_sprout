@@ -23,13 +23,29 @@ bash device/gm/GM8_sprout/tools/make-firstboot-20.0.sh \
 ```
 
 This command runs signing-helper host regressions, creates a new private output
-directory, inventories the existing archive and signs it with the existing
+directory and inventories the existing archive with the persistent
 `$HOME/android/gm8-signing/keys` key directory. `GM8_SIGNING_KEY_DIR` may select
-another existing key directory. Missing keys, exposed private keys or changed
-certificate identities stop the operation. No keys are generated, replaced or
-uploaded. The original target-files archive remains unchanged. The original
-key password is requested only for signing; a blank answer is appropriate only
-for unencrypted PK8 keys. Passwords are never passed as command-line arguments.
+another existing key directory. Established release/platform/media/shared/
+networkstack keys must already exist. Their missing, exposed, incomplete or
+mismatched pairs stop the operation; they are never automatically regenerated.
+
+The `package` stage discovers all actually required new SDK33 roles before
+signing. Only a fully absent `sdk_sandbox` or `bluetooth` pair may be created.
+It first validates the existing password and every current signing pair, then
+creates distinct RSA-4096 role keys. New PK8 encryption uses that same password;
+blank means unencrypted PK8, matching the existing signing workflow. Existing
+files remain unchanged. Private staging is under the protected key directory,
+publication uses non-overwriting hard links and a preparation lock, and each
+complete pair is validated before use. Partial pairs and concurrent preparations
+are refused. Completed new pairs survive a later packaging failure and are
+reused on retry. Include these new files in the private key backup; do not
+regenerate them on later builds.
+
+The wrapper now uses one `package` invocation and asks for the existing key
+password once. Passwords are never command-line arguments. The explicit `plan`
+stage remains read-only with respect to keys, and a separate `sign` stage accepts
+an already prepared plan. The original target-files archive remains unchanged;
+no key material is uploaded or included in the OTA.
 
 There is no Android source build or kernel rebuild. The SDK33 signing tools
 regenerate images after resigning APKs, rewriting MAC policy certificate
@@ -78,9 +94,11 @@ and its payload are still signed/verified with the single planned primary key.
 
 The plan format is version 2. Retry using the wrapper, which creates a fresh
 output directory rather than reusing an older or failed plan. The host suite
-now includes 11 cases covering public-only extras, scope separation, remapping,
+now includes 17 cases covering public-only extras, scope separation, remapping,
 changed public certificates, and exact duplicate handling in addition to the
-original signing/boot/payload regressions.
+original signing/boot/payload regressions. New cases verify multi-role discovery,
+reuse, password validation/encryption, incomplete pairs, publication collisions,
+preparation locking and the single-password package CLI.
 
 The actual OTA whole-file CMS signature is verified with OpenSSL. The v2 payload
 manifest must be a full update of exactly boot/system/vendor, with no old source

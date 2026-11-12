@@ -17,7 +17,6 @@ python3 "$script/tests/firstboot_20_0_test.py"
 mkdir -p "$parent"
 output="$(mktemp -d "$parent/$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")"
 echo "First-boot package staging: $output"
-python3 "$script/firstboot-20.0.py" plan --top "$top" --target-files "$target" \
+python3 "$script/firstboot-20.0.py" package --top "$top" --target-files "$target" \
     --key-dir "$keys" --output-dir "$output"
-python3 "$script/firstboot-20.0.py" sign --top "$top" --output-dir "$output"
 echo "Verified package and report directory: $output"
