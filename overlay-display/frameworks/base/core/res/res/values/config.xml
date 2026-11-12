@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The GM8 LCD must turn off instead of entering ambient-display dreams.
+         This does not disable DeviceIdleController or background power saving. -->
+    <string name="config_dozeComponent" translatable="false"></string>
+    <bool name="config_dozeAlwaysOnDisplayAvailable">false</bool>
+
+    <!-- Default for fresh settings only; preserve existing user preferences. -->
+    <bool name="config_dreamsEnabledByDefault">false</bool>
+</resources>
