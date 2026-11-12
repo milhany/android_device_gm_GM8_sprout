@@ -88,6 +88,7 @@ class FirstBootTest(unittest.TestCase):
         cls.temp=tempfile.TemporaryDirectory(prefix='gm8-firstboot-crypto-')
         cls.root=Path(cls.temp.name)
         key(cls.root/'source');key(cls.root/'release')
+        key(cls.root/'recovery-extra');key(cls.root/'system-extra')
 
     @classmethod
     def tearDownClass(cls):cls.temp.cleanup()
@@ -185,6 +186,72 @@ class FirstBootTest(unittest.TestCase):
             self.entries['BOOT/RAMDISK/system/etc/security/otacerts.zip']=zipped({'wrong.pem':(self.root/'source.x509.pem').read_bytes()});self.write_target()
             with self.assertRaisesRegex(ValueError,'trust-store'):signer.verify_signed(plan,self.target,self.work)
 
+    def public_extra(self,name):
+        base='vendor/lineage/security/'+name
+        path=self.top/(base+'.x509.pem');path.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(self.root/(name+'.x509.pem'),path)
+        return base,path
+
+    def test_public_extra_trust_is_scoped_and_needs_no_private_key(self):
+        recovery,path=self.public_extra('recovery-extra')
+        system,system_path=self.public_extra('system-extra')
+        self.entries['META/misc_info.txt']+=f'extra_recovery_keys={recovery}\nextra_ota_keys={system}\n'
+        self.write_target();before={p.name:p.read_bytes() for p in self.keys.iterdir()}
+        plan=self.plan()
+        self.assertEqual(len(plan['trust_stores']['recovery']),2)
+        self.assertEqual(len(plan['trust_stores']['system']),2)
+        self.assertEqual(plan['trust_stores']['recovery'][1]['action'],'preserved_public_only')
+        self.assertEqual(len(plan['certificates']),2) # testkey + shared alias; no extra private keys
+        self.assertFalse(path.with_suffix('.pk8').exists())
+        recovery_store=zipped({'release.pem':self.cert,'extra.pem':path.read_bytes()})
+        system_store=zipped({'release.pem':self.cert,'extra.pem':system_path.read_bytes()})
+        self.entries['SYSTEM/build.prop']=self.entries['SYSTEM/build.prop'].replace('test-keys','release-keys')
+        self.entries['SYSTEM/etc/security/otacerts.zip']=system_store
+        self.entries['BOOT/RAMDISK/system/etc/security/otacerts.zip']=recovery_store
+        self.entries['IMAGES/boot.img']=boot(self.kernel,recovery_store)
+        self.write_target()
+        with patch.object(signer.crypto,'apk_verify'):
+            signer.verify_signed(plan,self.target,self.work)
+            # A recovery-only root cannot leak into normal-system trust.
+            self.entries['SYSTEM/etc/security/otacerts.zip']=recovery_store;self.write_target()
+            with self.assertRaisesRegex(ValueError,'trust-store'):signer.verify_signed(plan,self.target,self.work)
+            self.entries['SYSTEM/etc/security/otacerts.zip']=system_store
+            # The actual packed ramdisk is verified independently of its tree.
+            self.entries['IMAGES/boot.img']=boot(self.kernel,self.store);self.write_target()
+            with self.assertRaisesRegex(ValueError,'trust-store'):signer.verify_signed(plan,self.target,self.work)
+        path.write_bytes(system_path.read_bytes())
+        with self.assertRaisesRegex(ValueError,'changed since planning'):signer.trusted_certificates(plan,'recovery')
+        self.assertEqual(before,{p.name:p.read_bytes() for p in self.keys.iterdir()})
+
+    def test_extra_alias_remaps_to_used_identity_and_exact_multiplicity(self):
+        self.entries['META/misc_info.txt']+='extra_recovery_keys=build/make/target/product/security/shared\n'
+        self.write_target();plan=self.plan()
+        self.assertEqual(plan['trust_stores']['recovery'][1]['action'],'remapped')
+        wanted=signer.trusted_certificates(plan,'recovery')
+        self.assertEqual(wanted[0],wanted[1])
+        store=io.BytesIO()
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore',UserWarning)
+            with zipfile.ZipFile(store,'w') as z:
+                z.writestr('same.pem',self.cert);z.writestr('same.pem',self.cert)
+        signer.trust_store(store.getvalue(),wanted)
+        with self.assertRaisesRegex(ValueError,'count'):signer.trust_store(self.store,wanted)
+        with self.assertRaisesRegex(ValueError,'count'):signer.trust_store(store.getvalue(),wanted[:1])
+        # Same-name entries must each be inspected, not read through ZIP's last-name lookup.
+        other=io.BytesIO()
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore',UserWarning)
+            with zipfile.ZipFile(other,'w') as z:
+                z.writestr('same.pem',(self.root/'source.x509.pem').read_bytes())
+                z.writestr('same.pem',self.cert)
+        with self.assertRaisesRegex(ValueError,'differ'):signer.trust_store(other.getvalue(),wanted)
+
+    def test_missing_public_extra_is_rejected_before_signing(self):
+        self.entries['META/misc_info.txt']+='extra_recovery_keys=vendor/lineage/missing\n'
+        self.write_target()
+        with self.assertRaisesRegex(ValueError,'Missing source public certificate'):self.plan()
+
     def test_payload_manifest_rejects_firmware_incremental_and_corruption(self):
         file=self.work/'payload'
         file.write_bytes(payload(self.boot));good=signer.payload_manifest(file)
@@ -249,6 +316,7 @@ class FirstBootTest(unittest.TestCase):
                 self.assertEqual(stat.S_IMODE(pw.stat().st_mode),0o600)
                 self.assertNotIn('ANDROID_SECURE_STORAGE_CMD',kw['env'])
                 if name=='sign_target_files_apks':
+                    self.assertNotIn('-d',argv)
                     self.assertIn('--extra_apks',argv);self.assertIn('com.android.fixture.apex=',argv)
                     entries=dict(self.entries);entries['SYSTEM/build.prop']=entries['SYSTEM/build.prop'].replace('test-keys','release-keys')
                     Path(argv[-1]).write_bytes(zipped(entries))

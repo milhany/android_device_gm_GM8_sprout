@@ -58,10 +58,29 @@ of an unplanned AVB/verity or virtual/dynamic partition signing configuration.
 It preserves and checks every PRESIGNED APK byte-for-byte and verifies the
 signing certificate of each resigned APK with the actual host apksigner.
 
-Every signed target-files OTA trust store must contain the planned release
-certificate. The actual signed boot image is parsed too: its gzip/raw newc
-ramdisk trust store and `ro.debuggable=1` are checked, its kernel must match the
-compiled input, and its v0/2048 layout must fit the 64 MiB boot partition.
+Every signed target-files OTA trust store must match its explicit certificate
+plan. SDK33 `extra_recovery_keys` are retained only in BOOT/RECOVERY/VENDOR_BOOT
+stores; `extra_ota_keys` belong to ordinary system stores. An extra public trust
+certificate does not require its private signing key. Existing APK/primary
+signing identities are remapped consistently; other declared public trust
+anchors are preserved and their DER hashes are pinned. All actual APK signing
+and primary OTA mappings are passed explicitly rather than applying an implicit
+`-d` mapping to unused SDK33 roles.
+
+Each trust store is compared against its complete planned certificate multiset,
+including any planned alias duplicates. Unexpected, missing, changed or leaked
+recovery-only certificates fail verification. Every duplicate ZIP entry is read
+through its own ZipInfo, so a later entry cannot hide an earlier certificate.
+The actual signed boot image is parsed too: its gzip/raw newc ramdisk trust store
+and `ro.debuggable=1` are checked, its kernel/load layout must match the compiled
+input, and its v0/2048 layout must fit the 64 MiB boot partition. The OTA itself
+and its payload are still signed/verified with the single planned primary key.
+
+The plan format is version 2. Retry using the wrapper, which creates a fresh
+output directory rather than reusing an older or failed plan. The host suite
+now includes 11 cases covering public-only extras, scope separation, remapping,
+changed public certificates, and exact duplicate handling in addition to the
+original signing/boot/payload regressions.
 
 The actual OTA whole-file CMS signature is verified with OpenSSL. The v2 payload
 manifest must be a full update of exactly boot/system/vendor, with no old source

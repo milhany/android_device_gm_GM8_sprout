@@ -6,6 +6,7 @@ Never builds Android, generates keys, flashes, selects a slot or formats data.
 """
 import argparse
 import base64
+from collections import Counter
 import gzip
 import hashlib
 import importlib.util
@@ -84,8 +85,6 @@ def metadata(z,signed=False):
     default=crypto.props(crypto.text(z,'BOOT/RAMDISK/prop.default'))
     if default.get('ro.debuggable')!='1':raise ValueError('Userdebug ramdisk debugging must remain enabled')
     if z.getinfo('IMAGES/boot.img').file_size>64*1024*1024:raise ValueError('Boot exceeds 64 MiB')
-    for name in ('extra_ota_keys','extra_recovery_keys'):
-        if misc.get(name):raise ValueError('Additional OTA trust certificates require a separate plan: '+name)
     return build,misc,flat
 
 
@@ -115,7 +114,10 @@ def inventory(top,target,keys):
         dev=misc.get('default_system_dev_certificate','build/make/target/product/security/testkey')
         devdir=Path(dev).parent
         known={}
-        for name,role in (('testkey','releasekey'),('platform','platform'),('shared','shared'),('media','media'),('networkstack','networkstack')):
+        for name,role in (('testkey','releasekey'),('devkey','releasekey'),
+                          ('platform','platform'),('shared','shared'),('media','media'),
+                          ('networkstack','networkstack'),('sdk_sandbox','sdk_sandbox'),
+                          ('bluetooth','bluetooth')):
             cert=top/devdir/(name+'.x509.pem')
             if cert.is_file():known.setdefault(hashlib.sha256(crypto.cert_der(cert)).hexdigest(),str(keys/role))
         certs={}
@@ -144,27 +146,70 @@ def inventory(top,target,keys):
             apks.append({'entry':name,'key':key,
                          'presigned_sha256':hashlib.sha256(z.read(name)).hexdigest() if key is None else None})
         if not apks:raise ValueError('No installed APKs in target-files')
+        # SDK33 ReplaceOtaKeys keeps recovery-only extras separate from normal
+        # OTA extras. They are public trust anchors, not package signing keys.
+        # Remap an already-known APK/default signing identity; otherwise keep
+        # the explicitly declared public certificate without needing its PK8.
+        def trust_certificate(old):
+            source=old+'.x509.pem'
+            original=crypto.source_certificate(top,source)
+            original_hash=hashlib.sha256(crypto.cert_der(original)).hexdigest()
+            if source in certs or original_hash in {c['old_sha256'] for c in certs.values()}:
+                base=certificate(source)
+                return {'source':old,'certificate':base+'.x509.pem',
+                        'sha256':certs[source]['new_sha256'],'action':'remapped'}
+            return {'source':old,'certificate':str(original),
+                    'sha256':original_hash,'action':'preserved_public_only'}
+        primary={'source':dev,'certificate':ota+'.x509.pem',
+                 'sha256':hashlib.sha256(crypto.cert_der(ota+'.x509.pem')).hexdigest(),
+                 'action':'primary_signer'}
+        trust_metadata={key:misc.get(key,'').split() for key in ('extra_ota_keys','extra_recovery_keys')}
+        trust={'system':[primary]+[trust_certificate(name) for name in trust_metadata['extra_ota_keys']],
+               'recovery':[primary]+[trust_certificate(name) for name in trust_metadata['extra_recovery_keys']]}
+        if any(len(entries)>64 for entries in trust.values()):raise ValueError('Too many planned OTA trust certificates')
         # Flattened APEXes have no signed containers/payload images. Stale build
         # metadata for nonexistent containers must not request/generate APEX keys.
         # Every actual flattened APK remains in the verified APK inventory above.
         for name in apexcerts:
             if not re.fullmatch(r'[A-Za-z0-9_.-]+\.apex',name):raise ValueError('Unexpected APEX metadata name')
         with z.open('IMAGES/boot.img') as image:layout=boot_layout(image.read(48))
-        return {'schema':1,'sdk':33,'variant':'userdebug','top':str(top),'target':str(target),
+        return {'schema':2,'sdk':33,'variant':'userdebug','top':str(top),'target':str(target),
                 'target_bytes':target.stat().st_size,'target_sha256':crypto.digest(target),
                 'key_dir':str(keys),'ota_key':ota,'certificates':certs,'apks':apks,
                 'unused_apex_metadata':sorted(apexcerts),'flattened_manifests':flat,
                 'original_build':build,'original_kernel_sha256':hashlib.sha256(z.read('BOOT/kernel')).hexdigest(),
-                'boot_layout':layout,'requires_clean_install':True,'hardware_tested':False}
+                'boot_layout':layout,'trust_stores':trust,'trust_metadata':trust_metadata,
+                'requires_clean_install':True,'hardware_tested':False}
 
 
 def trust_store(data,wanted):
+    expected=[wanted] if isinstance(wanted,bytes) else wanted
     with zipfile.ZipFile(io.BytesIO(data)) as z:
-        names=checked_zip(z)
-        if len(names)!=1 or z.getinfo(names[0]).file_size>16384:
-            raise ValueError('Expected exactly one bounded OTA trust certificate')
-        if crypto.run(['openssl','x509','-outform','DER'],z.read(names[0]))!=wanted:
-            raise ValueError('Unexpected OTA trust-store certificate')
+        entries=z.infolist()
+        if not expected or len(entries)!=len(expected) or len(entries)>64:
+            raise ValueError('OTA trust-store certificate count differs from the explicit plan')
+        actual=[]
+        for entry in entries:
+            if entry.is_dir() or entry.file_size>16384:
+                raise ValueError('Invalid OTA trust-store entry')
+            # Read each ZipInfo independently, including planned duplicate
+            # filenames caused by two source aliases mapping to one key.
+            value=z.read(entry)
+            if value.count(b'-----BEGIN CERTIFICATE-----')!=1:
+                raise ValueError('Expected one PEM certificate per OTA trust-store entry')
+            actual.append(crypto.run(['openssl','x509','-outform','DER'],value))
+        if Counter(actual)!=Counter(expected):
+            raise ValueError('OTA trust-store certificates differ from the explicit plan')
+
+
+def trusted_certificates(plan,scope):
+    result=[]
+    for item in plan['trust_stores'][scope]:
+        data=crypto.cert_der(item['certificate'])
+        if hashlib.sha256(data).hexdigest()!=item['sha256']:
+            raise ValueError('OTA trust certificate changed since planning: '+item['certificate'])
+        result.append(data)
+    return result
 
 
 def pinned_certificate(plan,base):
@@ -224,10 +269,13 @@ def verify_boot(data,kernel_hash,wanted_cert):
 
 
 def verify_signed(plan,signed,host):
-    wanted=pinned_certificate(plan,plan['ota_key'])
+    pinned_certificate(plan,plan['ota_key'])
+    trust={scope:trusted_certificates(plan,scope) for scope in ('system','recovery')}
     expected={c['key']:c['new_sha256'] for c in plan['certificates'].values()}
     with zipfile.ZipFile(signed) as z:
-        build,_,flat=metadata(z,True)
+        build,misc,flat=metadata(z,True)
+        if {key:misc.get(key,'').split() for key in plan['trust_metadata']}!=plan['trust_metadata']:
+            raise ValueError('Declared OTA trust scope changed during signing')
         if flat!=plan['flattened_manifests']:raise ValueError('Flattened APEX inventory changed')
         current={n for n in z.namelist() if n.endswith(('.apk','.apk.gz'))}
         if current!={a['entry'] for a in plan['apks']}:raise ValueError('Installed APK inventory changed')
@@ -241,14 +289,17 @@ def verify_signed(plan,signed,host):
                     crypto.apk_verify(file,expected[apk['key']],host)
         stores=[n for n in z.namelist() if n.endswith('/otacerts.zip')]
         if not stores:raise ValueError('Missing signed OTA trust stores')
-        for name in stores:trust_store(z.read(name),wanted)
+        for name in stores:
+            scope='recovery' if name.startswith(('BOOT/','RECOVERY/','VENDOR_BOOT/')) else 'system'
+            trust_store(z.read(name),trust[scope])
         if hashlib.sha256(z.read('BOOT/kernel')).hexdigest()!=plan['original_kernel_sha256']:
             raise ValueError('Signing must preserve the compiled kernel')
         boot=z.read('IMAGES/boot.img')
         if boot_layout(boot[:48])!=plan['boot_layout']:raise ValueError('Signing changed the boot load layout')
-        actual_stores=verify_boot(boot,plan['original_kernel_sha256'],wanted)
+        actual_stores=verify_boot(boot,plan['original_kernel_sha256'],trust['recovery'])
         return {'apks_checked':len(plan['apks']),'flattened_apexes':len(flat),
                 'target_trust_stores':stores,'actual_boot_trust_stores':actual_stores,
+                'trust_stores':plan['trust_stores'],
                 'signed_build':build,'boot_bytes':len(boot),'boot_sha256':hashlib.sha256(boot).hexdigest()}
 
 
@@ -353,6 +404,7 @@ def host_tools(top):
 
 def sign(plan,output,host,java,password):
     if crypto.digest(plan['target'])!=plan['target_sha256']:raise ValueError('Target-files changed since planning')
+    for scope in ('system','recovery'):trusted_certificates(plan,scope)
     for base in sorted({c['key'] for c in plan['certificates'].values()}):
         require_pair(base);crypto.validate_private(base,password)
     for c in plan['certificates'].values():
@@ -362,7 +414,10 @@ def sign(plan,output,host,java,password):
     if any(p.exists() for p in (signed,ota,boot,output/'verification.json')):raise ValueError('Outputs already exist; preserve them and use a new plan directory')
     needed=6*Path(plan['target']).stat().st_size+2*1024**3
     if shutil.disk_usage(output).free<needed:raise ValueError('Insufficient staging space for signing/images/payload verification')
-    command=[host/'bin/sign_target_files_apks','-p',host,'--java_path',java,'-o','-d',plan['key_dir']]
+    # Explicit maps cover all actual APK signers and the primary OTA signer.
+    # Do not add -d: it implicitly maps unused SDK33 roles and can require a
+    # private key for a public-only extra trust anchor that is not being signed.
+    command=[host/'bin/sign_target_files_apks','-p',host,'--java_path',java,'-o']
     for old,c in sorted(plan['certificates'].items()):command+=['-k',old.removesuffix('.x509.pem')+'='+c['key']]
     for name in plan['unused_apex_metadata']:
         command+=['--extra_apks',name+'=','--extra_apex_payload_key',name+'=']
@@ -378,6 +433,7 @@ def sign(plan,output,host,java,password):
                         '-k',plan['ota_key'],str(signed),str(ota)],check=True,env=env)
     ota_info,parts=verify_payload(ota,plan,host,checked)
     for base in sorted({c['key'] for c in plan['certificates'].values()}):pinned_certificate(plan,base)
+    for scope in ('system','recovery'):trusted_certificates(plan,scope)
     with zipfile.ZipFile(signed) as z:crypto.copy_entry(z,'IMAGES/boot.img',boot)
     result={**checked,'source_target_sha256':plan['target_sha256'],'signed_target_sha256':crypto.digest(signed),
             'ota_sha256':crypto.digest(ota),'ota_metadata':ota_info,'payload_partitions':parts,
@@ -416,10 +472,11 @@ def main():
             plan=inventory(top,target,keys)
             with planfile.open('x') as stream:json.dump(plan,stream,indent=2);stream.write('\n')
             print(f'Planned {len(plan["apks"])} APKs and {len(plan["flattened_manifests"])} flattened APEXes: {planfile}')
+            print(f'Planned OTA trust: system={len(plan["trust_stores"]["system"])}, recovery={len(plan["trust_stores"]["recovery"])} certificate entries.')
             print('Existing keys only; no keys generated and no signing/device operation performed.')
         else:
             plan=json.loads(planfile.read_text())
-            if plan['schema']!=1 or plan['top']!=str(top) or plan['sdk']!=33 or plan['variant']!='userdebug':raise ValueError('Plan does not match SDK33 userdebug checkout')
+            if plan['schema']!=2 or plan['top']!=str(top) or plan['sdk']!=33 or plan['variant']!='userdebug':raise ValueError('Plan does not match the current SDK33 userdebug signer; create a fresh plan directory')
             existing_key_dir(plan['key_dir'],top)
             sign(plan,output,host,java,crypto.key_password())
     except (OSError,ValueError,KeyError,RuntimeError,zipfile.BadZipFile,subprocess.SubprocessError) as error:
