@@ -142,6 +142,74 @@ class FirstBootTest(unittest.TestCase):
         self.entries[f'SYSTEM/apex/com.android.fixture/priv-app/{role}/{role}.apk']=b'new SDK33 app'
         self.write_target()
 
+    def add_custom_identity(self,name,original='system-extra'):
+        relative='vendor/fixture/security/'+name
+        destination=self.top/(relative+'.x509.pem');destination.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(self.root/(original+'.x509.pem'),destination)
+        entry=f'SYSTEM/product/app/{name}/{name}.apk'
+        self.entries['META/apkcerts.txt']+=f'name="{name}.apk" certificate="{relative}.x509.pem" private_key="unused.pk8"\n'
+        self.entries[entry]=b'custom certificate app';self.write_target()
+        return relative+'.x509.pem',entry
+
+    def test_all_custom_and_sdk_identities_discovered_prepared_and_reused(self):
+        self.add_sdk33_role('sdk_sandbox')
+        first,app1=self.add_custom_identity('Custom')
+        alias,app2=self.add_custom_identity('CustomAlias')
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        digest=probe['certificates'][first]['old_sha256'];custom=str(self.keys/'certs'/digest)
+        self.assertEqual(missing,{str(self.keys/'sdk_sandbox'),custom})
+        self.assertEqual(probe['certificates'][alias]['key'],custom)
+        self.assertEqual(probe['certificates'][first]['required_by'],sorted([app1,app2]))
+        original={p:p.read_bytes() for p in self.keys.iterdir()}
+        created=signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+        self.assertEqual({c['role'] for c in created},{'sdk_sandbox','certs/'+digest})
+        record=next(c for c in created if c['role'].startswith('certs/'))
+        self.assertEqual(record['source_certificates'],sorted([first,alias]))
+        self.assertEqual(record['required_by'],sorted([app1,app2]))
+        self.assertEqual(stat.S_IMODE((self.keys/'certs').stat().st_mode),0o700)
+        for path,data in original.items():self.assertEqual(path.read_bytes(),data)
+        final=self.plan();self.assertTrue(all(c['new_sha256'] for c in final['certificates'].values()))
+        snapshot={p:p.read_bytes() for p in self.keys.rglob('*') if p.is_file()}
+        missing=set();again=signer.inventory(self.top,self.target,self.keys,missing)
+        self.assertFalse(missing);self.assertEqual(signer.prepare_sdk33_roles(again,missing,self.keys,''),[])
+        self.assertEqual(snapshot,{p:p.read_bytes() for p in self.keys.rglob('*') if p.is_file()})
+
+    def test_custom_source_matching_owned_certificate_reuses_existing_pair(self):
+        source,_=self.add_custom_identity('AlreadyOwned','release')
+        before={p:p.read_bytes() for p in self.keys.iterdir()}
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        self.assertFalse(missing)
+        self.assertEqual(probe['certificates'][source]['key'],str(self.keys/'releasekey'))
+        self.assertFalse((self.keys/'certs').exists())
+        self.assertEqual(before,{p:p.read_bytes() for p in self.keys.iterdir()})
+
+    def test_custom_partial_pair_and_unsafe_directory_never_replaced(self):
+        source,_=self.add_custom_identity('Partial')
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        base=probe['certificates'][source]['key'];parent=Path(base).parent;parent.mkdir(mode=0o700)
+        partial=Path(base+'.x509.pem');partial.write_bytes(self.cert)
+        with self.assertRaisesRegex(ValueError,'Missing existing key pair'):
+            signer.inventory(self.top,self.target,self.keys,set())
+        self.assertEqual(partial.read_bytes(),self.cert);self.assertFalse(Path(base+'.pk8').exists())
+        partial.unlink();parent.chmod(0o755)
+        with self.assertRaisesRegex(ValueError,'mode 0700'):
+            signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+        self.assertFalse(Path(base+'.pk8').exists())
+
+    def test_custom_generation_requires_used_apk_proof_and_never_creates_ota(self):
+        source,_=self.add_custom_identity('Proof')
+        missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
+        base=probe['certificates'][source]['key']
+        for field,value in [('required_by',[]),('old_sha256','wrong')]:
+            original=probe['certificates'][source][field];probe['certificates'][source][field]=value
+            with self.assertRaisesRegex(ValueError,'established/unknown'):
+                signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+            probe['certificates'][source][field]=original
+        probe['ota_key']=base
+        with self.assertRaisesRegex(ValueError,'established/unknown'):
+            signer.prepare_sdk33_roles(probe,missing,self.keys,'')
+        self.assertFalse((self.keys/'certs').exists())
+
     def test_prepare_all_needed_sdk33_roles_and_reuse_without_key_changes(self):
         for role in ('sdk_sandbox','bluetooth'):self.add_sdk33_role(role)
         missing=set();probe=signer.inventory(self.top,self.target,self.keys,missing)
@@ -212,22 +280,36 @@ class FirstBootTest(unittest.TestCase):
 
     def test_package_cli_prepares_missing_role_and_prompts_once(self):
         self.add_sdk33_role('sdk_sandbox')
+        source,app=self.add_custom_identity('PackageCustom')
         output=self.work/'package-output';old_temp=tempfile.tempdir;old_mask=os.umask(0o077)
         captured=[]
         def capture(plan,directory,host,java,password):captured.append((plan,directory,password))
+        def password_once():
+            report=json.loads((output/'key-inventory.json').read_text())
+            self.assertEqual(len(report['missing_keys']),2)
+            self.assertFalse((self.keys/'sdk_sandbox.pk8').exists())
+            self.assertFalse((self.keys/'certs').exists())
+            return ''
         argv=['firstboot-20.0.py','package','--top',str(self.top),'--target-files',str(self.target),
               '--key-dir',str(self.keys),'--output-dir',str(output)]
         try:
             with (patch.object(sys,'argv',argv),patch.object(signer,'host_tools',return_value=(self.work,'java')),
-                  patch.object(signer.crypto,'key_password',return_value='') as prompt,patch.object(signer,'sign',side_effect=capture)):
+                  patch.object(signer.crypto,'key_password',side_effect=password_once) as prompt,patch.object(signer,'sign',side_effect=capture)):
                 signer.main()
             self.assertEqual(prompt.call_count,1)
         finally:tempfile.tempdir=old_temp;os.umask(old_mask)
         self.assertEqual(len(captured),1);plan,directory,password=captured[0]
         self.assertEqual(password,'');self.assertEqual(directory,output)
-        self.assertEqual([r['role'] for r in plan['new_sdk33_role_keys']],['sdk_sandbox'])
+        self.assertEqual(len(plan['new_sdk33_role_keys']),2)
+        self.assertIn('sdk_sandbox',[r['role'] for r in plan['new_sdk33_role_keys']])
         self.assertTrue(all(c['new_sha256'] for c in plan['certificates'].values()))
         self.assertEqual(json.loads((output/'firstboot-plan.json').read_text())['target_sha256'],signer.crypto.digest(self.target))
+        report=json.loads((output/'key-inventory.json').read_text())
+        self.assertEqual(len(report['missing_keys']),2)
+        identity=next(c for c in report['identities'] if c['source_certificate']==source)
+        self.assertTrue(identity['missing']);self.assertEqual(identity['required_by'],[app])
+        self.assertIsNone(identity['new_sha256'])
+        self.assertNotIn('PRIVATE KEY',(output/'key-inventory.json').read_text())
 
     def test_plan_uses_existing_keys_and_all_flattened_apks(self):
         before={p.name:p.read_bytes() for p in self.keys.iterdir()}

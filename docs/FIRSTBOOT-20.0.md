@@ -29,10 +29,20 @@ another existing key directory. Established release/platform/media/shared/
 networkstack keys must already exist. Their missing, exposed, incomplete or
 mismatched pairs stop the operation; they are never automatically regenerated.
 
-The `package` stage discovers all actually required new SDK33 roles before
-signing. Only a fully absent `sdk_sandbox` or `bluetooth` pair may be created.
-It first validates the existing password and every current signing pair, then
-creates distinct RSA-4096 role keys. New PK8 encryption uses that same password;
+The `package` stage inventories all installed APK signing identities before
+signing, rather than stopping at the first fully absent new identity. It writes
+`key-inventory.json` with source certificate paths, public certificate hashes,
+the APKs requiring each identity and all absent key paths. This report contains
+no private key material. Aliases of one source certificate share one identity;
+a source certificate matching an already owned certificate reuses that pair.
+
+Fully absent `sdk_sandbox` and `bluetooth` pairs may be created, along with new
+APK-specific pairs stored as `certs/<source-certificate-DER-SHA256>`. These
+additional identities must be required by actual installed APKs. The primary
+OTA key and established named roles are never created or replaced by this stage.
+Public-only OTA trust extras still do not require private keys. It first
+validates the existing password and every current signing pair, then creates
+distinct RSA-4096 identity keys. New PK8 encryption uses that same password;
 blank means unencrypted PK8, matching the existing signing workflow. Existing
 files remain unchanged. Private staging is under the protected key directory,
 publication uses non-overwriting hard links and a preparation lock, and each
@@ -61,6 +71,8 @@ Output lives in a fresh `$HOME/android/gm8-20.0-firstboot/<UTC>-<suffix>/` folde
 * `gm8-20.0-userdebug-firstboot.zip`: verified full A/B hardware-test OTA.
 * `gm8-20.0-userdebug-firstboot-boot.img`: matching signed recovery-as-boot image.
 * `verification.json`: artifact hashes, checks and explicit untested status.
+* `key-inventory.json`: public identity discovery report, also retained if a
+  later preparation/signing step fails.
 
 No `latest` pointer is updated and no verification record is written on failure.
 Partial outputs are retained for diagnosis and must not be treated as verified
@@ -94,11 +106,14 @@ and its payload are still signed/verified with the single planned primary key.
 
 The plan format is version 2. Retry using the wrapper, which creates a fresh
 output directory rather than reusing an older or failed plan. The host suite
-now includes 17 cases covering public-only extras, scope separation, remapping,
+now includes 21 cases covering public-only extras, scope separation, remapping,
 changed public certificates, and exact duplicate handling in addition to the
 original signing/boot/payload regressions. New cases verify multi-role discovery,
 reuse, password validation/encryption, incomplete pairs, publication collisions,
-preparation locking and the single-password package CLI.
+preparation locking and the single-password package CLI. APK-specific cases
+exercise combined standard/custom discovery, alias deduplication, existing
+owned-certificate reuse, persistent retries, partial pairs, private directory
+permissions, installed-APK proof and primary-key exclusion.
 
 The actual OTA whole-file CMS signature is verified with OpenSSL. The v2 payload
 manifest must be a full update of exactly boot/system/vendor, with no old source
