@@ -37,6 +37,7 @@ from host_java import find_java
 
 PARTITIONS={'boot','system','vendor'}
 LIMIT=16*1024*1024
+PAYLOAD_BLOCK_SIZE=4096
 NEW_SDK33_ROLES={'sdk_sandbox','bluetooth'}
 
 
@@ -424,7 +425,18 @@ def verify_signed(plan,signed,host):
         return {'apks_checked':len(plan['apks']),'flattened_apexes':len(flat),
                 'target_trust_stores':stores,'actual_boot_trust_stores':actual_stores,
                 'trust_stores':plan['trust_stores'],
-                'signed_build':build,'boot_bytes':len(boot),'boot_sha256':hashlib.sha256(boot).hexdigest()}
+                'signed_build':build,'boot_bytes':len(boot),'boot_sha256':hashlib.sha256(boot).hexdigest(),
+                'payload_boot':payload_boot_info(boot)}
+
+
+def payload_boot_info(boot):
+    # SDK33 brillo_update_payload extract_partition() zero-extends target
+    # images to 4096 bytes before delta_generator computes size/SHA256.
+    # Hash those exact bytes, never accept arbitrary extra zero blocks.
+    padding=-len(boot)%PAYLOAD_BLOCK_SIZE
+    return {'bytes':len(boot)+padding,
+            'sha256':hashlib.sha256(boot+b'\0'*padding).hexdigest(),
+            'zero_padding_bytes':padding,'block_size':PAYLOAD_BLOCK_SIZE}
 
 
 def proto_fields(data):
@@ -458,8 +470,12 @@ def payload_manifest(path):
             raise ValueError('Expected signed v2 A/B payload')
         data=stream.read(length)
         if len(data)!=length:raise ValueError('Truncated payload manifest')
-    result={}
+    result={};block_seen=False
     for field,wire,value in proto_fields(data):
+        if field==3:
+            if block_seen or wire!=0 or value!=PAYLOAD_BLOCK_SIZE:
+                raise ValueError('Expected one SDK33 payload block_size=4096 (or its protobuf default)')
+            block_seen=True
         if field==12 and (wire!=0 or value!=0):raise ValueError('Only a full payload (minor version 0) is allowed')
         if field==15 and (wire!=2 or value):raise ValueError('Dynamic partition updates are not allowed')
         if field!=13:continue
@@ -475,7 +491,7 @@ def payload_manifest(path):
                 new={a:c for a,b,c in proto_fields(v) if a in (1,2) and b==(0 if a==1 else 2)}
         if name not in PARTITIONS or name in result or new is None:
             raise ValueError('Unexpected/duplicate/missing payload partition: '+str(name))
-        if not isinstance(new.get(1),int) or new[1]<=0 or not isinstance(new.get(2),bytes) or len(new[2])!=32:
+        if not isinstance(new.get(1),int) or new[1]<=0 or new[1]%PAYLOAD_BLOCK_SIZE or not isinstance(new.get(2),bytes) or len(new[2])!=32:
             raise ValueError('Missing partition size/hash')
         result[name]={'bytes':new[1],'sha256':new[2].hex()}
     if set(result)!=PARTITIONS:raise ValueError('Payload must update exactly boot/system/vendor')
@@ -493,8 +509,10 @@ def verify_payload(ota,plan,host,boot_check):
         checked_zip(z)
         payload=Path(temp)/'payload.bin';crypto.copy_entry(z,'payload.bin',payload)
         parts=payload_manifest(payload)
-        if parts['boot']!={'bytes':boot_check['boot_bytes'],'sha256':boot_check['boot_sha256']}:
-            raise ValueError('OTA payload boot differs from the signed boot image')
+        expected={k:boot_check['payload_boot'][k] for k in ('bytes','sha256')}
+        if parts['boot']!=expected:
+            raise ValueError('OTA payload boot differs from the signed boot image after SDK33 zero padding: '
+                f'raw={boot_check["boot_bytes"]} bytes, expected={expected}, actual={parts["boot"]}')
         properties=crypto.props(crypto.text(z,'payload_properties.txt'))
         if properties.get('FILE_SIZE')!=str(payload.stat().st_size):raise ValueError('Payload size header mismatch')
         actual=base64.b64encode(bytes.fromhex(crypto.digest(payload))).decode()
@@ -555,17 +573,41 @@ def sign(plan,output,host,java,password):
         checked=verify_signed(plan,signed,host)
         subprocess.run([str(host/'bin/ota_from_target_files'),'-p',str(host),'--java_path',java,
                         '-k',plan['ota_key'],str(signed),str(ota)],check=True,env=env)
+    finish_verification(plan,output,host,checked)
+
+
+def finish_verification(plan,output,host,checked=None):
+    """Verify retained signed outputs without building, signing or creating keys."""
+    signed=output/'signed-target_files.zip';ota=output/'gm8-20.0-userdebug-firstboot.zip'
+    boot=output/'gm8-20.0-userdebug-firstboot-boot.img';record=output/'verification.json'
+    if boot.exists() or record.exists():raise ValueError('Verified outputs already exist; refusing to overwrite')
+    if not signed.is_file() or not ota.is_file():raise ValueError('Both existing signed-target_files.zip and OTA are required; no older directory is substituted')
+    if crypto.digest(plan['target'])!=plan['target_sha256']:raise ValueError('Target-files changed since planning')
+    before={p:crypto.digest(p) for p in (signed,ota)}
+    if checked is None:checked=verify_signed(plan,signed,host)
     ota_info,parts=verify_payload(ota,plan,host,checked)
     for base in sorted({c['key'] for c in plan['certificates'].values()}):pinned_certificate(plan,base)
     for scope in ('system','recovery'):trusted_certificates(plan,scope)
-    with zipfile.ZipFile(signed) as z:crypto.copy_entry(z,'IMAGES/boot.img',boot)
-    result={**checked,'source_target_sha256':plan['target_sha256'],'signed_target_sha256':crypto.digest(signed),
-            'ota_sha256':crypto.digest(ota),'ota_metadata':ota_info,'payload_partitions':parts,
+    if any(crypto.digest(p)!=digest for p,digest in before.items()):raise ValueError('Signed outputs changed during verification')
+    result={**checked,'source_target_sha256':plan['target_sha256'],'signed_target_sha256':before[signed],
+            'ota_sha256':before[ota],'ota_metadata':ota_info,'payload_partitions':parts,
             'whole_ota_signature_verified':True,'payload_signature_verified':True,
             'hardware_tested':False,'public_release':False,'requires_clean_install':True,
             'automatic_wipe':False,'new_sdk33_role_keys':plan.get('new_sdk33_role_keys',[]),
             'output_zip':str(ota),'output_boot':str(boot)}
-    (output/'verification.json').write_text(json.dumps(result,indent=2)+'\n')
+    # Stage both files; publish without overwriting and roll back only our own
+    # publication if the second link fails. A failed check publishes neither.
+    with tempfile.TemporaryDirectory(dir=output,prefix='.verified-') as tmp:
+        staged_boot=Path(tmp)/'boot.img';staged_record=Path(tmp)/'verification.json'
+        with zipfile.ZipFile(signed) as z:crypto.copy_entry(z,'IMAGES/boot.img',staged_boot)
+        if staged_boot.stat().st_size!=checked['boot_bytes'] or crypto.digest(staged_boot)!=checked['boot_sha256']:
+            raise ValueError('Extracted boot changed during verification')
+        staged_record.write_text(json.dumps(result,indent=2)+'\n')
+        os.link(staged_boot,boot)
+        try:os.link(staged_record,record)
+        except OSError:
+            if boot.stat().st_ino==staged_boot.stat().st_ino:boot.unlink()
+            raise
     print('Verified hardware-test OTA: '+str(ota))
     print('Matching signed recovery-as-boot: '+str(boot))
     print('Verification: '+str(output/'verification.json'))
@@ -574,7 +616,7 @@ def sign(plan,output,host,java,password):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('stage',choices=('plan','sign','package'))
+    parser.add_argument('stage',choices=('plan','sign','package','verify'))
     parser.add_argument('--top',type=Path,required=True)
     parser.add_argument('--target-files',type=Path)
     parser.add_argument('--key-dir',type=Path)
@@ -624,7 +666,8 @@ def main():
             plan=json.loads(planfile.read_text())
             if plan['schema']!=2 or plan['top']!=str(top) or plan['sdk']!=33 or plan['variant']!='userdebug':raise ValueError('Plan does not match the current SDK33 userdebug signer; create a fresh plan directory')
             existing_key_dir(plan['key_dir'],top)
-            sign(plan,output,host,java,crypto.key_password())
+            if args.stage=='verify':finish_verification(plan,output,host)
+            else:sign(plan,output,host,java,crypto.key_password())
     except (OSError,ValueError,KeyError,RuntimeError,zipfile.BadZipFile,subprocess.SubprocessError) as error:
         parser.exit(1,'ERROR: '+str(error)+'\n')
 

@@ -76,7 +76,27 @@ Output lives in a fresh `$HOME/android/gm8-20.0-firstboot/<UTC>-<suffix>/` folde
 
 No `latest` pointer is updated and no verification record is written on failure.
 Partial outputs are retained for diagnosis and must not be treated as verified
-packages. Repeating a failed operation uses a new output folder.
+packages. A new signing operation uses a new output folder. If signing and OTA
+generation already finished and only final verification failed, use the
+verification-only retry below instead of signing again.
+
+## Recheck an already generated signed OTA
+
+```sh
+bash device/gm/GM8_sprout/tools/verify-firstboot-20.0.sh
+```
+
+The wrapper prints and checks the newest timestamped first-boot output folder.
+It never falls back to an older package when the newest folder is incomplete.
+An explicit existing output directory may be passed as its single argument.
+The folder must contain its original `firstboot-plan.json`,
+`signed-target_files.zip` and `gm8-20.0-userdebug-firstboot.zip`; the pinned source
+target-files archive and existing public signing certificates must still match.
+Both APK/trust/boot checks and real whole-OTA/payload signature checks run again.
+No Android build, image generation, signing, password prompt or key preparation
+is performed. It publishes the matching original signed boot image and
+`verification.json` only after all checks pass, without overwriting prior
+verified outputs. Failed checks leave the retained archives unchanged.
 
 ## Verification before reporting success
 
@@ -104,9 +124,9 @@ and `ro.debuggable=1` are checked, its kernel/load layout must match the compile
 input, and its v0/2048 layout must fit the 64 MiB boot partition. The OTA itself
 and its payload are still signed/verified with the single planned primary key.
 
-The plan format is version 2. Retry using the wrapper, which creates a fresh
-output directory rather than reusing an older or failed plan. The host suite
-now includes 23 cases covering public-only extras, scope separation, remapping,
+The plan format is version 2. New signing uses the package wrapper's fresh
+directory; verification-only retries reuse the original failed plan and outputs.
+The host suite now includes 26 cases covering public-only extras, scope separation, remapping,
 changed public certificates, and exact duplicate handling in addition to the
 original signing/boot/payload regressions. New cases verify multi-role discovery,
 reuse, password validation/encryption, incomplete pairs, publication collisions,
@@ -135,7 +155,15 @@ are intentionally rejected. Host checks do not replace device acceptance.
 The actual OTA whole-file CMS signature is verified with OpenSSL. The v2 payload
 manifest must be a full update of exactly boot/system/vendor, with no old source
 partition information, dynamic partition update or extra firmware partition.
-Its boot size/hash must match the extracted signed boot image. FILE_HASH,
+SDK33 `brillo_update_payload` extends each target partition image with zeroes
+to the next 4096-byte boundary before generating its payload. The helper hashes
+the signed boot bytes plus exactly that required zero extension (0 to 4095
+bytes) and requires the manifest's boot size/hash to match. The manifest must
+use the 4096-byte block size, explicitly or by protobuf default; extra blocks,
+nonzero padding and altered contents fail. This fixes a false mismatch when a
+v0/2048 boot has an odd number of pages. The standalone boot remains byte-for-byte
+equal to `IMAGES/boot.img`; the report records both original and payload-normalized
+hashes, sizes and zero-padding count. FILE_HASH,
 FILE_SIZE and metadata hash properties are checked. Finally the real SDK33
 delta_generator verifies the payload signature using the planned public key.
 No payload application is requested. The OTA must not request an automatic
@@ -144,8 +172,10 @@ build fingerprint.
 
 SDK33 source contracts reviewed: LineageOS android_build
 `f3bb11d8739b84a311a40a3069dc4cfca688be22` signing/OTA/common utilities,
-and the LineageOS android_system_update_engine lineage-20.0 payload generator
-and update_metadata.proto. Generic OpenSSL/APK/CMS utility functions are shared
+and LineageOS android_system_update_engine
+`e096c52322ef05fe11095b0b28bbb44b9375f6a5` (especially
+`scripts/brillo_update_payload` extract_partition, payload generator and
+update_metadata.proto). Generic OpenSSL/APK/CMS utility functions are shared
 with release-19.1.py; its SDK32 signing gates and key-generation entry point are
 never used. A bounded metadata reader is used only to validate the payload's
 partition inventory; cryptographic payload validation uses delta_generator.

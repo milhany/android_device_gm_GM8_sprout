@@ -51,7 +51,7 @@ def boot(kernel,store,debug='1'):
     header=bytearray(2048);header[:8]=b'ANDROID!'
     struct.pack_into('<I',header,8,len(kernel));struct.pack_into('<I',header,16,len(ram))
     struct.pack_into('<I',header,36,2048)
-    return bytes(header)+kernel+b'\0'*(-len(kernel)%2048)+ram
+    return bytes(header)+kernel+b'\0'*(-len(kernel)%2048)+ram+b'\0'*(-len(ram)%2048)
 
 
 def varint(value):
@@ -65,10 +65,12 @@ def field(number,value):
     return varint(number<<3|2)+varint(len(value))+value
 
 
-def payload(bootdata,parts=('boot','system','vendor'),minor=0,old=False):
+def payload(bootdata,parts=('boot','system','vendor'),minor=0,old=False,pad=True,block_size=None):
     manifest=field(12,minor)
+    if block_size is not None:manifest+=field(3,block_size)
     for name in parts:
         data=bootdata if name=='boot' else name.encode()
+        if pad:data+=b'\0'*(-len(data)%4096)
         info=field(1,len(data))+field(2,hashlib.sha256(data).digest())
         row=field(1,name.encode())+field(7,info)
         if old:row+=field(6,b'')
@@ -421,7 +423,8 @@ class FirstBootTest(unittest.TestCase):
         digest=hashlib.sha256(self.kernel).hexdigest()
         self.assertEqual(signer.verify_boot(self.boot,digest,wanted),['system/etc/security/otacerts.zip'])
         other=zipped({'wrong.pem':(self.root/'source.x509.pem').read_bytes()})
-        for bad in (boot(self.kernel,other),boot(self.kernel,self.store,'0'),boot(b'other-kernel',self.store),self.boot[:-1]):
+        ram_end=4096+struct.unpack_from('<I',self.boot,16)[0]
+        for bad in (boot(self.kernel,other),boot(self.kernel,self.store,'0'),boot(b'other-kernel',self.store),self.boot[:ram_end-1]):
             with self.assertRaises((ValueError,EOFError,OSError)):signer.verify_boot(bad,digest,wanted)
         with self.assertRaises(ValueError):signer.ramdisk_files(b'not cpio')
         with self.assertRaises(ValueError):signer.ramdisk_files(cpio([('same',b'a',0),('same',b'b',0)]))
@@ -508,13 +511,15 @@ class FirstBootTest(unittest.TestCase):
         file=self.work/'payload'
         file.write_bytes(payload(self.boot));good=signer.payload_manifest(file)
         self.assertEqual(set(good),signer.PARTITIONS)
-        self.assertEqual(good['boot']['sha256'],hashlib.sha256(self.boot).hexdigest())
+        self.assertEqual(good['boot']['sha256'],signer.payload_boot_info(self.boot)['sha256'])
         valid=payload(self.boot);length=struct.unpack_from('>Q',valid,12)[0]
         dynamic=valid[24:24+length]+field(15,b'unsupported')
         dynamic=struct.pack('>4sQQI',b'CrAU',2,len(dynamic),4)+dynamic+b'sign'
         for bad in (dynamic,payload(self.boot,parts=('boot','system','persist')),
                     payload(self.boot,parts=('boot','system','vendor','boot')),
-                    payload(self.boot,minor=1),payload(self.boot,old=True),b'CrAU',
+                    payload(self.boot,minor=1),payload(self.boot,old=True),
+                    payload(self.boot,block_size=2048),payload(self.boot,block_size=8192),
+                    payload(self.boot,pad=False),b'CrAU',
                     struct.pack('>4sQQI',b'CrAU',2,signer.LIMIT+1,4),
                     struct.pack('>4sQQI',b'CrAU',2,2,4)+b'\x6a\xff'):
             file.write_bytes(bad)
@@ -538,6 +543,7 @@ class FirstBootTest(unittest.TestCase):
     def test_real_whole_ota_crypto_and_payload_verifier_command(self):
         plan=self.plan();ota=self.signed_ota()
         check={'boot_bytes':len(self.boot),'boot_sha256':hashlib.sha256(self.boot).hexdigest(),
+               'payload_boot':signer.payload_boot_info(self.boot),
                'signed_build':{'ro.build.fingerprint':'essential/mata/mata:8.1.0/id/399:user/release-keys'}}
         # The real delta_generator runs on the build host, after all other
         # checks. Here assert the exact verified SDK33 invocation and its failure.
@@ -556,6 +562,72 @@ class FirstBootTest(unittest.TestCase):
         ota=self.signed_ota();raw=bytearray(ota.read_bytes());raw[raw.index(b'payload-data')]^=1;ota.write_bytes(raw)
         with self.assertRaises((ValueError,subprocess.CalledProcessError,zipfile.BadZipFile)):
             signer.verify_payload(ota,plan,self.work,check)
+
+    def test_payload_accepts_only_exact_sdk33_zero_extension(self):
+        plan=self.plan()
+        self.assertEqual(len(self.boot)%4096,2048)
+        actual=subprocess.run
+        def invoke(argv,*a,**kw):
+            if Path(argv[0]).name=='delta_generator':return subprocess.CompletedProcess(argv,0)
+            return actual(argv,*a,**kw)
+        for raw in (self.boot,self.boot+b'\0'*2048):
+            check={'boot_bytes':len(raw),'boot_sha256':hashlib.sha256(raw).hexdigest(),
+                   'payload_boot':signer.payload_boot_info(raw),
+                   'signed_build':{'ro.build.fingerprint':'essential/mata/mata:8.1.0/id/399:user/release-keys'}}
+            with patch.object(signer.subprocess,'run',side_effect=invoke):
+                for block in (None,4096):
+                    info,parts=signer.verify_payload(self.signed_ota(data=payload(raw,block_size=block)),plan,self.work,check)
+                    self.assertEqual(parts['boot']['bytes'],len(raw)+(-len(raw)%4096))
+                for bad in (raw+b'\x01',raw+b'\0'*4096,raw[1:],b'wrong'+raw[5:]):
+                    with self.assertRaisesRegex(ValueError,'boot differs'):
+                        signer.verify_payload(self.signed_ota(data=payload(bad)),plan,self.work,check)
+        valid=payload(self.boot,block_size=4096);length=struct.unpack_from('>Q',valid,12)[0]
+        manifest=valid[24:24+length]+field(3,4096)
+        duplicate=struct.pack('>4sQQI',b'CrAU',2,len(manifest),4)+manifest+b'sign'
+        file=self.work/'duplicate-block';file.write_bytes(duplicate)
+        with self.assertRaisesRegex(ValueError,'block_size'):signer.payload_manifest(file)
+
+    def test_verify_retained_outputs_without_signing_or_password(self):
+        plan=self.plan();output=self.work/'retained';output.mkdir(mode=0o700)
+        entries=dict(self.entries);entries['SYSTEM/build.prop']=entries['SYSTEM/build.prop'].replace('test-keys','release-keys')
+        signed=output/'signed-target_files.zip';signed.write_bytes(zipped(entries))
+        ota=output/'gm8-20.0-userdebug-firstboot.zip';shutil.copyfile(self.signed_ota(),ota)
+        before={p:p.read_bytes() for p in (self.target,signed,ota,*self.keys.iterdir())}
+        actual=subprocess.run;commands=[];fail=True
+        def invoke(argv,*a,**kw):
+            name=Path(argv[0]).name;commands.append(name)
+            self.assertNotIn(name,('sign_target_files_apks','ota_from_target_files'))
+            if name=='delta_generator':
+                if fail:raise subprocess.CalledProcessError(1,argv)
+                return subprocess.CompletedProcess(argv,0)
+            return actual(argv,*a,**kw)
+        boot=output/'gm8-20.0-userdebug-firstboot-boot.img';record=output/'verification.json'
+        with patch.object(signer.subprocess,'run',side_effect=invoke),patch.object(signer.crypto,'apk_verify'),patch.object(signer.crypto,'key_password',side_effect=AssertionError('No password for verification')):
+            with self.assertRaises(subprocess.CalledProcessError):signer.finish_verification(plan,output,self.work)
+            self.assertFalse(boot.exists());self.assertFalse(record.exists())
+            fail=False;signer.finish_verification(plan,output,self.work)
+            report=json.loads(record.read_text());self.assertEqual(boot.read_bytes(),self.boot)
+            self.assertEqual(report['boot_sha256'],hashlib.sha256(self.boot).hexdigest())
+            self.assertEqual(report['payload_boot']['zero_padding_bytes'],2048)
+            self.assertEqual(report['payload_partitions']['boot']['sha256'],report['payload_boot']['sha256'])
+            self.assertTrue(report['whole_ota_signature_verified']);self.assertTrue(report['payload_signature_verified'])
+            with self.assertRaisesRegex(ValueError,'already exist'):signer.finish_verification(plan,output,self.work)
+        self.assertIn('delta_generator',commands)
+        for path,data in before.items():self.assertEqual(path.read_bytes(),data)
+
+    def test_verify_retained_outputs_rejects_stale_source_and_bad_boot(self):
+        plan=self.plan();output=self.work/'retained';output.mkdir(mode=0o700)
+        entries=dict(self.entries);entries['SYSTEM/build.prop']=entries['SYSTEM/build.prop'].replace('test-keys','release-keys')
+        (output/'signed-target_files.zip').write_bytes(zipped(entries))
+        ota=output/'gm8-20.0-userdebug-firstboot.zip';shutil.copyfile(self.signed_ota(data=payload(b'other boot')),ota)
+        with patch.object(signer.crypto,'apk_verify'):
+            with self.assertRaisesRegex(ValueError,'boot differs'):signer.finish_verification(plan,output,self.work)
+            self.target.write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError,'changed since planning'):signer.finish_verification(plan,output,self.work)
+            self.target.unlink();ota.unlink()
+            with self.assertRaisesRegex(ValueError,'Both existing'):signer.finish_verification(plan,output,self.work)
+        self.assertFalse((output/'verification.json').exists())
+        self.assertFalse((output/'gm8-20.0-userdebug-firstboot-boot.img').exists())
 
     def test_sign_orchestration_verifies_before_publishing_and_keeps_keys(self):
         plan=self.plan();keys_before={p.name:p.read_bytes() for p in self.keys.iterdir()}
