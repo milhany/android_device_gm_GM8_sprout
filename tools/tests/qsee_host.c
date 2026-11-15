@@ -151,6 +151,7 @@ struct qseecom_dev_handle {
     bool fast_load_enabled, perf_enabled;
 };
 struct inode { int unused; };
+typedef void *fl_owner_t;
 struct file { void *private_data; };
 static struct {
     pthread_mutex_t registered_listener_list_lock;
@@ -264,6 +265,12 @@ static int qseecom_scm_call(uint32_t svc, uint32_t cmd, const void *buf,
 }
 
 #include "actual.c"
+
+#ifdef QSEE_EXIT_FLUSH
+#define abort_legacy_for_release(d) __qseecom_abort_legacy_listener((d), true)
+#else
+#define abort_legacy_for_release(d) __qseecom_abort_legacy_listener(d)
+#endif
 
 static struct qseecom_registered_listener_list *add_listener(unsigned int id) {
     struct qseecom_dev_handle data;
@@ -493,24 +500,24 @@ static void group_scope_case(void) {
     setup(0, 0); target = add_listener(0x2000); closing = add_listener(0x3000);
     d = handle(0x3000);
     host_current.flags = PF_EXITING; /* Exiting a single thread is insufficient. */
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(!atomic_read(&target->legacy_close) && atomic_read(&closing->legacy_close));
     atomic_set(&closing->legacy_close, 0); host_current.flags = 0;
     d->type = QSEECOM_CLIENT_APP;
-    __qseecom_abort_legacy_listener(d); /* A union ID collision is not a listener close. */
+    abort_legacy_for_release(d); /* A union ID collision is not a listener close. */
     assert(!atomic_read(&target->legacy_close) && !atomic_read(&closing->legacy_close));
     d->type = QSEECOM_LISTENER_SERVICE;
     atomic_set(&closing->legacy_close, 0); host_current.flags = 0;
     owner_signal.flags = SIGNAL_GROUP_EXIT; /* The closer must also be exiting. */
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(!atomic_read(&target->legacy_close) && atomic_read(&closing->legacy_close));
     atomic_set(&closing->legacy_close, 0); host_current.flags = PF_EXITING;
     host_current.tgid = &owner_b; /* Same numeric TGID, different stable identity. */
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(!atomic_read(&target->legacy_close) && atomic_read(&closing->legacy_close));
     atomic_set(&closing->legacy_close, 0); host_current.tgid = &owner_a;
     qseecom.qsee_reentrancy_support = 2;
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(!atomic_read(&target->legacy_close) && !atomic_read(&closing->legacy_close));
     free(d); free_list();
     assert(!owner_a.references && !owner_b.references && !allocation_count);
@@ -550,7 +557,7 @@ static void early_close_case(void) {
     struct qseecom_registered_listener_list *l;
     struct qseecom_dev_handle *d;
     setup(0, 0); l = add_listener(0x2000); d = handle(0x2000);
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(atomic_read(&l->legacy_close) == 1);
     assert(!pthread_create(&a, NULL, run_client, NULL)); assert(!pthread_join(a, NULL));
     assert(client_result == -ENODEV && failure_responses == 1 && buffer_handle.alive);
@@ -562,7 +569,7 @@ static void reentrant_guard_case(void) {
     struct qseecom_dev_handle *d;
     setup(0, 0); l = add_listener(0x2000); d = handle(0x2000);
     qseecom.qsee_reentrancy_support = 2;
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(atomic_read(&l->legacy_close) == 0 && buffer_handle.alive);
     assert(!__qseecom_listener_has_sent_rsp(&client, l));
     assert(!__qseecom_reentrancy_listener_has_sent_rsp(&client, l));
@@ -571,7 +578,7 @@ static void reentrant_guard_case(void) {
 static void missing_listener_case(void) {
     struct qseecom_dev_handle *d;
     setup(0, 0); d = handle(0x2000);
-    __qseecom_abort_legacy_listener(d);
+    abort_legacy_for_release(d);
     assert(!qseecom.send_resp_flag && buffer_handle.alive);
     free(d);
 }
@@ -596,6 +603,51 @@ static void chained_listener_case(void) {
     assert(client_result == -ENODEV && failure_responses == 1 && success_responses == 1);
     assert(dereg_seq > response_seq && unmap_seq > dereg_seq);
     free_list();
+}
+#endif
+#ifdef QSEE_EXIT_FLUSH
+static void exit_flush_scope_case(void) {
+    struct qseecom_registered_listener_list *target, *other, *foreign;
+    struct qseecom_dev_handle *d;
+    struct file f;
+    setup(0, 0); target = add_listener(0x2000); other = add_listener(0x3000);
+    host_current.tgid = &owner_b; foreign = add_listener(0x4000);
+    d = handle(0x2000); f.private_data = d;
+    qseecom_flush(&f, NULL); /* Ordinary close is not final release. */
+    assert(!atomic_read(&target->legacy_close) && !atomic_read(&other->legacy_close));
+    host_current.flags = PF_EXITING; owner_signal.flags = SIGNAL_GROUP_EXIT;
+    qseecom_flush(&f, NULL); /* Child closes an inherited parent listener FD. */
+    assert(!atomic_read(&target->legacy_close) && !atomic_read(&other->legacy_close));
+    assert(atomic_read(&foreign->legacy_close));
+    host_current.tgid = &owner_a; d->released = true;
+    qseecom_flush(&f, NULL);
+    assert(!atomic_read(&target->legacy_close));
+    d->released = false; qseecom.qsee_reentrancy_support = 2;
+    qseecom_flush(&f, NULL);
+    assert(!atomic_read(&target->legacy_close));
+    f.private_data = NULL; qseecom_flush(&f, NULL);
+    free(d); free_list();
+    assert(!owner_a.references && !owner_b.references && !allocation_count);
+}
+static void deferred_flush_case(void) {
+    pthread_t a, b;
+    struct qseecom_registered_listener_list *target, *other;
+    struct qseecom_dev_handle *d;
+    struct file f;
+    setup(0, 0); target = add_listener(0x2000); other = add_listener(0x3000);
+    d = handle(0x3000); d->type = QSEECOM_CLIENT_APP; f.private_data = d;
+    assert(!pthread_create(&a, NULL, run_client, NULL)); await(&waiting);
+    host_current.flags = PF_EXITING; owner_signal.flags = SIGNAL_GROUP_EXIT;
+    assert(qseecom_flush(&f, NULL) == 0);
+    /* run_close starts with empty TLS current: model worker-context release. */
+    assert(!pthread_create(&b, NULL, run_close, d));
+    await(&client_done); await(&close_done);
+    assert(!pthread_join(a, NULL) && !pthread_join(b, NULL));
+    assert(client_result == -ENODEV && failure_responses == 1);
+    assert(atomic_read(&target->legacy_close) && atomic_read(&other->legacy_close));
+    free_list();
+    assert(!owner_a.references && !owner_b.references && !allocation_count);
+    puts("PASS: exit flush before worker-context release; generic/client FD first; inherited FD and normal close isolation");
 }
 #endif
 int main(void) {
@@ -636,6 +688,9 @@ int main(void) {
         group_close_case(modern, whitelist, 0, -EIO);
     }
     group_scope_case(); registration_lifetime_case();
+#ifdef QSEE_EXIT_FLUSH
+    exit_flush_scope_case(); deferred_flush_case();
+#endif
     client_first_close_case(); lookup_case();
     missing_active_listener_case(0); missing_active_listener_case(1);
     for (modern = 0; modern < 2; modern++) for (whitelist = 0; whitelist < 2; whitelist++)
@@ -658,3 +713,4 @@ int main(void) {
 #endif
     return 0;
 }
+
