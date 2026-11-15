@@ -44,6 +44,9 @@ def main():
     args = parser.parse_args()
     source = args.source.read_text()
     names = NAMES[1:] if args.baseline else NAMES
+    exit_flush = '\nstatic int qseecom_flush(' in source
+    if exit_flush:
+        names = names + ['qseecom_flush']
     actual = '\n\n'.join(function(source, name) for name in names)
     with tempfile.TemporaryDirectory(prefix='gm8-qsee-test-') as tmp:
         tmp = Path(tmp)
@@ -58,6 +61,8 @@ def main():
             cmd += ['-DBASELINE=1']
         if args.group_baseline:
             cmd += ['-DGROUP_BASELINE=1']
+        if exit_flush:
+            cmd += ['-DQSEE_EXIT_FLUSH=1']
         cmd += [str(Path(__file__).with_name('qsee_host.c')), '-o', str(binary)]
         subprocess.run(cmd, check=True)
         env = dict(os.environ)
@@ -68,3 +73,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
