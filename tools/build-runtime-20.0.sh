@@ -12,6 +12,8 @@ exec > >(tee "$record/runtime-build.log") 2>&1
 echo "Full runtime candidate build log: $record/runtime-build.log"
 repo manifest -r -o "$record/manifest.xml"
 python3 "$script/apply-runtime-stack-20.0.py" --top "$top" --record "$record/runtime-stack.json"
+python3 "$script/tests/time_ipc_20_0_test.py" --vendor-root "$top/vendor/gm/GM8_sprout/proprietary"
+python3 "$script/fixup-time-ipc-20.0.py" --top "$top" --record "$record/time-ipc.json"
 python3 "$script/preflight-20.0.py" --top "$top" --output "$record/source-audit.json"
 python3 "$script/check-runtime-20.0.py" --top "$top"
 python3 "$script/tests/kernel_host_link_test.py" --kernel "$top/kernel/gm/msm8937"
@@ -49,3 +51,4 @@ echo "Full build completed. Records: $record"
 echo "Target-files: $top/out/target/product/GM8_sprout/obj/PACKAGING/target_files_intermediates"
 echo 'Unsigned userdebug source candidate. No OTA/signing/installation or hardware acceptance was performed.'
 echo 'Next checkpoint: inspect the new packaged outputs and plan the first boot; do not install older bring-up artifacts.'
+
