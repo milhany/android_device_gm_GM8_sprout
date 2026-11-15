@@ -17,6 +17,7 @@ python3 "$script/check-runtime-20.0.py" --top "$top"
 python3 "$script/tests/kernel_host_link_test.py" --kernel "$top/kernel/gm/msm8937"
 python3 "$script/tests/ft8006_gesture_test.py" --kernel "$top/kernel/gm/msm8937"
 python3 "$script/tests/qsee_wait_test.py" --source "$top/kernel/gm/msm8937/drivers/misc/qseecom.c"
+python3 "$script/tests/qsee_memory_test.py" --source "$top/kernel/gm/msm8937/drivers/misc/qseecom.c"
 python3 "$script/tests/power_policy_test.py"
 python3 "$script/fixup-legacy-protobuf.py" --top "$top" --record "$record/protobuf-fixups.json"
 set +u

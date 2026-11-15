@@ -30,6 +30,7 @@ python3 "$script/preflight-20.0.py" --top "$top" --output "$record/source-audit.
 python3 "$script/tests/kernel_host_link_test.py" --kernel "$top/kernel/gm/msm8937"
 python3 "$script/tests/ft8006_gesture_test.py" --kernel "$top/kernel/gm/msm8937"
 python3 "$script/tests/qsee_wait_test.py" --source "$top/kernel/gm/msm8937/drivers/misc/qseecom.c"
+python3 "$script/tests/qsee_memory_test.py" --source "$top/kernel/gm/msm8937/drivers/misc/qseecom.c"
 python3 "$script/tests/power_policy_test.py"
 echo "Source checkpoint: $record/source-audit.json"
 if [[ "$stage" != audit ]]; then

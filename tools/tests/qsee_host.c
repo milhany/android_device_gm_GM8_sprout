@@ -45,7 +45,8 @@ static pthread_mutex_t wait_lock = PTHREAD_MUTEX_INITIALIZER;
 static int waiting, client_done, close_done, failure_responses, success_responses;
 static int seq, response_seq, dereg_seq, unmap_seq, cache_calls;
 static int scm_error, dereg_error, response_seen_closed_buffer;
-static int next_listener, chain_step;
+static int cache_error, clock_error, clock_refs;
+static int next_listener, chain_step, no_buffer_response;
 static void wake_up_all(wait_queue_head_t *q) {
     mutex_lock(&wait_lock); assert(!pthread_cond_broadcast(q)); mutex_unlock(&wait_lock);
 }
@@ -152,20 +153,21 @@ struct qseecom_dev_handle {
 struct inode { int unused; };
 struct file { void *private_data; };
 static struct {
-    struct list_head registered_listener_list_head;
     pthread_mutex_t registered_listener_list_lock;
     wait_queue_head_t send_resp_wq;
     volatile int send_resp_flag;
     int qsee_reentrancy_support, qsee_version, whitelist_support;
     int support_bus_scaling, cumulative_mode;
     void *ion_clnt;
+    /* The sentinel ends at an ASan redzone: it must never become a listener. */
+    struct list_head registered_listener_list_head;
 } qseecom;
 static struct ion_handle buffer_handle;
 static struct qseecom_dev_handle client;
 static int client_result;
 
 static int msm_ion_do_cache_op(void *a, struct ion_handle *h, void *v, size_t len, int op) {
-    assert(h->alive); cache_calls++; return 0;
+    assert(h->alive); cache_calls++; return cache_error;
 }
 static void ion_unmap_kernel(void *a, struct ion_handle *h) {
     assert(h->alive); h->alive = 0; unmap_seq = ++seq;
@@ -209,17 +211,16 @@ static int __qseecom_set_sb_memory(struct qseecom_registered_listener_list *p,
 #define kfree(p) free(p)
 #define virt_to_phys(p) ((uintptr_t)(p))
 #define dmac_flush_range(a,b) ((void)0)
-static int __qseecom_enable_clk(int c) { return 0; }
-static int __qseecom_disable_clk(int c) { return 0; }
+static int __qseecom_enable_clk(int c) {
+    if (clock_error) return clock_error;
+    assert(!clock_refs); clock_refs++; return 0;
+}
+static int __qseecom_disable_clk(int c) { assert(clock_refs == 1); clock_refs--; return 0; }
 static int qseecom_unload_app(struct qseecom_dev_handle *d, bool c) { return 0; }
 static int qseecom_unmap_ion_allocated_memory(struct qseecom_dev_handle *d) { return 0; }
 static int qseecom_unregister_bus_bandwidth_needs(struct qseecom_dev_handle *d) { return 0; }
 static int __qseecom_set_msm_bus_request(int mode) { return 0; }
 static int qsee_disable_clock_vote(struct qseecom_dev_handle *d, int c) { return 0; }
-static int __qseecom_qseos_fail_return_resp_tz(struct qseecom_dev_handle *d,
-    struct qseecom_command_scm_resp *r, struct qseecom_client_listener_data_irsp *x,
-    struct qseecom_registered_listener_list *l, uint32_t id) { return -EINVAL; }
-
 static int qseecom_scm_call(uint32_t svc, uint32_t cmd, const void *buf,
     size_t len, void *out, size_t outlen) {
     const struct qseecom_client_listener_data_irsp *r = buf;
@@ -236,6 +237,16 @@ static int qseecom_scm_call(uint32_t svc, uint32_t cmd, const void *buf,
     assert(len == (qseecom.qsee_version < QSEE_VERSION_40 ?
         sizeof(struct qseecom_client_listener_data_irsp) :
         sizeof(struct qseecom_client_listener_data_64bit_irsp)));
+    assert(r->qsee_cmd_id == (qseecom.whitelist_support ?
+           QSEOS_LISTENER_DATA_RSP_COMMAND_WHITELIST : QSEOS_LISTENER_DATA_RSP_COMMAND));
+    if (no_buffer_response) {
+        const struct qseecom_client_listener_data_64bit_irsp *r64 = buf;
+        assert(r->status == QSEOS_RESULT_FAILURE);
+        if (qseecom.qsee_version < QSEE_VERSION_40)
+            assert(!r->sglistinfo_ptr && !r->sglistinfo_len);
+        else
+            assert(!r64->sglistinfo_ptr && !r64->sglistinfo_len);
+    }
     assert(buffer_handle.alive);
     response_seen_closed_buffer = !buffer_handle.alive;
     response_seq = ++seq;
@@ -322,7 +333,8 @@ static void setup(int modern, int whitelist) {
     failure_responses = success_responses = 0;
     seq = response_seq = dereg_seq = unmap_seq = cache_calls = 0;
     scm_error = dereg_error = response_seen_closed_buffer = 0;
-    next_listener = chain_step = 0;
+    cache_error = clock_error = clock_refs = 0;
+    next_listener = chain_step = no_buffer_response = 0;
     client_result = 999;
 }
 static void free_list(void) {
@@ -372,6 +384,72 @@ static void close_case(int modern, int whitelist, int error, int response_first)
     assert(qseecom.registered_listener_list_head.next == &qseecom.registered_listener_list_head);
 }
 #ifndef BASELINE
+static void client_first_close_case(void) {
+    pthread_t a, b;
+    struct qseecom_dev_handle *d;
+    setup(0, 0); add_listener(0x2000);
+    d = handle(0);
+    d->type = QSEECOM_CLIENT_APP;
+    owner_signal.flags = SIGNAL_GROUP_EXIT;
+    assert(!pthread_create(&a, NULL, run_client, NULL)); await(&waiting);
+    assert(!pthread_create(&b, NULL, run_group_close, d));
+    await(&client_done); await(&close_done);
+    assert(!pthread_join(a, NULL)); assert(!pthread_join(b, NULL));
+    assert(client_result == -ENODEV && failure_responses == 1 && !success_responses);
+    assert(buffer_handle.alive && !unmap_seq); /* Listener FD is not closed yet. */
+    run_close(handle(0x2000));
+    assert(dereg_seq > response_seq && unmap_seq > dereg_seq);
+    assert(!owner_a.references && !allocation_count);
+}
+
+static void failure_abi_case(int modern, int whitelist) {
+    struct qseecom_command_scm_resp resp = {QSEOS_RESULT_INCOMPLETE, 0, 0x6000};
+    struct qseecom_client_listener_data_irsp out;
+    setup(modern, whitelist); no_buffer_response = 1;
+    memset(&out, 0xa5, sizeof(out));
+    assert(__qseecom_qseos_fail_return_resp_tz(&client, &resp, &out, NULL, 0x6000) == 0);
+    assert(failure_responses == 1 && !success_responses);
+    assert(!cache_calls && buffer_handle.alive);
+}
+
+static void failure_error_case(int modern, int whitelist, int kind, unsigned int id) {
+    struct qseecom_command_scm_resp resp = {QSEOS_RESULT_INCOMPLETE, 0, id};
+    struct qseecom_client_listener_data_irsp out;
+    struct qseecom_registered_listener_list *listener = NULL;
+    int ret;
+    setup(modern, whitelist);
+    if (kind == 1) { listener = add_listener(id); cache_error = -EIO; }
+    if (kind == 2) clock_error = -EAGAIN;
+    if (kind == 3) scm_error = -EIO;
+    ret = __qseecom_qseos_fail_return_resp_tz(&client, &resp, &out, listener, id);
+    assert(ret == (kind == 1 || kind == 3 ? -EIO : kind == 2 ? -EAGAIN : 0));
+    assert(!clock_refs && buffer_handle.alive);
+    assert(failure_responses == (kind == 0 || kind == 3 ? 1 : 0));
+    free_list(); assert(!allocation_count && !owner_a.references);
+}
+
+static void missing_active_listener_case(int populated) {
+    struct qseecom_command_scm_resp resp = {QSEOS_RESULT_INCOMPLETE, 0, 0x6000};
+    setup(0, 0); no_buffer_response = 1;
+    if (populated) add_listener(0x2000);
+    mutex_lock(&app_access_lock);
+    assert(__qseecom_process_incomplete_cmd(&client, &resp) == -EINVAL);
+    mutex_unlock(&app_access_lock);
+    assert(failure_responses == 1 && !success_responses && !cache_calls);
+    free_list();
+    assert(!allocation_count && !owner_a.references);
+}
+
+static void lookup_case(void) {
+    struct qseecom_registered_listener_list *listener;
+    setup(0, 0);
+    assert(__qseecom_find_svc(0x2000) == NULL);
+    listener = add_listener(0x2000);
+    assert(__qseecom_find_svc(0x2000) == listener);
+    assert(__qseecom_find_svc(0x3000) == NULL);
+    free_list();
+}
+
 static void group_close_case(int modern, int whitelist, int chain, int error) {
     pthread_t a, b;
     struct qseecom_registered_listener_list *target, *foreign;
@@ -417,6 +495,11 @@ static void group_scope_case(void) {
     host_current.flags = PF_EXITING; /* Exiting a single thread is insufficient. */
     __qseecom_abort_legacy_listener(d);
     assert(!atomic_read(&target->legacy_close) && atomic_read(&closing->legacy_close));
+    atomic_set(&closing->legacy_close, 0); host_current.flags = 0;
+    d->type = QSEECOM_CLIENT_APP;
+    __qseecom_abort_legacy_listener(d); /* A union ID collision is not a listener close. */
+    assert(!atomic_read(&target->legacy_close) && !atomic_read(&closing->legacy_close));
+    d->type = QSEECOM_LISTENER_SERVICE;
     atomic_set(&closing->legacy_close, 0); host_current.flags = 0;
     owner_signal.flags = SIGNAL_GROUP_EXIT; /* The closer must also be exiting. */
     __qseecom_abort_legacy_listener(d);
@@ -522,6 +605,17 @@ int main(void) {
     pthread_mutex_init(&qseecom.registered_listener_list_lock, NULL);
     init_waitqueue_head(&qseecom.send_resp_wq);
     assert(owner_a.number == owner_b.number);
+#if !defined(BASELINE) && !defined(GROUP_BASELINE)
+    if (getenv("QSEE_AUDIT_CASE")) {
+        const char *name = getenv("QSEE_AUDIT_CASE");
+        if (!strcmp(name, "client-close")) client_first_close_case();
+        else if (!strcmp(name, "failure-abi")) failure_abi_case(0, 0);
+        else if (!strcmp(name, "missing-listener")) missing_active_listener_case(0);
+        else abort();
+        puts("PASS: selected source-audit regression");
+        return 0;
+    }
+#endif
 #ifdef BASELINE
     close_case(0, 0, 0, 0);
 #elif defined(GROUP_BASELINE)
@@ -542,6 +636,17 @@ int main(void) {
         group_close_case(modern, whitelist, 0, -EIO);
     }
     group_scope_case(); registration_lifetime_case();
+    client_first_close_case(); lookup_case();
+    missing_active_listener_case(0); missing_active_listener_case(1);
+    for (modern = 0; modern < 2; modern++) for (whitelist = 0; whitelist < 2; whitelist++)
+        failure_abi_case(modern, whitelist);
+    for (modern = 0; modern < 2; modern++) for (whitelist = 0; whitelist < 2; whitelist++) {
+        int kind;
+        for (kind = 0; kind < 4; kind++) {
+            failure_error_case(modern, whitelist, kind, RPMB_SERVICE);
+            failure_error_case(modern, whitelist, kind, SSD_SERVICE);
+        }
+    }
     for (n = 0; n < 100; n++) {
         close_case(n & 1, (n >> 1) & 1, 0, 0);
         group_close_case(n & 1, (n >> 1) & 1, n & 1, 0);
@@ -549,6 +654,7 @@ int main(void) {
     assert(!owner_a.references && !owner_b.references && !allocation_count);
     puts("PASS: actual C wait/close/unregister; normal response; failure and SCM error; unrelated listener; early close; reentrant guard; absent listener; deregister error; chained TZ response; 100 close races");
     puts("PASS: dying group with first unrelated FD; chained listener failures; foreign/reused TGID isolation; exit flags; registration PID lifetime and error paths; 100 group-close races");
+    puts("PASS: dying service closes client FD first; absent listener lookup; exact failure-response ABI and zero SG metadata");
 #endif
     return 0;
 }

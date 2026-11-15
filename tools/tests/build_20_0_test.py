@@ -70,7 +70,7 @@ if name == 'preflight-20.0.py' and os.environ['GM8_TEST_PREFLIGHT_FAIL'] == '1':
                      'tests/firewall_20_0_test.py', 'apply-network-policy-20.0.py',
                      'tests/network_policy_20_0_test.py', 'apply-socket-20.0.py', 'tests/socket_20_0_test.py', 'apply-permissions-20.0.py', 'tests/permissions_20_0_test.py', 'apply-snapshots-20.0.py', 'tests/snapshots_20_0_test.py',
                      'tests/kernel_host_link_test.py',
-                     'tests/ft8006_gesture_test.py', 'tests/qsee_wait_test.py',
+                     'tests/ft8006_gesture_test.py', 'tests/qsee_wait_test.py', 'tests/qsee_memory_test.py',
                      'tests/power_policy_test.py'):
             (tools / name).write_text(leaf)
         (top / 'build/envsetup.sh').write_text('''

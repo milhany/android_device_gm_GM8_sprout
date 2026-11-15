@@ -25,7 +25,7 @@ if case=='host-failure' and name=='check-runtime-20.0.py':raise SystemExit(22)
         for name in ('apply-runtime-stack-20.0.py','preflight-20.0.py','check-runtime-20.0.py',
                      'fixup-legacy-protobuf.py','inspect-target-files-20.0.py',
                      'tests/kernel_host_link_test.py','tests/ft8006_gesture_test.py',
-                     'tests/qsee_wait_test.py','tests/power_policy_test.py'):
+                     'tests/qsee_wait_test.py','tests/qsee_memory_test.py','tests/power_policy_test.py'):
             (tools/name).write_text(leaf)
         (top/'build').mkdir()
         (top/'build/envsetup.sh').write_text('''lunch(){ echo "lunch $*" >> "$GM8_TRACE"; }
