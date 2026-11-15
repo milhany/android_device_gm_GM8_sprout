@@ -315,7 +315,9 @@ PRODUCT_COPY_FILES += \
 
 # Recovery Ramdisk
 PRODUCT_PACKAGES += \
-    init.recovery.qcom.rc
+    init.recovery.qcom.rc \
+    gm8_recovery_cgroups.json \
+    gm8_recovery_task_profiles.json
 
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/telephony_system_ext_privapp-permissions-qti.xml:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/permissions/telephony_system_ext_privapp-permissions-qti.xml
@@ -395,3 +397,4 @@ include vendor/gm/GM8_sprout/GM8_sprout-vendor.mk
 # Platform-owned init actions cannot be triggered from the vendor subcontext.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/etc/init.gm8.system.rc:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/init/init.gm8.system.rc
+

@@ -372,6 +372,20 @@ def ramdisk_files(data):
     raise ValueError('Missing cpio trailer')
 
 
+def verify_recovery_cgroups(entries):
+    """Check the policy init needs before recovery can start critical services."""
+    props=crypto.props(entries.get('prop.default',(0,b''))[1].decode())
+    if props.get('ro.vendor.gm8.legacy_cgroups')!='true':
+        raise ValueError('Recovery lost GM8 cgroup-v1 selection')
+    for source,target in (('cgroups-gm8.json','cgroups.json'),
+                          ('task-profiles-gm8.json','task_profiles.json')):
+        name='vendor/etc/'+target
+        if name not in entries or not stat.S_ISREG(entries[name][0]):
+            raise ValueError('Recovery missing regular cgroup policy: '+name)
+        if entries[name][1]!=(ROOT/'configs'/source).read_bytes():
+            raise ValueError('Recovery cgroup policy differs from device source: '+name)
+
+
 def verify_boot(data,kernel_hash,wanted_cert):
     if len(data)>64*1024*1024 or data[:8]!=b'ANDROID!' or len(data)<1632:
         raise ValueError('Invalid/oversized GM8 boot image')
@@ -382,6 +396,7 @@ def verify_boot(data,kernel_hash,wanted_cert):
     if hashlib.sha256(data[page:page+ks]).hexdigest()!=kernel_hash:
         raise ValueError('Kernel changed or boot image does not match signed target-files')
     entries=ramdisk_files(data[ramstart:ramstart+rs])
+    verify_recovery_cgroups(entries)
     stores=[n for n in entries if n.endswith('/otacerts.zip')]
     if not stores:raise ValueError('No OTA trust store inside actual boot ramdisk')
     for name in stores:
@@ -673,3 +688,4 @@ def main():
 
 
 if __name__=='__main__':main()
+

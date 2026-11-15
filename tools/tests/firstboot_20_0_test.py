@@ -46,12 +46,16 @@ def cpio(entries):
 
 
 def boot(kernel,store,debug='1'):
-    ram=gzip.compress(cpio([('prop.default',f'ro.debuggable={debug}\n'.encode(),stat.S_IFREG|0o644),
+    ram=gzip.compress(cpio([('prop.default',f'ro.debuggable={debug}\nro.vendor.gm8.legacy_cgroups=true\n'.encode(),stat.S_IFREG|0o644),
+        ('vendor/etc/cgroups.json',(ROOT/'configs/cgroups-gm8.json').read_bytes(),stat.S_IFREG|0o644),
+        ('vendor/etc/task_profiles.json',(ROOT/'configs/task-profiles-gm8.json').read_bytes(),stat.S_IFREG|0o644),
         ('system/etc/security/otacerts.zip',store,stat.S_IFREG|0o644)]))
     header=bytearray(2048);header[:8]=b'ANDROID!'
     struct.pack_into('<I',header,8,len(kernel));struct.pack_into('<I',header,16,len(ram))
     struct.pack_into('<I',header,36,2048)
-    return bytes(header)+kernel+b'\0'*(-len(kernel)%2048)+ram+b'\0'*(-len(ram)%2048)
+    result=bytes(header)+kernel+b'\0'*(-len(kernel)%2048)+ram+b'\0'*(-len(ram)%2048)
+    # Exercise the real 2048-byte boot versus 4096-byte payload alignment case.
+    return result+(b'\0'*2048 if len(result)%4096==0 else b'')
 
 
 def varint(value):
@@ -429,6 +433,24 @@ class FirstBootTest(unittest.TestCase):
         with self.assertRaises(ValueError):signer.ramdisk_files(b'not cpio')
         with self.assertRaises(ValueError):signer.ramdisk_files(cpio([('same',b'a',0),('same',b'b',0)]))
 
+    def test_recovery_requires_both_authoritative_cgroup_files(self):
+        rs=struct.unpack_from('<I',self.boot,16)[0]
+        entries=signer.ramdisk_files(self.boot[4096:4096+rs])
+        signer.verify_recovery_cgroups(entries)
+        for name in ('vendor/etc/cgroups.json','vendor/etc/task_profiles.json'):
+            missing=dict(entries);del missing[name]
+            with self.assertRaisesRegex(ValueError,'missing regular'):
+                signer.verify_recovery_cgroups(missing)
+            stale=dict(entries);stale[name]=(stat.S_IFREG|0o644,b'{}')
+            with self.assertRaisesRegex(ValueError,'differs'):
+                signer.verify_recovery_cgroups(stale)
+            link=dict(entries);link[name]=(stat.S_IFLNK|0o777,entries[name][1])
+            with self.assertRaisesRegex(ValueError,'missing regular'):
+                signer.verify_recovery_cgroups(link)
+        unselected=dict(entries);unselected['prop.default']=(stat.S_IFREG|0o644,b'ro.debuggable=1\n')
+        with self.assertRaisesRegex(ValueError,'selection'):
+            signer.verify_recovery_cgroups(unselected)
+
     def test_signed_inventory_presigned_bytes_and_all_trust_stores(self):
         plan=self.plan();self.entries['SYSTEM/build.prop']=self.entries['SYSTEM/build.prop'].replace('test-keys','release-keys');self.write_target()
         calls=[]
@@ -668,3 +690,4 @@ class FirstBootTest(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
+
