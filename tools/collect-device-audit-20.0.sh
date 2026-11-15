@@ -2,6 +2,12 @@
 # Read-only diagnostic capture on the existing userdebug build. No phone reboot,
 # package changes, service restarts, key deletion or partition writes.
 set -u
+include_boot=0
+case "${1:-}" in
+    "") ;;
+    --include-boot) include_boot=1 ;;
+    *) echo "Usage: $0 [--include-boot]" >&2; exit 2 ;;
+esac
 output="/data/local/tmp/gm8-audit-$(date +%Y%m%dT%H%M%S)-$$"
 umask 077
 mkdir -p "$output" || exit 1
@@ -40,6 +46,27 @@ done
 for name in fingerprint sensorservice media.camera audio wifi; do
     dumpsys "$name" > "$output/dumpsys-$name.txt" 2>&1
 done
+# Preserve persistent traces before a later reboot can replace them.
+for source in /sys/fs/pstore /data/misc/recovery /cache/recovery; do
+    [ -d "$source" ] || continue
+    name=$(echo "$source" | tr / _)
+    cp -R "$source" "$output/$name" 2>> "$output/persistent-copy-errors.txt"
+done
+[ ! -r /proc/last_kmsg ] || cat /proc/last_kmsg > "$output/last_kmsg.txt"
+cat /proc/cmdline > "$output/cmdline.txt" 2>&1
+if [ "$include_boot" = 1 ]; then
+    slot=$(getprop ro.boot.slot_suffix)
+    case "$slot" in
+        _a|_b)
+            source="/dev/block/by-name/boot$slot"
+            echo "$source" > "$output/boot-source.txt"
+            dd if="$source" of="$output/current-boot.img" bs=1048576 count=64 \
+                2> "$output/boot-copy.txt"
+            sha256sum "$output/current-boot.img" > "$output/boot-sha256.txt" 2>&1
+            ;;
+        *) echo "Unknown slot; boot copy skipped: $slot" > "$output/boot-copy.txt" ;;
+    esac
+fi
 archive="$output.tar.gz"
 tar -czf "$archive" -C /data/local/tmp "${output##*/}" || exit 1
 echo "Diagnostic capture: $archive"
