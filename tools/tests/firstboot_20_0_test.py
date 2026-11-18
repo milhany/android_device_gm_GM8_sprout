@@ -680,17 +680,22 @@ class FirstBootTest(unittest.TestCase):
             signer.sign(plan,output,self.work,'java','')
             report=json.loads((output/'verification.json').read_text())
             self.assertTrue(report['payload_signature_verified']);self.assertFalse(report['hardware_tested'])
-            self.assertEqual((output/'gm8-20.0-userdebug-firstboot-boot.img').read_bytes(),self.boot)
+            ota,boot=signer.artifact_paths(plan,output)
+            self.assertEqual(boot.read_bytes(),self.boot)
+            self.assertTrue(ota.name.startswith('lineage-20.0-'))
+            self.assertNotIn('firstboot',ota.name)
+            self.assertEqual(report['output_zip'],str(ota));self.assertEqual(report['output_boot'],str(boot))
             self.assertTrue(all(not p.exists() for p in password_files))
             self.assertFalse(any(flag in command for command in commands for flag in ('--wipe_user_data','--downgrade','-i')))
             with self.assertRaisesRegex(ValueError,'Outputs already exist'):signer.sign(plan,output,self.work,'java','')
             fail_payload=True;output=self.work/'failed';output.mkdir(mode=0o700)
             with self.assertRaises(subprocess.CalledProcessError):signer.sign(plan,output,self.work,'java','')
             self.assertFalse((output/'verification.json').exists())
-            self.assertFalse((output/'gm8-20.0-userdebug-firstboot-boot.img').exists())
+            self.assertFalse(signer.artifact_paths(plan,output)[1].exists())
             self.assertTrue(all(not p.exists() for p in password_files))
         self.assertEqual(keys_before,{p.name:p.read_bytes() for p in self.keys.iterdir()})
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
+
 

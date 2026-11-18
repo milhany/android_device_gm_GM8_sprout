@@ -8,6 +8,7 @@ Never builds Android, replaces an existing key, flashes or formats data.
 import argparse
 import base64
 from collections import Counter
+from datetime import datetime
 import fcntl
 import gzip
 import hashlib
@@ -24,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from zoneinfo import ZoneInfo
 
 ROOT=Path(__file__).resolve().parents[1]
 # Share only the existing OpenSSL/APK/whole-OTA cryptographic utilities.
@@ -559,6 +561,26 @@ def host_tools(top):
     return host,java
 
 
+def artifact_paths(plan,output,allow_legacy=False):
+    """Give each build identifiable, reproducible OTA/boot names."""
+    build=plan['original_build']
+    device=next((build.get(k) for k in ('ro.build.product','ro.product.system.device','ro.product.device')
+                 if build.get(k) in {'GM8_sprout','GM8_d_sprout'}),None)
+    digest=plan['target_sha256']
+    if device is None or not isinstance(digest,str) or not re.fullmatch('[0-9a-f]{64}',digest):
+        raise ValueError('Missing pinned GM8 build identity for output names')
+    stamp='undated'
+    if build.get('ro.build.date.utc'):
+        stamp=datetime.fromtimestamp(int(build['ro.build.date.utc']),ZoneInfo('Europe/Istanbul')).strftime('%Y%m%d-%H%M%S')
+    stem=f'lineage-20.0-{stamp}-UNOFFICIAL-{device}-{digest[:8]}'
+    current=(output/(stem+'.zip'),output/(stem+'-boot.img'))
+    legacy=(output/'gm8-20.0-userdebug-firstboot.zip',output/'gm8-20.0-userdebug-firstboot-boot.img')
+    if allow_legacy and any(path.exists() for path in legacy):
+        if any(path.exists() for path in current):raise ValueError('Mixed legacy and named outputs; use their original separate directories')
+        return legacy
+    return current
+
+
 def sign(plan,output,host,java,password):
     if crypto.digest(plan['target'])!=plan['target_sha256']:raise ValueError('Target-files changed since planning')
     for scope in ('system','recovery'):trusted_certificates(plan,scope)
@@ -567,8 +589,8 @@ def sign(plan,output,host,java,password):
     for c in plan['certificates'].values():
         if hashlib.sha256(crypto.cert_der(c['key']+'.x509.pem')).hexdigest()!=c['new_sha256']:
             raise ValueError('Public signing identity changed since planning')
-    signed=output/'signed-target_files.zip';ota=output/'gm8-20.0-userdebug-firstboot.zip';boot=output/'gm8-20.0-userdebug-firstboot-boot.img'
-    if any(p.exists() for p in (signed,ota,boot,output/'verification.json')):raise ValueError('Outputs already exist; preserve them and use a new plan directory')
+    signed=output/'signed-target_files.zip';ota,boot=artifact_paths(plan,output)
+    if any(p.exists() for p in (signed,ota,boot,output/'verification.json',output/'gm8-20.0-userdebug-firstboot.zip',output/'gm8-20.0-userdebug-firstboot-boot.img')):raise ValueError('Outputs already exist; preserve them and use a new plan directory')
     needed=6*Path(plan['target']).stat().st_size+2*1024**3
     if shutil.disk_usage(output).free<needed:raise ValueError('Insufficient staging space for signing/images/payload verification')
     # Explicit maps cover all actual APK signers and the primary OTA signer.
@@ -593,8 +615,8 @@ def sign(plan,output,host,java,password):
 
 def finish_verification(plan,output,host,checked=None):
     """Verify retained signed outputs without building, signing or creating keys."""
-    signed=output/'signed-target_files.zip';ota=output/'gm8-20.0-userdebug-firstboot.zip'
-    boot=output/'gm8-20.0-userdebug-firstboot-boot.img';record=output/'verification.json'
+    signed=output/'signed-target_files.zip';ota,boot=artifact_paths(plan,output,allow_legacy=True)
+    record=output/'verification.json'
     if boot.exists() or record.exists():raise ValueError('Verified outputs already exist; refusing to overwrite')
     if not signed.is_file() or not ota.is_file():raise ValueError('Both existing signed-target_files.zip and OTA are required; no older directory is substituted')
     if crypto.digest(plan['target'])!=plan['target_sha256']:raise ValueError('Target-files changed since planning')
@@ -688,4 +710,5 @@ def main():
 
 
 if __name__=='__main__':main()
+
 
