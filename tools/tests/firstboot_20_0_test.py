@@ -654,6 +654,24 @@ class FirstBootTest(unittest.TestCase):
         self.assertFalse((output/'verification.json').exists())
         self.assertFalse((output/'gm8-20.0-userdebug-firstboot-boot.img').exists())
 
+    def test_dated_artifact_names_without_timezone_database(self):
+        code='''
+import importlib.util,json,sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('firstboot',sys.argv[1])
+signer=importlib.util.module_from_spec(spec);spec.loader.exec_module(signer)
+plan={'original_build':{'ro.build.product':'GM8_sprout','ro.build.date.utc':'1794990000'},
+      'target_sha256':'01234567'+'0'*56}
+print(json.dumps([p.name for p in signer.artifact_paths(plan,Path('/tmp/unused-output'))]))
+'''
+        # -S also hides site-packages, so an installed Python tzdata package
+        # cannot mask the missing system timezone database seen in containers.
+        result=subprocess.run([sys.executable,'-S','-c',code,str(ROOT/'tools/firstboot-20.0.py')],
+            env={**os.environ,'PYTHONTZPATH':'','TZ':'UTC'},text=True,capture_output=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stderr)
+        stem='lineage-20.0-20261118-112000-UNOFFICIAL-GM8_sprout-01234567'
+        self.assertEqual(json.loads(result.stdout),[stem+'.zip',stem+'-boot.img'])
+
     def test_sign_orchestration_verifies_before_publishing_and_keeps_keys(self):
         plan=self.plan();keys_before={p.name:p.read_bytes() for p in self.keys.iterdir()}
         actual=subprocess.run;password_files=[];commands=[];fail_payload=False
@@ -697,5 +715,6 @@ class FirstBootTest(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
+
 
 

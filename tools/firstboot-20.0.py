@@ -8,7 +8,7 @@ Never builds Android, replaces an existing key, flashes or formats data.
 import argparse
 import base64
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import fcntl
 import gzip
 import hashlib
@@ -25,7 +25,6 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from zoneinfo import ZoneInfo
 
 ROOT=Path(__file__).resolve().parents[1]
 # Share only the existing OpenSSL/APK/whole-OTA cryptographic utilities.
@@ -571,7 +570,9 @@ def artifact_paths(plan,output,allow_legacy=False):
         raise ValueError('Missing pinned GM8 build identity for output names')
     stamp='undated'
     if build.get('ro.build.date.utc'):
-        stamp=datetime.fromtimestamp(int(build['ro.build.date.utc']),ZoneInfo('Europe/Istanbul')).strftime('%Y%m%d-%H%M%S')
+        # Current GM8 builds use Turkey's fixed UTC+03:00 offset. Minimal build
+        # containers need no system tzdata or Python tzdata package for naming.
+        stamp=datetime.fromtimestamp(int(build['ro.build.date.utc']),timezone(timedelta(hours=3))).strftime('%Y%m%d-%H%M%S')
     stem=f'lineage-20.0-{stamp}-UNOFFICIAL-{device}-{digest[:8]}'
     current=(output/(stem+'.zip'),output/(stem+'-boot.img'))
     legacy=(output/'gm8-20.0-userdebug-firstboot.zip',output/'gm8-20.0-userdebug-firstboot-boot.img')
@@ -710,5 +711,6 @@ def main():
 
 
 if __name__=='__main__':main()
+
 
 
