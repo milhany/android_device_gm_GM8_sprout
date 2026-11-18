@@ -118,7 +118,7 @@ class FirstBootTest(unittest.TestCase):
         old='build/make/target/product/security/testkey.x509.pem'
         alias='build/make/target/product/security/shared.x509.pem'
         self.entries={
-            'SYSTEM/build.prop':'ro.build.version.sdk=33\nro.build.type=userdebug\nro.build.tags=test-keys\nro.build.product=GM8_sprout\nro.build.fingerprint=essential/mata/mata:8.1.0/id/399:user/release-keys\n',
+            'SYSTEM/build.prop':'ro.build.version.sdk=33\nro.build.type=userdebug\nro.build.tags=test-keys\nro.build.product=GM8_sprout\nro.build.fingerprint=essential/mata/mata:8.1.0/id/399:user/release-keys\nro.telephony.block_binder_thread_on_incoming_calls=false\n',
             'META/misc_info.txt':'ab_update=true\ndefault_system_dev_certificate=build/make/target/product/security/testkey\n',
             'META/ab_partitions.txt':'boot\nsystem\nvendor\n','META/otakeys.txt':'',
             'META/apkcerts.txt':f'name="System.apk" certificate="{old}" private_key="a.pk8"\nname="Flat.apk" certificate="{alias}" private_key="a.pk8"\nname="Gms.apk" certificate="PRESIGNED" private_key=""\n',
@@ -383,7 +383,10 @@ class FirstBootTest(unittest.TestCase):
         with zipfile.ZipFile(self.target) as archive:
             report=signer.inspection.legacy_runtime_policy(archive)
             self.assertEqual(report['profiles'],40);self.assertEqual(set(report['ims_camera_libraries']),{'lib','lib64'})
+            self.assertEqual(report['ims_incoming_dispatch'],'nonblocking')
         for path,value in [
+            ('SYSTEM/build.prop',complete['SYSTEM/build.prop'].replace('block_binder_thread_on_incoming_calls=false','block_binder_thread_on_incoming_calls=true')),
+            ('SYSTEM/build.prop',complete['SYSTEM/build.prop'].replace('ro.telephony.block_binder_thread_on_incoming_calls=false\n','')),
             ('VENDOR/build.prop','ro.vendor.gm8.legacy_cgroups=false\n'),
             ('VENDOR/etc/cgroups.json','{"Cgroups": []}'),
             ('VENDOR/etc/task_profiles.json','{"Profiles": []}'),

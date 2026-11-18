@@ -92,6 +92,9 @@ def wifi_init_service(archive):
 def legacy_runtime_policy(archive):
     """Validate the paired packaged kernel policy and IMS camera callback ABIs."""
     names=archive.namelist()
+    system=properties(text_from_zip(archive,'SYSTEM/build.prop'))
+    if system.get('ro.telephony.block_binder_thread_on_incoming_calls')!='false':
+        raise ValueError('Missing packaged GM8 nonblocking legacy IMS incoming-call dispatch')
     vendor=properties(text_from_zip(archive,'VENDOR/build.prop'))
     if vendor.get('ro.vendor.gm8.legacy_cgroups')!='true':
         raise ValueError('Missing packaged GM8 legacy-cgroup policy selector')
@@ -135,6 +138,7 @@ def legacy_runtime_policy(archive):
         if 'VENDOR/'+directory+'/libqti-perfd-client.so' not in names:
             raise ValueError('Missing packaged Qualcomm performance client: '+directory)
     return {'controllers':expected,'profiles':len(available),'ims_camera_libraries':libraries,
+            'ims_incoming_dispatch':'nonblocking',
             'performance_client':'libqti-perfd-client.so',
             'scope':'Packaged policy, presence and ELF architecture checks; not runtime/IMS/audio acceptance.'}
 
@@ -294,3 +298,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
